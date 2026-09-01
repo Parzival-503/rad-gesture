@@ -9,3 +9,5 @@ out
 bin
 .DS_Store
 .codegpt
+# RadChecklist local config (may contain an API key)
+ahk/RadChecklist.ini
