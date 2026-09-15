@@ -9,3 +9,6 @@ out
 bin
 .DS_Store
 .codegpt
+
+# API key for tools/ahk - never commit this
+tools/ahk/api-key.txt
