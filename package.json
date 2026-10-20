@@ -40,7 +40,8 @@
         "to": "helper",
         "filter": [
           "*.ahk",
-          "*.exe"
+          "*.exe",
+          "*.interpreter"
         ]
       }
     ],

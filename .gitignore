@@ -12,3 +12,5 @@ scripts/shots/
 dist-preview/
 __pycache__/
 e2e-shots/
+helper/*.exe
+helper/*.interpreter

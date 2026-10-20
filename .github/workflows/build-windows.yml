@@ -56,6 +56,7 @@ jobs:
     name: Windows - helper check, build, real-key end-to-end
     needs: checks
     runs-on: windows-2022
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -78,6 +79,7 @@ jobs:
 
       - name: Helper loads in real AutoHotkey (syntax + startup)
         shell: pwsh
+        timeout-minutes: 3
         run: |
           $out = & "$env:AHK_DIR\AutoHotkeyU64.exe" /ErrorStdOut helper\RadGestureHelper.ahk --selftest 2>&1 | Out-String
           Write-Host $out
@@ -85,23 +87,60 @@ jobs:
 
       - name: Compile the helper into RadGestureHelper.exe
         shell: pwsh
+        timeout-minutes: 6
         run: |
+          # Every wait here has a deadline: a dialog on the runner's desktop
+          # would otherwise hang the job for hours with an empty log.
+          function Shot($name) {
+            Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            New-Item -ItemType Directory -Force e2e-shots | Out-Null
+            $bmp.Save("e2e-shots\$name.png"); Write-Host "screenshot: e2e-shots\$name.png"
+          }
+          function RunFor($exe, $argList, $secs) {
+            $psi = New-Object System.Diagnostics.ProcessStartInfo $exe
+            $psi.Arguments = $argList; $psi.UseShellExecute = $false
+            $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true
+            $p = [System.Diagnostics.Process]::Start($psi)
+            $o = $p.StandardOutput.ReadToEndAsync(); $e = $p.StandardError.ReadToEndAsync()
+            if (-not $p.WaitForExit($secs * 1000)) { return @{ timedOut = $true; proc = $p; out = '' } }
+            return @{ timedOut = $false; code = $p.ExitCode; out = ($o.Result + $e.Result) }
+          }
           $ahk2exe = Get-ChildItem -Recurse $env:AHK_DIR -Filter Ahk2Exe.exe | Select-Object -First 1
           $base = Get-ChildItem -Recurse $env:AHK_DIR -Filter 'Unicode 64-bit.bin' | Select-Object -First 1
-          if (-not $ahk2exe) { throw 'Ahk2Exe not found in the AutoHotkey download.' }
-          $args = @('/in', 'helper\RadGestureHelper.ahk', '/out', 'helper\RadGestureHelper.exe', '/icon', 'assets\icon.ico')
-          if ($base) { $args += @('/bin', $base.FullName) } else { $args += @('/base', "$env:AHK_DIR\AutoHotkeyU64.exe") }
-          $p = Start-Process -FilePath $ahk2exe.FullName -ArgumentList $args -Wait -PassThru -NoNewWindow
-          if (-not (Test-Path helper\RadGestureHelper.exe)) { throw "Compile failed (exit $($p.ExitCode))." }
-          $out = & .\helper\RadGestureHelper.exe --selftest 2>&1 | Out-String
-          Write-Host "compiled selftest: $out"
-          if ($out -notmatch 'SELFTEST OK') { Write-Host 'Note: compiled exe printed nothing (no console for compiled scripts); checking it starts and exits.'; $q = Start-Process .\helper\RadGestureHelper.exe -ArgumentList '--selftest' -Wait -PassThru; if ($q.ExitCode -ne 0) { throw "compiled helper selftest exit $($q.ExitCode)" } }
+          Write-Host "Ahk2Exe: $($ahk2exe.FullName)  base: $($base.FullName)"
+          $mode = 'none'
+          if ($ahk2exe) {
+            $baseArg = if ($base) { "/bin `"$($base.FullName)`"" } else { "/base `"$env:AHK_DIR\AutoHotkeyU64.exe`"" }
+            $r = RunFor $ahk2exe.FullName "/in helper\RadGestureHelper.ahk /out helper\RadGestureHelper.exe /icon assets\icon.ico $baseArg /silent verbose" 120
+            if ($r.timedOut) { Shot 'ahk2exe-stuck'; $r.proc.Kill(); Write-Host 'Ahk2Exe did not finish in 2 minutes (screenshot kept).' }
+            else { Write-Host "Ahk2Exe exit $($r.code): $($r.out)" }
+            if ((Test-Path helper\RadGestureHelper.exe) -and -not $r.timedOut -and $r.code -eq 0) { $mode = 'compiled' }
+          }
+          if ($mode -ne 'compiled') {
+            # Fallback that needs no compiler: AutoHotkey renamed to
+            # RadGestureHelper.exe runs RadGestureHelper.ahk from its own folder.
+            Remove-Item -Force -ErrorAction SilentlyContinue helper\RadGestureHelper.exe
+            Copy-Item "$env:AHK_DIR\AutoHotkeyU64.exe" helper\RadGestureHelper.exe
+            Set-Content helper\RadGestureHelper.interpreter 'AutoHotkey v1.1 renamed; the hub passes it the script.'
+            $mode = 'bundled-interpreter'
+          }
+          Write-Host "helper mode: $mode"
+          "HELPER_MODE=$mode" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # The exe must start and leave cleanly on its own.
+          $st = if ($mode -eq 'compiled') { RunFor (Resolve-Path helper\RadGestureHelper.exe) '--selftest' 60 } else { RunFor (Resolve-Path helper\RadGestureHelper.exe) '/ErrorStdOut helper\RadGestureHelper.ahk --selftest' 60 }
+          if ($st.timedOut) { Shot 'helper-selftest-stuck'; $st.proc.Kill(); throw 'The helper exe did not exit from --selftest within 60 s (a dialog?). See the screenshot artifact.' }
+          Write-Host "selftest exit $($st.code): $($st.out)"
+          if ($st.code -ne 0) { throw "helper exe selftest exit $($st.code)" }
 
       - name: Build the app (installer + portable zip, helper inside)
         run: npm run dist
 
       - name: End-to-end on Windows (helper running, real Ctrl+CapsLock)
         shell: pwsh
+        timeout-minutes: 10
         run: |
           $env:RG_APP_EXE = (Resolve-Path 'dist\win-unpacked\RadGesture.exe').Path
           $env:AHK_EXE = "$env:AHK_DIR\AutoHotkeyU64.exe"

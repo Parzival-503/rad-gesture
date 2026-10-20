@@ -76,9 +76,12 @@ function createSupervisor({ resourcesDir, ahkPathSetting, onChange, log = () => 
     st.output = '';
     let cmd, args;
     if (fs.existsSync(exePath)) {
+      // A build that could not compile ships AutoHotkey itself as the exe
+      // (marked by RadGestureHelper.interpreter); give it the script.
+      const interp = fs.existsSync(path.join(resourcesDir, 'RadGestureHelper.interpreter'));
       st.mode = 'bundled';
       cmd = exePath;
-      args = [];
+      args = interp ? ['/ErrorStdOut', scriptPath] : [];
     } else {
       const ahk = findAutoHotkey(ahkPathSetting && ahkPathSetting());
       if (!ahk) {
