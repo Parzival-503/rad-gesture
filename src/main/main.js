@@ -1,78 +1,79 @@
 // RadGesture hub - Electron main process.
 //
-// One transparent, never-focused overlay window is created at startup and
-// kept loaded, so the ring appears the instant the helper reports
-// Ctrl+CapsLock. Everything that types or touches PowerScribe stays in the
-// AutoHotkey helper; the hub draws the ring, opens links and files, and tells
-// the helper what was picked.
+//  - overlay: one transparent, never-focused window, kept loaded, that shows
+//    the ring the instant the helper reports Ctrl+CapsLock;
+//  - helper: the AutoHotkey part (keys, PowerScribe, AI tools), started and
+//    kept alive by helper-supervisor.js;
+//  - tray: left-click opens Settings, right-click has the full menu;
+//  - Settings window: rings, AI tools, shortcuts, general, status. Nothing is
+//    ever edited by hand in a file.
 
-const { app, BrowserWindow, Tray, Menu, screen, shell, clipboard, ipcMain, nativeImage, Notification } = require('electron');
+const { app, BrowserWindow, Tray, Menu, screen, shell, clipboard, ipcMain, nativeImage, Notification, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
 const { createBridge } = require('./bridge');
 const { resolveAction } = require('./actions');
-const { validateMenu, categoryForApp } = require('../common/menu');
+const { createStore, MODELS } = require('./settings-store');
+const { createSupervisor } = require('./helper-supervisor');
+const conflicts = require('./conflicts');
+const { categoryForApp } = require('../common/menu');
 
 const PREFERRED_PORT = 47811;
 const RELEASE_TIMEOUT_MS = 600;
+const HIDE_AFTER_PICK_MS = 170; // lets the ring's pick animation play
+const E2E = !!process.env.RG_E2E;
 
-// Tests run the real app against a throwaway settings folder.
 if (process.env.RG_USER_DATA) app.setPath('userData', process.env.RG_USER_DATA);
-if (process.env.RG_SMOKE) app.disableHardwareAcceleration(); // headless test display has no GPU
-if (!app.requestSingleInstanceLock()) app.quit();
+if (process.env.RG_SMOKE) app.disableHardwareAcceleration();
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+}
 
-const userDir = () => app.getPath('userData'); // %APPDATA%\RadGesture
-const menuPath = () => path.join(userDir(), 'menu.json');
-const defaultMenuPath = path.join(__dirname, '..', '..', 'config', 'default-menu.json');
-const helperPath = () =>
-  app.isPackaged
-    ? path.join(process.resourcesPath, 'helper', 'RadGestureHelper.ahk')
-    : path.join(__dirname, '..', '..', 'helper', 'RadGestureHelper.ahk');
+const ROOT = path.join(__dirname, '..', '..');
+const userDir = () => app.getPath('userData');
+const store = createStore({ userDir, defaultMenuPath: path.join(ROOT, 'config', 'default-menu.json') });
+const resourcesHelperDir = () => (app.isPackaged ? path.join(process.resourcesPath, 'helper') : path.join(ROOT, 'helper'));
 
 let overlay = null;
+let overlayReady = false;
+let pendingOpen = null;
+let settingsWin = null;
 let tray = null;
 let bridge = null;
+let supervisor = null;
 let menu = null;
 let ringOpen = false;
+let paused = false;
+let hideTimer = null;
 let releaseSeq = 0;
+let lastConflicts = [];
 const releaseWaiters = new Map();
+const events = []; // recent bridge events, for Settings > Status and the tests
 
-// ---------------------------------------------------------------- menu file
+function logEvent(type, detail = '') {
+  events.push({ t: Date.now(), type, detail });
+  if (events.length > 60) events.shift();
+  if (E2E || process.env.RG_SMOKE) console.log(`RG ${type} ${detail}`);
+}
 
 function notify(body) {
+  if (E2E) return logEvent('notify', body);
   if (Notification.isSupported()) new Notification({ title: 'RadGesture', body }).show();
 }
 
+// ---------------------------------------------------------------- menu
+
 function loadMenu() {
-  if (!fs.existsSync(menuPath())) {
-    fs.mkdirSync(userDir(), { recursive: true });
-    // read + write, not copyFile: the default lives inside the app's packed bundle
-    fs.writeFileSync(menuPath(), fs.readFileSync(defaultMenuPath, 'utf8'));
-  }
   try {
-    const next = JSON.parse(fs.readFileSync(menuPath(), 'utf8'));
-    const v = validateMenu(next);
-    if (!v.ok) throw new Error(v.errors.slice(0, 3).join('; '));
-    menu = next;
+    menu = store.readMenu();
     return true;
   } catch (e) {
-    // Keep the last good menu (or the default) rather than leaving no ring.
-    if (!menu) menu = JSON.parse(fs.readFileSync(defaultMenuPath, 'utf8'));
-    if (process.env.RG_SMOKE) console.log('SMOKE menu rejected: ' + e.message);
-    notify('menu.json has a problem, keeping the previous menu: ' + e.message);
+    if (!menu) menu = store.defaultMenu();
+    notify('Your rings could not be read, so the last good version is in use: ' + e.message);
+    logEvent('menu-rejected', e.message);
     return false;
   }
-}
-
-function watchMenu() {
-  let t = null;
-  fs.watch(userDir(), (evt, file) => {
-    if (file !== 'menu.json') return;
-    clearTimeout(t);
-    t = setTimeout(() => loadMenu() && notify('Menu reloaded'), 300);
-  });
 }
 
 // ---------------------------------------------------------------- the ring
@@ -81,48 +82,53 @@ function createOverlay() {
   overlay = new BrowserWindow({
     show: false,
     frame: false,
-    // RG_SMOKE_OPAQUE: screenshot test only - headless displays can't capture transparent windows.
     transparent: !process.env.RG_SMOKE_OPAQUE,
     backgroundColor: process.env.RG_SMOKE_OPAQUE ? '#3a3f48' : '#00000000',
     resizable: false,
     movable: false,
     skipTaskbar: true,
-    focusable: false, // WS_EX_NOACTIVATE on Windows: dictation stays in PowerScribe
+    focusable: false, // WS_EX_NOACTIVATE: dictation stays in PowerScribe
     hasShadow: false,
     alwaysOnTop: true,
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true, sandbox: true },
   });
   overlay.setAlwaysOnTop(true, 'screen-saver');
+  overlay.webContents.on('did-finish-load', () => {
+    overlayReady = true;
+    if (pendingOpen) {
+      const p = pendingOpen;
+      pendingOpen = null;
+      openRing(p.exe, p.mode, p.menuOverride);
+    }
+  });
   overlay.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 }
 
-// mode 'hold': opened by the trigger, released by it (flick). 'click': opened
-// from the tray or a second launch, where nothing is held.
-function openRing(exe, mode = 'hold') {
-  if (process.env.RG_SMOKE) console.log('SMOKE openRing');
+// mode 'hold': opened by the trigger and released by it (flick).
+// mode 'click': opened from the tray, Settings or a second launch.
+function openRing(exe, mode = 'hold', menuOverride = null) {
   if (!overlay) return;
+  if (!overlayReady) {
+    pendingOpen = { exe, mode, menuOverride };
+    return;
+  }
+  clearTimeout(hideTimer);
   const cursor = screen.getCursorScreenPoint();
-  const display = screen.getDisplayNearestPoint(cursor);
-  const b = display.bounds;
+  const b = screen.getDisplayNearestPoint(cursor).bounds;
   overlay.setBounds(b);
   ringOpen = true;
-  overlay.webContents.send('rg:open', {
-    x: cursor.x - b.x,
-    y: cursor.y - b.y,
-    menu,
-    category: categoryForApp(menu, exe),
-    mode,
-  });
+  const m = menuOverride || menu;
+  overlay.webContents.send('rg:open', { x: cursor.x - b.x, y: cursor.y - b.y, menu: m, category: categoryForApp(m, exe), mode });
   overlay.showInactive();
+  logEvent('ring-open', `${mode} ${exe || ''}`.trim());
   if (process.env.RG_SMOKE) smokeReport();
 }
 
-// Smoke test only (scripts/smoke.js): report what the ring drew, and a picture.
 function smokeReport() {
   setTimeout(async () => {
     const st = await overlay.webContents.executeJavaScript(
       'JSON.stringify((s => s && { levels: s.levels.length, cat: s.cat, items: s.levels[0].items.length,' +
-        ' drawn: document.querySelectorAll(".level.current .item").length,' +
+        ' drawn: document.querySelectorAll(".node:not(.back)").length,' +
         ' center: Math.round(document.querySelector(".center").getBoundingClientRect().width) })(window.RGRing.state()))'
     );
     console.log('SMOKE ring ' + st + ' visible=' + overlay.isVisible() + ' focusable=' + overlay.isFocusable());
@@ -130,26 +136,36 @@ function smokeReport() {
       const img = await overlay.webContents.capturePage();
       fs.writeFileSync(path.join(process.env.RG_SMOKE, 'overlay.png'), img.toPNG());
     } catch (e) {
-      console.log('SMOKE capture failed: ' + e.message); // headless displays sometimes can't
+      console.log('SMOKE capture failed: ' + e.message);
     }
     console.log('SMOKE captured');
   }, 900);
 }
 
-function hideRing() {
+function hideRing(delay = 0) {
   ringOpen = false;
-  if (overlay) overlay.webContents.send('rg:close');
-  if (overlay && overlay.isVisible()) overlay.hide();
   for (const resolve of releaseWaiters.values()) resolve({ type: 'none' });
   releaseWaiters.clear();
+  clearTimeout(hideTimer);
+  const go = () => {
+    if (ringOpen) return; // reopened meanwhile
+    if (overlay) overlay.webContents.send('rg:close');
+    if (overlay && overlay.isVisible()) overlay.hide();
+  };
+  if (delay) hideTimer = setTimeout(go, delay);
+  else go();
 }
 
-// Runs a picked item. Returns the helper reply for a release ("action:<id>"
-// or "none"); clicks queue helper actions for the helper's next poll.
+// Runs a picked item. Returns the helper's reply for a release ("action:<id>"
+// or "none"); a click queues helper actions for the helper's next poll.
 function runItem(item, viaRelease) {
   const r = resolveAction(item.action, { env: process.env, clipboard: clipboard.readText() });
+  logEvent('pick', `${item.name} -> ${item.action}`);
   switch (r.kind) {
     case 'helper':
+      if (!supervisor.status().connected && !E2E) {
+        notify(`"${item.name}" needs the helper, which is not running. Open Settings > Status.`);
+      }
       if (viaRelease) return 'action:' + r.value;
       bridge.enqueue(r.value);
       return 'none';
@@ -163,16 +179,16 @@ function runItem(item, viaRelease) {
       hubCommand(r.value);
       return 'none';
     default:
-      notify(`Unknown action "${item.action}" - check menu.json`);
+      notify(`"${item.name}" has no valid action. Fix it in Settings > Rings.`);
       return 'none';
   }
 }
 
 function hubCommand(id) {
-  if (id === 'edit-menu') shell.openPath(menuPath());
+  if (id === 'edit-menu' || id === 'settings') openSettings('rings');
   else if (id === 'open-folder') shell.openPath(userDir());
-  else if (id === 'reload-menu') loadMenu() && notify('Menu reloaded');
-  else notify(`Unknown hub command "${id}"`);
+  else if (id === 'reload-menu') loadMenu();
+  else notify(`Unknown command "${id}"`);
 }
 
 function askRendererForRelease() {
@@ -194,10 +210,10 @@ ipcMain.on('rg:release-result', (_e, { id, result }) => {
   }
 });
 ipcMain.on('rg:select', (_e, item) => {
-  hideRing();
+  hideRing(HIDE_AFTER_PICK_MS);
   runItem(item, false);
 });
-ipcMain.on('rg:dismiss', () => hideRing());
+ipcMain.on('rg:dismiss', () => hideRing(HIDE_AFTER_PICK_MS));
 
 // ---------------------------------------------------------------- bridge
 
@@ -214,94 +230,299 @@ async function startBridge() {
   const token = bridgeToken();
   bridge = createBridge({
     token,
-    onShow: (exe) => openRing(exe),
+    onShow: (exe) => {
+      logEvent('show', exe);
+      if (paused) return 'paused';
+      openRing(exe, 'hold');
+      return 'ok';
+    },
     onRelease: async () => {
+      logEvent('release');
       if (!ringOpen) return 'none';
       const result = await askRendererForRelease();
       if (result.type === 'stay') return 'stay';
-      hideRing();
+      hideRing(HIDE_AFTER_PICK_MS);
       return result.type === 'select' ? runItem(result.item, true) : 'none';
     },
-    onCancel: () => hideRing(),
+    onCancel: () => {
+      logEvent('cancel');
+      hideRing();
+    },
     isOpen: () => ringOpen,
+    onPoll: () => supervisor && supervisor.notePoll(),
+    onDone: (action) => {
+      logEvent('done', action);
+      supervisor && supervisor.noteDone(action);
+    },
   });
   const port = await bridge.listen(PREFERRED_PORT);
-  // The helper reads this to find us. The token never changes once made.
   fs.mkdirSync(userDir(), { recursive: true });
   fs.writeFileSync(path.join(userDir(), 'bridge.ini'), `[Bridge]\r\nPort=${port}\r\nToken=${token}\r\n`);
+  logEvent('bridge', `port ${port}`);
+  return { port, token };
 }
 
-// ---------------------------------------------------------------- helper
+// ---------------------------------------------------------------- settings window
 
-function findAutoHotkey() {
-  const configured = menu.helper && menu.helper.ahkPath;
-  const roots = [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], path.join(process.env.LOCALAPPDATA || '', 'Programs')]
-    .filter(Boolean)
-    .map((r) => path.join(r, 'AutoHotkey'));
-  const candidates = [configured];
-  for (const r of roots) {
-    candidates.push(path.join(r, 'AutoHotkeyU64.exe'), path.join(r, 'AutoHotkey.exe'));
-    // AutoHotkey v2's installer keeps v1.1 in a versioned subfolder.
-    try {
-      for (const d of fs.readdirSync(r).filter((d) => /^v1\.1/.test(d)).sort().reverse()) {
-        candidates.push(path.join(r, d, 'AutoHotkeyU64.exe'), path.join(r, d, 'AutoHotkey.exe'));
-      }
-    } catch (_) {}
+function openSettings(tab = 'rings') {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.webContents.send('rgs:tab', tab);
+    if (settingsWin.isMinimized()) settingsWin.restore();
+    settingsWin.show();
+    settingsWin.focus();
+    return settingsWin;
   }
-  return candidates.find((c) => c && fs.existsSync(c));
+  settingsWin = new BrowserWindow({
+    width: 1080,
+    height: 720,
+    minWidth: 860,
+    minHeight: 560,
+    show: false,
+    title: 'RadGesture Settings',
+    backgroundColor: '#111318',
+    icon: path.join(ROOT, 'assets', 'icon.png'),
+    autoHideMenuBar: true,
+    titleBarStyle: process.platform === 'win32' ? 'hidden' : 'default',
+    titleBarOverlay: process.platform === 'win32' ? { color: '#111318', symbolColor: '#c9cfdb', height: 40 } : false,
+    webPreferences: { preload: path.join(__dirname, '..', 'settings', 'preload.js'), contextIsolation: true, sandbox: false },
+  });
+  settingsWin.loadFile(path.join(__dirname, '..', 'settings', 'index.html'), { query: { tab } });
+  settingsWin.once('ready-to-show', () => settingsWin.show());
+  settingsWin.on('closed', () => (settingsWin = null));
+  logEvent('settings-open', tab);
+  return settingsWin;
 }
 
-function startHelper() {
-  if (process.platform !== 'win32') return;
-  const script = helperPath();
-  const exe = findAutoHotkey();
-  const opts = { detached: true, stdio: 'ignore', windowsHide: true };
-  // Falls back to the .ahk file association if AutoHotkey isn't where we look.
-  const child = exe ? spawn(exe, [script], opts) : spawn('cmd.exe', ['/c', 'start', '""', script], opts);
-  child.on('error', (e) => notify('Could not start the helper (is AutoHotkey v1.1 installed?): ' + e.message));
-  child.unref();
+function fullStatus() {
+  return {
+    version: app.getVersion(),
+    helper: supervisor.status(),
+    paused,
+    conflicts: lastConflicts,
+    startAtLogin: process.platform === 'win32' ? app.getLoginItemSettings().openAtLogin : false,
+    dataFolder: userDir(),
+    events: events.slice(-15),
+  };
+}
+
+async function testApiKey(key, model) {
+  if (!key) return { ok: false, error: 'Enter an API key first.' };
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: model || 'claude-sonnet-4-6', max_tokens: 8, messages: [{ role: 'user', content: 'ping' }] }),
+    });
+    if (r.ok) return { ok: true };
+    const t = await r.text();
+    let msg = t;
+    try {
+      msg = JSON.parse(t).error.message;
+    } catch (_) {}
+    return { ok: false, error: `HTTP ${r.status}: ${msg}`.slice(0, 300) };
+  } catch (e) {
+    return { ok: false, error: 'Could not reach Anthropic: ' + e.message };
+  }
+}
+
+function tellHelperToReload() {
+  bridge.enqueue('reload');
+}
+
+function registerSettingsIpc() {
+  ipcMain.handle('rgs:get', () => ({
+    menu: JSON.parse(JSON.stringify(menu)),
+    defaultMenu: store.defaultMenu(),
+    ai: store.readAI(),
+    shortcuts: store.readShortcuts(),
+    models: MODELS,
+    iconNames: JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'fonts', 'material-symbols-names.json'), 'utf8')),
+    externalHotkeys: JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'external_hotkeys.json'), 'utf8')),
+    status: fullStatus(),
+  }));
+  ipcMain.handle('rgs:save-menu', (_e, m) => {
+    const r = store.writeMenu(m);
+    if (r.ok) {
+      loadMenu();
+      if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: menu.startAtLogin !== false });
+      logEvent('menu-saved');
+    }
+    return r;
+  });
+  ipcMain.handle('rgs:save-ai', (_e, v) => {
+    store.writeAI(v);
+    tellHelperToReload();
+    logEvent('ai-saved');
+    return { ok: true };
+  });
+  ipcMain.handle('rgs:save-shortcuts', (_e, v) => {
+    store.writeShortcuts(v);
+    tellHelperToReload();
+    logEvent('shortcuts-saved');
+    return { ok: true };
+  });
+  ipcMain.handle('rgs:test-key', (_e, { key, model }) => testApiKey(key, model));
+  ipcMain.handle('rgs:status', () => fullStatus());
+  ipcMain.handle('rgs:restart-helper', () => {
+    supervisor.restart();
+    return fullStatus();
+  });
+  ipcMain.handle('rgs:rescan', async () => {
+    await scanConflicts(false);
+    return fullStatus();
+  });
+  ipcMain.handle('rgs:close-conflicts', async () => {
+    await conflicts.closeAll(lastConflicts);
+    await new Promise((r) => setTimeout(r, 800));
+    await scanConflicts(false);
+    supervisor.restart(); // take the keys back cleanly
+    return fullStatus();
+  });
+  ipcMain.handle('rgs:open-uninstall', () => shell.openExternal('ms-settings:appsfeatures'));
+  ipcMain.handle('rgs:open-data-folder', () => shell.openPath(userDir()));
+  ipcMain.handle('rgs:pick-file', async (_e, kind) => {
+    const r = await dialog.showOpenDialog(settingsWin, { properties: [kind === 'folder' ? 'openDirectory' : 'openFile'] });
+    return r.canceled ? '' : r.filePaths[0];
+  });
+  ipcMain.handle('rgs:try-ring', (_e, m) => {
+    openRing('', 'click', m || null);
+    return true;
+  });
+  ipcMain.handle('rgs:set-paused', (_e, p) => {
+    setPaused(!!p);
+    return fullStatus();
+  });
+  ipcMain.handle('rgs:run-helper-action', (_e, id) => {
+    bridge.enqueue(id);
+    return true;
+  });
 }
 
 // ---------------------------------------------------------------- tray
 
-function trayIcon() {
-  const img = nativeImage.createFromPath(path.join(__dirname, '..', '..', 'assets', 'tray.png'));
-  return img.isEmpty() ? nativeImage.createEmpty() : img;
+function setPaused(p) {
+  paused = p;
+  if (paused) hideRing();
+  updateTray();
+}
+
+function trayTemplate() {
+  const h = supervisor.status();
+  const helperLine = h.connected
+    ? { label: 'Ring shortcut ready (Ctrl+CapsLock)', enabled: false }
+    : { label: 'Helper not running - click to start it', click: () => supervisor.restart() };
+  return [
+    { label: 'Open the ring', click: () => openRing('', 'click') },
+    { type: 'separator' },
+    { label: 'Settings...', click: () => openSettings('general') },
+    { label: 'Edit rings...', click: () => openSettings('rings') },
+    { label: 'AI tools...', click: () => openSettings('ai') },
+    { label: 'Shortcuts...', click: () => openSettings('shortcuts') },
+    { type: 'separator' },
+    helperLine,
+    ...(lastConflicts.length ? [{ label: `Close ${lastConflicts.length} conflicting old tool(s)...`, click: () => openSettings('status') }] : []),
+    { label: 'Pause the ring', type: 'checkbox', checked: paused, click: (mi) => setPaused(mi.checked) },
+    {
+      label: 'Start with Windows',
+      type: 'checkbox',
+      checked: process.platform === 'win32' ? app.getLoginItemSettings().openAtLogin : false,
+      click: (mi) => {
+        if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: mi.checked });
+        menu.startAtLogin = mi.checked;
+        store.writeMenu(menu);
+      },
+    },
+    { label: 'Status and help...', click: () => openSettings('status') },
+    { type: 'separator' },
+    { label: 'Quit RadGesture', click: () => app.quit() },
+  ];
+}
+
+let trayKey = '';
+function updateTray() {
+  if (!tray) return;
+  const h = supervisor.status();
+  const key = `${h.connected}|${paused}|${lastConflicts.length}`;
+  if (key === trayKey) return;
+  trayKey = key;
+  tray.setContextMenu(Menu.buildFromTemplate(trayTemplate()));
+  tray.setToolTip(
+    paused ? 'RadGesture - paused' : h.connected ? 'RadGesture - hold Ctrl+CapsLock' : 'RadGesture - helper not running (click for Settings)'
+  );
 }
 
 function buildTray() {
-  tray = new Tray(trayIcon());
-  tray.setToolTip('RadGesture - hold Ctrl+CapsLock');
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: 'Show the ring here (test)', click: () => openRing('', 'click') },
-      { type: 'separator' },
-      { label: 'Edit menu...', click: () => hubCommand('edit-menu') },
-      { label: 'Open settings folder', click: () => hubCommand('open-folder') },
-      { label: 'Reload menu', click: () => hubCommand('reload-menu') },
-      { type: 'separator' },
-      { label: 'AI settings (API key)', click: () => bridge.enqueue('settings') },
-      { label: 'Proofread history', click: () => bridge.enqueue('history') },
-      { label: 'Restart helper', click: () => startHelper() },
-      { type: 'separator' },
-      { label: 'Quit RadGesture', click: () => app.quit() },
-    ])
-  );
+  const img = nativeImage.createFromPath(path.join(ROOT, 'assets', 'tray.png'));
+  tray = new Tray(img.isEmpty() ? nativeImage.createEmpty() : img);
+  tray.on('click', () => openSettings('general'));
+  tray.on('double-click', () => openSettings('general'));
+  trayKey = '';
+  updateTray();
+}
+
+// ---------------------------------------------------------------- conflicts
+
+async function scanConflicts(announce) {
+  const found = await conflicts.scan({ selfExe: process.execPath, selfPids: [process.pid] });
+  lastConflicts = found;
+  updateTray();
+  if (announce && found.length) {
+    notify(`${found.map((c) => c.label).join(', ')} ${found.length > 1 ? 'are' : 'is'} still running and will fight RadGesture for its keys. Open Settings > Status to close ${found.length > 1 ? 'them' : 'it'}.`);
+  }
+  return found;
 }
 
 // ---------------------------------------------------------------- start
 
-if (process.platform === 'win32') app.setAppUserModelId('menu.radgesture.hub'); // Windows notifications need it
+if (process.platform === 'win32') app.setAppUserModelId('menu.radgesture.hub');
 
 app.whenReady().then(async () => {
   loadMenu();
-  watchMenu();
   createOverlay();
-  await startBridge();
+  supervisor = createSupervisor({
+    resourcesDir: resourcesHelperDir(),
+    ahkPathSetting: () => menu.helper && menu.helper.ahkPath,
+    onChange: () => updateTray(),
+    log: (m) => logEvent('helper', m),
+  });
+  const bridgeInfo = await startBridge();
+  registerSettingsIpc();
   buildTray();
+  setInterval(updateTray, 2000); // helper connected/disconnected shows in the tray
   if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: menu.startAtLogin !== false });
-  if (!menu.helper || menu.helper.autoStart !== false) startHelper();
+  if ((!menu.helper || menu.helper.autoStart !== false) && !process.env.RG_NO_HELPER) supervisor.start();
+  scanConflicts(true);
+
+  // First run: show Settings so the API key and status are one glance away.
+  if (!fs.existsSync(path.join(userDir(), 'welcomed')) && !E2E && !process.env.RG_SMOKE) {
+    fs.writeFileSync(path.join(userDir(), 'welcomed'), new Date().toISOString());
+    openSettings('status');
+  }
+
+  if (E2E) {
+    // Hooks for the end-to-end tests (tests/e2e). Never set in normal use.
+    global.__rg = {
+      status: fullStatus,
+      bridge: () => bridgeInfo,
+      openSettings: (tab) => {
+        openSettings(tab);
+        return true;
+      },
+      openRing: (mode = 'click') => openRing('', mode),
+      trayLabels: () => trayTemplate().map((i) => i.label || '---'),
+      clickTray: (label) => {
+        const it = trayTemplate().find((i) => i.label === label);
+        if (!it || !it.click) return false;
+        it.click({ checked: !it.checked });
+        return true;
+      },
+      ringOpen: () => ringOpen,
+      events: () => events.slice(),
+      userDir,
+    };
+  }
 });
 
-app.on('second-instance', () => openRing('', 'click'));
+app.on('second-instance', () => openSettings('general'));
 app.on('window-all-closed', (e) => e.preventDefault()); // tray app: keep running
+app.on('before-quit', () => supervisor && supervisor.stop());

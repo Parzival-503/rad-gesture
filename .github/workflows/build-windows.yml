@@ -1,9 +1,14 @@
-# RadGesture: checks + Windows installer.
+# RadGesture: checks, real-Windows end-to-end test, installer.
 #
-# Runs on every push and refreshes the "radgesture-latest" release, so the
-# installer always has the same direct link:
-#   https://github.com/Parzival-503/rad-gesture/releases/download/radgesture-latest/RadGesture-Setup.exe
-# The run's "RadGesture-Windows" artifact holds the same files.
+# Every push:
+#   1. Linux: unit tests, AutoHotkey static checks, shortcut audit, and the
+#      end-to-end test of the real app (tray, Settings, ring) under a virtual screen.
+#   2. Windows: load the helper in real AutoHotkey v1.1 (--selftest), compile it
+#      into RadGestureHelper.exe, build the app, then run the end-to-end test
+#      again with the helper running and REAL Ctrl+CapsLock presses injected.
+#      Only if all of that passes does the installer get published to
+#        https://github.com/Parzival-503/rad-gesture/releases/download/radgesture-latest/RadGesture-Setup.exe
+#   Screenshots from both runs are kept as the "e2e-screenshots-*" artifacts.
 name: Build Windows
 
 on:
@@ -16,28 +21,39 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  AHK_VERSION: 1.1.37.02
 
 jobs:
   checks:
-    name: Checks (tests + AutoHotkey checker)
+    name: Checks + Linux end-to-end
     runs-on: ubuntu-latest
-    env:
-      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
       - run: npm ci
-      - name: Unit tests (ring geometry, menu, bridge, menu-to-helper cross-check)
+      - name: Unit tests
         run: npm test
       - name: AutoHotkey helper static checks
         run: python3 tools/ahk_check.py helper/RadGestureHelper.ahk
-      - name: Shortcut clash audit (all workstation scripts + ring buttons)
+      - name: Shortcut clash audit
         run: python3 tools/hotkey_audit.py --check
+      - name: End-to-end (real app, virtual screen)
+        run: |
+          sudo apt-get install -y xvfb >/dev/null 2>&1 || true
+          xvfb-run -a -s "-screen 0 1400x900x24" node tests-e2e/run.js
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-screenshots-linux
+          path: e2e-shots/
+          if-no-files-found: ignore
+          retention-days: 14
 
   windows:
-    name: Build Windows installer (x64)
+    name: Windows - helper check, build, real-key end-to-end
     needs: checks
     runs-on: windows-2022
     steps:
@@ -46,8 +62,60 @@ jobs:
         with:
           node-version-file: .node-version
       - run: npm ci
-      - name: Build installer + portable zip
+
+      - name: Get AutoHotkey v1.1 (to check and compile the helper)
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'ahk'
+          $zip = Join-Path $env:RUNNER_TEMP 'ahk.zip'
+          $urls = @(
+            "https://github.com/AutoHotkey/AutoHotkey/releases/download/v$env:AHK_VERSION/AutoHotkey_$env:AHK_VERSION.zip",
+            "https://www.autohotkey.com/download/1.1/AutoHotkey_$env:AHK_VERSION.zip")
+          foreach ($u in $urls) { try { Invoke-WebRequest $u -OutFile $zip -UseBasicParsing; break } catch { Write-Host "failed: $u" } }
+          Expand-Archive $zip -DestinationPath $dir -Force
+          Get-ChildItem -Recurse $dir | Select-Object FullName | Format-Table -HideTableHeaders
+          "AHK_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Helper loads in real AutoHotkey (syntax + startup)
+        shell: pwsh
+        run: |
+          $out = & "$env:AHK_DIR\AutoHotkeyU64.exe" /ErrorStdOut helper\RadGestureHelper.ahk --selftest 2>&1 | Out-String
+          Write-Host $out
+          if ($out -notmatch 'SELFTEST OK') { throw 'The helper did not load cleanly in AutoHotkey.' }
+
+      - name: Compile the helper into RadGestureHelper.exe
+        shell: pwsh
+        run: |
+          $ahk2exe = Get-ChildItem -Recurse $env:AHK_DIR -Filter Ahk2Exe.exe | Select-Object -First 1
+          $base = Get-ChildItem -Recurse $env:AHK_DIR -Filter 'Unicode 64-bit.bin' | Select-Object -First 1
+          if (-not $ahk2exe) { throw 'Ahk2Exe not found in the AutoHotkey download.' }
+          $args = @('/in', 'helper\RadGestureHelper.ahk', '/out', 'helper\RadGestureHelper.exe', '/icon', 'assets\icon.ico')
+          if ($base) { $args += @('/bin', $base.FullName) } else { $args += @('/base', "$env:AHK_DIR\AutoHotkeyU64.exe") }
+          $p = Start-Process -FilePath $ahk2exe.FullName -ArgumentList $args -Wait -PassThru -NoNewWindow
+          if (-not (Test-Path helper\RadGestureHelper.exe)) { throw "Compile failed (exit $($p.ExitCode))." }
+          $out = & .\helper\RadGestureHelper.exe --selftest 2>&1 | Out-String
+          Write-Host "compiled selftest: $out"
+          if ($out -notmatch 'SELFTEST OK') { Write-Host 'Note: compiled exe printed nothing (no console for compiled scripts); checking it starts and exits.'; $q = Start-Process .\helper\RadGestureHelper.exe -ArgumentList '--selftest' -Wait -PassThru; if ($q.ExitCode -ne 0) { throw "compiled helper selftest exit $($q.ExitCode)" } }
+
+      - name: Build the app (installer + portable zip, helper inside)
         run: npm run dist
+
+      - name: End-to-end on Windows (helper running, real Ctrl+CapsLock)
+        shell: pwsh
+        run: |
+          $env:RG_APP_EXE = (Resolve-Path 'dist\win-unpacked\RadGesture.exe').Path
+          $env:AHK_EXE = "$env:AHK_DIR\AutoHotkeyU64.exe"
+          node tests-e2e\run.js
+
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-screenshots-windows
+          path: e2e-shots/
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Upload the installer + portable zip
         uses: actions/upload-artifact@v7
         with:
@@ -57,15 +125,17 @@ jobs:
             dist/RadGesture-*-win-x64.zip
           if-no-files-found: error
           retention-days: 30
-      - name: Publish to the rolling "radgesture-latest" release (fixed download link)
+
+      - name: Publish to the "radgesture-latest" release (fixed download link)
         uses: svenstaro/upload-release-action@2.11.5
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: radgesture-latest
           release_name: RadGesture (latest build)
           body: |
-            Latest RadGesture hub. Download "RadGesture-Setup.exe" below and run it.
-            Needs AutoHotkey v1.1 installed (it runs the helper).
+            Latest RadGesture. Download "RadGesture-Setup.exe" below and run it.
+            Everything it needs is inside (including the AutoHotkey helper).
+            This build passed the end-to-end test on a Windows machine with real Ctrl+CapsLock presses.
           prerelease: true
           overwrite: true
           file: dist/RadGesture-Setup.exe

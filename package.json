@@ -12,20 +12,51 @@
     "test": "node --test test/*.test.js",
     "check:ahk": "python3 tools/ahk_check.py helper/RadGestureHelper.ahk",
     "preview": "node scripts/preview.js",
-    "dist": "electron-builder --win nsis zip --x64 --publish never"
+    "dist": "electron-builder --win nsis zip --x64 --publish never",
+    "test:e2e": "node tests-e2e/run.js"
   },
   "devDependencies": {
     "electron": "44.6.0",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "playwright": "1.56.1"
   },
   "build": {
     "appId": "menu.radgesture.hub",
     "productName": "RadGesture",
     "artifactName": "RadGesture-${version}-${os}-${arch}.${ext}",
-    "directories": { "output": "dist" },
-    "files": ["src/**", "config/**", "assets/**", "package.json"],
-    "extraResources": [{ "from": "helper", "to": "helper", "filter": ["*.ahk"] }],
-    "win": { "icon": "assets/icon.ico", "target": ["nsis", "zip"] },
-    "nsis": { "artifactName": "RadGesture-Setup.${ext}", "oneClick": true, "perMachine": false, "runAfterFinish": true, "shortcutName": "RadGesture" }
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**",
+      "config/**",
+      "assets/**",
+      "tools/external_hotkeys.json",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "helper",
+        "to": "helper",
+        "filter": [
+          "*.ahk",
+          "*.exe"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "artifactName": "RadGesture-Setup.${ext}",
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "shortcutName": "RadGesture"
+    }
   }
 }

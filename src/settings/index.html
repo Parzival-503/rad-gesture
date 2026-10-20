@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:">
+  <title>RadGesture Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <header class="titlebar">
+    <img src="../../assets/icon.png" alt="" class="logo">
+    <span class="appname">RadGesture</span>
+    <span class="ver" id="ver"></span>
+  </header>
+  <div class="shell">
+    <nav class="side" id="nav">
+      <button data-tab="rings"><span class="msym">donut_large</span>Rings</button>
+      <button data-tab="ai"><span class="msym">stars</span>AI tools</button>
+      <button data-tab="shortcuts"><span class="msym">keyboard</span>Shortcuts</button>
+      <button data-tab="general"><span class="msym">tune</span>General</button>
+      <button data-tab="status"><span class="msym">monitor_heart</span>Status<i class="dot" id="statusDot"></i></button>
+      <div class="side-foot" id="sideFoot"></div>
+    </nav>
+    <main id="main"></main>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="../common/menu.js"></script>
+  <script src="../common/hotkeys.js"></script>
+  <script src="../renderer/geometry.js"></script>
+  <script src="../renderer/icons.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

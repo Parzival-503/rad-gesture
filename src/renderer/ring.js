@@ -1,246 +1,552 @@
-// The ring. Two ways to use it, both always available:
+// The ring. Every element stays alive while the ring is open and is moved each
+// frame by spring physics, so the menu reacts continuously to the pointer:
 //
-//  Flick: hold the trigger, move toward a direction, let go. Moving past a
-//         direction that has more inside opens its smaller ring right there
-//         (Kando's idea), so a whole path can be one stroke.
-//  Click: tap the trigger and the ring stays open; click a direction.
+//  - the pointer on the center's rim follows the cursor;
+//  - directions zoom in the closer you aim at them, the aimed one most;
+//  - in a flick, the aimed direction stretches out after your hand, and moving
+//    past one with a smaller ring opens that ring right there;
+//  - smaller rings grow out of the direction you chose, the way back is the
+//    small node pointing at where you came from;
+//  - the center switches rings (click or scroll) with a spin.
 //
-// The center switches category (DragShift's idea): click it or scroll the
-// wheel. In a smaller ring the center (or the small arrow) goes back.
+// Two ways to use it: flick (hold the trigger, move, let go) or tap the
+// trigger and click. Public API (used by the hub, the preview and the tests):
+//   RGRing.open({x, y, menu, category, mode}), RGRing.release(), RGRing.clear(),
+//   RGRing.hooks.select/dismiss, RGRing.state()
 
 (function () {
   const G = window.RGGeometry;
   const I = window.RGIcons;
 
-  const R_ROOT = 122; // distance of the directions from the center
-  const R_SUB = 106;
-  const DEAD = 34; // pointer this close to the center aims at nothing
-  const PASS = 34; // moving this far beyond a direction opens its smaller ring
-  const TAP_MS = 320; // a release sooner than this is a tap: stay open for clicks
-  const EDGE = 175; // keep the ring this far from the screen edge
+  const R_ROOT = 120; // direction distance from the center
+  const R_SUB = 104;
+  const DEAD = 30; // aiming starts this far from the center
+  const PASS = 30; // move this far past a direction to open its smaller ring
+  const TAP_MS = 320; // released sooner = a tap: stay open for clicking
+  const EDGE = 190; // keep the ring this far from the screen edge
+  const LABEL_PAUSE_MS = 650; // labels fade in after this long without a choice
 
   const stage = document.getElementById('stage');
   const hooks = { select() {}, dismiss() {} };
   let st = null;
+  let raf = 0;
+  let lastT = 0;
+
+  // ------------------------------------------------------------ springs
+
+  // Slightly under-damped: a touch of overshoot is what makes it feel alive.
+  function spring(x, k = 380, d = 26) {
+    return { x, v: 0, t: x, k, d };
+  }
+  function step(s, dt) {
+    const f = -s.k * (s.x - s.t) - s.d * s.v;
+    s.v += f * dt;
+    s.x += s.v * dt;
+  }
+  function settled(s) {
+    return Math.abs(s.x - s.t) < 0.002 && Math.abs(s.v) < 0.01;
+  }
+  function snap(s, x) {
+    s.x = s.t = x;
+    s.v = 0;
+  }
+
+  // ------------------------------------------------------------ helpers
 
   const cur = () => st.levels[st.levels.length - 1];
   const category = () => st.menu.categories[st.cat];
+  const el = (cls, html, parent) => {
+    const e = document.createElement('div');
+    e.className = cls;
+    if (html !== undefined) e.innerHTML = html;
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  const svgEl = (tag, attrs, parent) => {
+    const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  function labelMode() {
+    const m = st.menu;
+    if (m.labels) return m.labels; // 'always' | 'pause' | 'never'
+    if (m.showLabels === false) return 'never';
+    return 'pause';
+  }
 
-  // ------------------------------------------------------------ state
+  function sector(a, half, r0, r1) {
+    const p = (ang, r) => G.polar(0, 0, ang, r);
+    const large = half * 2 > 180 ? 1 : 0;
+    const o0 = p(a - half, r1), o1 = p(a + half, r1), i1 = p(a + half, r0), i0 = p(a - half, r0);
+    return `M${o0.x},${o0.y} A${r1},${r1} 0 ${large} 1 ${o1.x},${o1.y} L${i1.x},${i1.y} A${r0},${r0} 0 ${large} 0 ${i0.x},${i0.y} Z`;
+  }
 
-  function open({ x, y, menu, category: cat, mode }) {
+  // ------------------------------------------------------------ building
+
+  function buildLevel(L, fromNode) {
+    const layer = el('layer');
+    L.layer = layer;
+    L.halo = el('halo', undefined, layer);
+
+    L.wedgeSvg = svgEl('svg', { class: 'wedges', width: 1, height: 1 }, layer);
+    const defs = svgEl('defs', {}, L.wedgeSvg);
+    const grad = svgEl('radialGradient', { id: 'hlgrad', cx: 0, cy: 0, r: L.r + 60, gradientUnits: 'userSpaceOnUse' }, defs);
+    svgEl('stop', { offset: '0.35', 'stop-color': category().color || '#8fb0ff', 'stop-opacity': '0.0' }, grad);
+    svgEl('stop', { offset: '0.75', 'stop-color': category().color || '#8fb0ff', 'stop-opacity': '0.28' }, grad);
+    svgEl('stop', { offset: '1', 'stop-color': category().color || '#8fb0ff', 'stop-opacity': '0.0' }, grad);
+    L.seps = svgEl('g', {}, L.wedgeSvg);
+    L.hlPath = svgEl('path', { class: 'hl', d: '' }, L.wedgeSvg);
+
+    L.center = el('center', undefined, layer);
+    L.center.dataset.center = '1';
+    L.cIcon = el('cicon', I.icon(L.icon || category().icon || 'circle'), L.center);
+    L.cText = el('ctext', '<div class="ctitle"></div>', L.center);
+    L.cTitle = L.cText.firstChild;
+    if (!L.sub) {
+      L.cName = el('cname', escapeHtml(category().name), L.center);
+      if (st.menu.categories.length > 1) {
+        L.cDots = el('ccat', st.menu.categories.map((_, i) => `<i class="${i === st.cat ? 'on' : ''}"></i>`).join(''), L.center);
+      }
+    } else {
+      L.cName = el('cname', escapeHtml(L.name), L.center);
+    }
+    L.rim = el('rim', undefined, layer);
+    L.nodeBox = el('nodes', undefined, layer);
+
+    L.cScale = spring(fromNode ? 0.52 : 0.6, 420, 24);
+    L.cScale.t = 1;
+    L.op = spring(0, 400, 30);
+    L.op.t = 1;
+    L.ox = spring(0, 360, 28);
+    L.oy = spring(0, 360, 28);
+    if (fromNode) {
+      L.ox.x = fromNode.x - L.cx;
+      L.oy.x = fromNode.y - L.cy;
+    }
+    L.iconOp = spring(1, 500, 34);
+    L.textOp = spring(0, 500, 34);
+    L.rimOp = spring(0, 500, 34);
+    L.rimA = spring(0, 300, 26);
+    L.hlOp = spring(0, 500, 34);
+    L.spin = spring(0, 220, 22);
+
+    buildNodes(L);
+    stage.appendChild(layer);
+  }
+
+  function buildNodes(L) {
+    L.nodeBox.innerHTML = '';
+    L.seps.innerHTML = '';
+    L.nodes = [];
+    const slots = L.slots;
+    const n = L.items.length + (slots.back === null ? 0 : 1);
+    const all = slots.back === null ? slots.items : slots.items.concat([slots.back]);
+    if (n > 1) {
+      all.forEach((a) => {
+        const b = a + 180 / n;
+        const p0 = G.polar(0, 0, b, 66), p1 = G.polar(0, 0, b, L.r + 42);
+        svgEl('line', { class: 'sep', x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y }, L.seps);
+      });
+    }
+    L.items.forEach((it, i) => {
+      const node = el('node', I.icon(it.icon || 'circle'), L.nodeBox);
+      node.dataset.slot = String(i);
+      const label = el('label', escapeHtml(it.name), L.nodeBox);
+      const N = {
+        it, el: node, label, angle: slots.items[i], back: false,
+        r: spring(0, 330, 23), sc: spring(0.35, 420, 22), lop: spring(0, 400, 32),
+        dx: spring(0, 520, 34), dy: spring(0, 520, 34), delay: i * 0.018, dots: [],
+      };
+      if (it.items && it.items.length) {
+        const g = G.slotAngles(it.items.length, G.norm(N.angle + 180));
+        g.items.forEach((ga) => N.dots.push({ el: el('gdot', undefined, L.nodeBox), a: ga }));
+      }
+      L.nodes.push(N);
+    });
+    if (slots.back !== null) {
+      // The way back is the parent's own (shrunken) center, which already sits
+      // in this direction; this node only carries the aiming logic.
+      const node = el('node back', I.icon('arrow_back'), L.nodeBox);
+      node.style.display = 'none';
+      node.dataset.slot = 'back';
+      L.nodes.push({
+        it: null, el: node, label: null, angle: slots.back, back: true,
+        r: spring(0, 330, 23), sc: spring(0.4, 420, 22), lop: spring(0, 400, 32),
+        dx: spring(0, 520, 34), dy: spring(0, 520, 34), delay: 0, dots: [],
+      });
+    }
+    L.builtAt = performance.now();
+  }
+
+  // A level that is no longer the current one: keep only its (shrunken) center.
+  function demote(L) {
+    L.nodeBox.innerHTML = '';
+    L.nodes = [];
+    L.halo.style.display = 'none';
+    L.wedgeSvg.style.display = 'none';
+    L.rim.style.display = 'none';
+    L.cScale.t = 0.46;
+    L.op.t = 0.8;
+    L.iconOp.t = 1;
+    L.textOp.t = 0;
+    L.center.dataset.parent = String(st.levels.indexOf(L));
+  }
+
+  function promote(L) {
+    L.halo.style.display = '';
+    L.wedgeSvg.style.display = '';
+    L.rim.style.display = '';
+    L.cScale.t = 1;
+    L.op.t = 1;
+    delete L.center.dataset.parent;
+    buildNodes(L);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  }
+
+  // ------------------------------------------------------------ state changes
+
+  function open({ x, y, menu, category: catIndex, mode }) {
+    hardClear();
+    const scale = Math.max(0.62, Math.min(1, Math.min(innerWidth, innerHeight) / 640)) * (menu.ringScale || 1);
     st = {
       menu,
-      cat: cat || 0,
+      cat: Math.min(catIndex || 0, menu.categories.length - 1),
       levels: [],
       hover: -1,
       mode: mode === 'click' ? 'click' : 'hold',
       openedAt: performance.now(),
+      lastChange: performance.now(),
       px: x,
       py: y,
-      s: Math.max(0.62, Math.min(1, Math.min(innerWidth, innerHeight) / 620)),
+      s: scale,
+      fade: spring(1, 500, 34),
+      closing: null,
     };
-    const c = G.clampCenter(x, y, innerWidth, innerHeight, EDGE * st.s);
-    pushLevel(category().items, c.x, c.y, null, null);
+    st.links = svgEl('svg', { class: 'links', width: 1, height: 1 });
+    stage.appendChild(st.links);
+    stage.style.setProperty('--accent', category().color || '#8fb0ff');
+    pushLevel(category().items, x, y, null, null, null, category().icon);
+    startLoop();
   }
 
-  function pushLevel(items, cx, cy, backAngle, name) {
-    const r = st.levels.length ? R_SUB : R_ROOT;
-    st.levels.push({ items, cx, cy, r, name, slots: G.slotAngles(items.length, backAngle) });
+  function pushLevel(items, x, y, backAngle, name, fromNode, iconName) {
+    const sub = st.levels.length > 0;
+    const c = G.clampCenter(x, y, innerWidth, innerHeight, EDGE * st.s);
+    const L = {
+      items, name, icon: iconName, sub,
+      cx: c.x, cy: c.y,
+      r: sub ? R_SUB : R_ROOT,
+      slots: G.slotAngles(items.length, backAngle),
+    };
+    if (sub) demote(cur());
+    st.levels.push(L);
+    buildLevel(L, fromNode);
+    if (sub) {
+      L.link = svgEl('line', { x1: 0, y1: 0, x2: 0, y2: 0 }, st.links);
+    }
     st.hover = -1;
-    render();
-    aim();
+    st.lastChange = performance.now();
+    paintHover();
+  }
+
+  function nodeScreenPos(L, N) {
+    const p = G.polar(0, 0, N.angle + L.spin.x, N.r.x);
+    return { x: L.cx + L.ox.x + (p.x + N.dx.x) * st.s, y: L.cy + L.oy.x + (p.y + N.dy.x) * st.s };
   }
 
   function openSub(index) {
-    const lv = cur();
-    const it = lv.items[index];
-    const p = G.polar(lv.cx, lv.cy, lv.slots.items[index], lv.r * st.s);
-    const c = G.clampCenter(p.x, p.y, innerWidth, innerHeight, EDGE * st.s);
-    pushLevel(it.items, c.x, c.y, G.angleOf(lv.cx - c.x, lv.cy - c.y), it.name);
+    const L = cur();
+    const N = L.nodes[index];
+    const p = nodeScreenPos(L, N);
+    const target = G.clampCenter(p.x, p.y, innerWidth, innerHeight, EDGE * st.s);
+    pushLevel(N.it.items, target.x, target.y, G.angleOf(L.cx - target.x, L.cy - target.y), N.it.name, p, N.it.icon);
   }
 
   function popLevel() {
     if (st.levels.length < 2) return;
-    st.levels.pop();
+    const L = st.levels.pop();
+    L.layer.remove();
+    if (L.link) L.link.remove();
+    promote(cur());
     st.hover = -1;
-    render();
-    aim();
+    st.lastChange = performance.now();
+    paintHover();
   }
 
-  function switchCategory(step) {
+  function switchCategory(stepBy) {
     const n = st.menu.categories.length;
     if (n < 2) return;
     const root = st.levels[0];
-    st.cat = (st.cat + step + n) % n;
+    st.levels.forEach((L) => {
+      L.layer.remove();
+      if (L.link) L.link.remove();
+    });
     st.levels = [];
-    pushLevel(category().items, root.cx, root.cy, null, null);
+    st.cat = (st.cat + stepBy + n) % n;
+    stage.style.setProperty('--accent', category().color || '#8fb0ff');
+    pushLevel(category().items, root.cx, root.cy, null, null, null, category().icon);
+    const L = cur();
+    L.spin.x = stepBy > 0 ? -38 : 38; // spin in from the side you scrolled toward
+    L.cScale.x = 0.92;
+  }
+
+  function hardClear() {
+    st = null;
+    stage.innerHTML = '';
+    cancelAnimationFrame(raf);
+    raf = 0;
   }
 
   function clear() {
-    st = null;
-    stage.innerHTML = '';
+    hardClear();
   }
 
-  function choose(item) {
-    clear();
-    hooks.select({ name: item.name, action: item.action });
+  // Animate out, then tell whoever opened us.
+  function finish(after, chosenNode) {
+    if (!st || st.closing) return;
+    st.closing = { after, at: performance.now() };
+    st.fade.t = 0;
+    if (chosenNode) {
+      chosenNode.sc.t = 1.38;
+      chosenNode.sc.v = 6;
+    }
+  }
+
+  function choose(N) {
+    const item = { name: N.it.name, action: N.it.action };
+    finish(() => {}, N);
+    hooks.select(item); // the action starts now; the fade is only for the eye
   }
 
   function dismiss() {
-    clear();
-    hooks.dismiss();
+    finish(() => hooks.dismiss());
   }
 
   function activate(target) {
-    const lv = cur();
     if (target === 'back') return popLevel();
-    const it = lv.items[target];
-    if (it.items) return openSub(target);
-    choose(it);
+    const N = cur().nodes[target];
+    if (N.it.items) return openSub(target);
+    choose(N);
   }
 
-  // The hub calls this when the trigger comes up.
+  // The hub calls this when the trigger key comes up.
   function release() {
-    if (!st) return { type: 'none' };
-    const lv = cur();
+    if (!st || st.closing) return { type: 'none' };
+    const L = cur();
     if (st.hover === 'back') {
       popLevel();
       st.mode = 'click';
       return { type: 'stay' };
     }
     if (st.hover !== -1) {
-      const it = lv.items[st.hover];
-      if (it.items) {
+      const N = L.nodes[st.hover];
+      if (N.it.items) {
         openSub(st.hover);
         st.mode = 'click';
         return { type: 'stay' };
       }
-      clear();
-      return { type: 'select', item: { name: it.name, action: it.action } };
+      const item = { name: N.it.name, action: N.it.action };
+      finish(() => {}, N);
+      return { type: 'select', item };
     }
     if (performance.now() - st.openedAt < TAP_MS || st.levels.length > 1) {
       st.mode = 'click';
       return { type: 'stay' };
     }
-    clear();
+    finish(() => {});
     return { type: 'none' };
   }
 
   // ------------------------------------------------------------ aiming
 
-  function aim() {
-    if (!st) return;
-    const lv = cur();
-    const dx = st.px - lv.cx;
-    const dy = st.py - lv.cy;
-    const target = G.aimAt(lv.slots, dx, dy, DEAD * st.s);
-    const dist = Math.hypot(dx, dy) / st.s;
+  function slotIndexOf(target) {
+    if (target === -1) return -1;
+    if (target === 'back') return cur().nodes.length - 1;
+    return target;
+  }
 
+  function aim() {
+    if (!st || st.closing) return;
+    const L = cur();
+    const dx = (st.px - L.cx) / st.s;
+    const dy = (st.py - L.cy) / st.s;
+    const target = G.aimAt(L.slots, dx, dy, DEAD);
+    const dist = Math.hypot(dx, dy);
     if (st.mode === 'hold') {
-      if (target !== -1 && target !== 'back' && lv.items[target].items && dist > lv.r + PASS) return openSub(target);
-      if (target === 'back' && dist > lv.r * 0.78 + PASS) return popLevel();
+      if (target !== -1 && target !== 'back' && L.items[target].items && dist > L.r + PASS) return openSub(target);
+      if (target === 'back' && dist > L.r * 0.78 + PASS) return popLevel();
     }
-    if (target === st.hover) return;
-    st.hover = target;
-    paintHover();
+    if (target !== st.hover) {
+      st.hover = target;
+      st.lastChange = performance.now();
+      paintHover();
+    }
   }
 
   function paintHover() {
-    const el = stage.querySelector('.level.current');
-    if (!el) return;
-    el.querySelectorAll('[data-slot]').forEach((n) => n.classList.toggle('on', n.dataset.slot === String(st.hover)));
-    const lv = cur();
-    const title = el.querySelector('.center .title');
-    const hint = el.querySelector('.center .hint');
-    const name = st.hover === 'back' ? 'Back' : st.hover !== -1 ? lv.items[st.hover].name : '';
-    title.textContent = name;
-    title.style.display = name ? '' : 'none';
-    // Idle: a quiet reminder of what the center does.
-    hint.style.display = name ? 'none' : '';
-  }
-
-  // ------------------------------------------------------------ drawing
-
-  function sector(a, half, r0, r1) {
-    const p = (ang, r) => G.polar(0, 0, ang, r);
-    const a0 = a - half;
-    const a1 = a + half;
-    const large = half * 2 > 180 ? 1 : 0;
-    const o0 = p(a0, r1), o1 = p(a1, r1), i1 = p(a1, r0), i0 = p(a0, r0);
-    return `M${o0.x},${o0.y} A${r1},${r1} 0 ${large} 1 ${o1.x},${o1.y} L${i1.x},${i1.y} A${r0},${r0} 0 ${large} 0 ${i0.x},${i0.y} Z`;
-  }
-
-  function labelStyle(angle, r) {
-    const p = G.polar(0, 0, angle, r);
-    const s = Math.sin((angle * Math.PI) / 180);
-    const c = Math.cos((angle * Math.PI) / 180);
-    // Anchor the label's near edge toward the center so it never covers the ring.
-    return `left:${p.x}px;top:${p.y}px;transform:translate(${-50 + s * 50}%,${-50 - c * 50}%)`;
-  }
-
-  function render() {
-    const cat = category();
-    stage.style.setProperty('--accent', cat.color || '#7aa2ff');
-    stage.classList.toggle('hide-labels', st.menu.showLabels === false);
-    let html = '';
-
-    // Dashed thread through the centers of the rings you came through.
-    if (st.levels.length > 1) {
-      html += '<svg class="thread">';
-      for (let i = 1; i < st.levels.length; i++) {
-        const a = st.levels[i - 1], b = st.levels[i];
-        html += `<line x1="${a.cx}" y1="${a.cy}" x2="${b.cx}" y2="${b.cy}"/>`;
-      }
-      html += '</svg>';
-    }
-
-    st.levels.forEach((lv, li) => {
-      const isCur = li === st.levels.length - 1;
-      const cls = ['level', isCur ? 'current' : 'parent', li ? 'sub' : 'root'].join(' ');
-      html += `<div class="${cls}" style="left:${lv.cx}px;top:${lv.cy}px;scale:${st.s}">`;
-      if (isCur) {
-        html += '<div class="halo"></div>';
-        html += `<div class="track" style="width:${lv.r * 2}px;height:${lv.r * 2}px;margin:${-lv.r}px 0 0 ${-lv.r}px"></div>`;
-        const n = lv.items.length + (lv.slots.back === null ? 0 : 1);
-        const half = 180 / n - 3;
-        html += '<svg class="wedges">';
-        lv.slots.items.forEach((a, i) => (html += `<path class="wedge" data-slot="${i}" d="${sector(a, half, 60, lv.r + 44)}"/>`));
-        if (lv.slots.back !== null) html += `<path class="wedge" data-slot="back" d="${sector(lv.slots.back, half, 52, lv.r)}"/>`;
-        html += '</svg>';
-      }
-
-      const dots = li === 0 && st.menu.categories.length > 1
-        ? '<div class="dots">' + st.menu.categories.map((_, i) => `<i class="${i === st.cat ? 'on' : ''}"></i>`).join('') + '</div>'
-        : '';
-      const hint = li ? 'Center: back' : st.menu.categories.length > 1 ? 'Scroll or click<br>to switch' : 'Flick or click';
-      html += `<div class="center" data-center="1">
-        <div class="cat">${I.icon(cat.icon || 'dot')}<span>${esc(lv.name || cat.name)}</span></div>
-        <div class="title"></div><div class="hint">${hint}</div>${dots}</div>`;
-
-      if (isCur) {
-        lv.items.forEach((it, i) => {
-          const a = lv.slots.items[i];
-          const p = G.polar(0, 0, a, lv.r);
-          html += `<div class="item" data-slot="${i}" style="left:${p.x}px;top:${p.y}px;animation-delay:${i * 14}ms">
-            ${I.icon(it.icon || 'dot')}${it.items ? `<span class="more" style="transform:rotate(${a}deg)"></span>` : ''}</div>`;
-          html += `<div class="label" data-slot="${i}" style="${labelStyle(a, lv.r + 40)};animation-delay:${40 + i * 14}ms">${esc(it.name)}</div>`;
-        });
-        if (lv.slots.back !== null) {
-          const a = lv.slots.back;
-          const p = G.polar(0, 0, a, lv.r * 0.78);
-          html += `<div class="item back" data-slot="back" style="left:${p.x}px;top:${p.y}px">
-            <span style="display:flex;transform:rotate(${a + 90}deg)">${I.icon('back')}</span></div>`;
-        }
-      }
-      html += '</div>';
+    const L = cur();
+    if (!L || !L.nodes) return;
+    const on = slotIndexOf(st.hover);
+    L.nodes.forEach((N, i) => {
+      N.el.classList.toggle('on', i === on);
+      if (N.label) N.label.classList.toggle('on', i === on);
+      N.dots.forEach((d) => d.el.classList.toggle('on', i === on));
     });
-    stage.innerHTML = html;
-    paintHover();
+    const parentL = st.levels[st.levels.length - 2];
+    if (parentL) parentL.center.classList.toggle('on', st.hover === 'back');
+    let title = '';
+    if (st.hover === 'back') title = 'Back';
+    else if (st.hover !== -1) title = L.items[st.hover].name;
+    L.cTitle.textContent = title;
+    L.iconOp.t = title ? 0 : 1;
+    L.textOp.t = title ? 1 : 0;
+    if (L.cName) L.cName.style.visibility = title ? 'hidden' : '';
+    if (L.cDots) L.cDots.style.visibility = title ? 'hidden' : '';
+    if (on >= 0) {
+      const N = L.nodes[on];
+      const n = L.slots.items.length + (L.slots.back === null ? 0 : 1);
+      L.hlPath.setAttribute('d', sector(N.angle, 180 / n - 1.5, 62, L.r + 46));
+      L.hlOp.t = 1;
+    } else {
+      L.hlOp.t = 0;
+    }
   }
 
-  function esc(s) {
-    return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  // ------------------------------------------------------------ the frame loop
+
+  function startLoop() {
+    if (raf) return;
+    lastT = performance.now();
+    raf = requestAnimationFrame(frame);
+  }
+
+  function frame(t) {
+    raf = 0;
+    if (!st) return;
+    const dt = Math.min(0.032, Math.max(0.001, (t - lastT) / 1000));
+    lastT = t;
+    const now = performance.now();
+    const L = cur();
+    const pdx = (st.px - L.cx) / st.s;
+    const pdy = (st.py - L.cy) / st.s;
+    const pdist = Math.hypot(pdx, pdy);
+    const pang = G.angleOf(pdx, pdy);
+    const hoverIdx = slotIndexOf(st.hover);
+    const lm = labelMode();
+    const paused = now - st.lastChange > LABEL_PAUSE_MS;
+
+    // Rim pointer: follow the cursor the short way round.
+    let ta = pang;
+    while (ta - L.rimA.x > 180) ta -= 360;
+    while (ta - L.rimA.x < -180) ta += 360;
+    L.rimA.t = ta;
+    L.rimOp.t = pdist > DEAD && !st.closing ? 1 : 0;
+
+    let busy = false;
+    const sinceBuilt = (now - L.builtAt) / 1000;
+
+    L.nodes.forEach((N, i) => {
+      const started = sinceBuilt >= N.delay;
+      const hovered = i === hoverIdx;
+      const diff = G.angDiff(pang, N.angle);
+      N.r.t = started ? (N.back ? L.r * 0.78 : L.r) : 0;
+      if (!st.closing || N.sc.t < 1.3) {
+        N.sc.t = !started ? 0.35 : hovered ? 1.2 : hoverIdx >= 0 ? 1.1 - Math.pow(diff / 180, 0.25) * 0.12 : 1;
+      }
+      // Flick: the aimed direction stretches out after the hand.
+      if (hovered && st.mode === 'hold' && !N.back && pdist > L.r) {
+        const reach = Math.min(pdist - L.r, PASS + 6) * 0.85;
+        const p = G.polar(0, 0, N.angle, reach);
+        N.dx.t = p.x;
+        N.dy.t = p.y;
+      } else {
+        N.dx.t = 0;
+        N.dy.t = 0;
+      }
+      const showLabel = !hovered && started && (lm === 'always' || (lm === 'pause' && paused));
+      N.lop.t = showLabel ? 1 : 0;
+      [N.r, N.sc, N.dx, N.dy, N.lop].forEach((s) => {
+        step(s, dt);
+        if (!settled(s)) busy = true;
+      });
+      if (!started) busy = true;
+    });
+
+    // Levels: position, scale, fade.
+    st.levels.forEach((Lv) => {
+      [Lv.cScale, Lv.op, Lv.ox, Lv.oy, Lv.iconOp, Lv.textOp, Lv.rimOp, Lv.rimA, Lv.hlOp, Lv.spin].forEach((s) => {
+        step(s, dt);
+        if (!settled(s)) busy = true;
+      });
+    });
+    step(st.fade, dt);
+    if (!settled(st.fade)) busy = true;
+
+    // ---- write ----
+    stage.style.opacity = String(Math.max(0, Math.min(1, st.fade.x)));
+    st.levels.forEach((Lv, li) => {
+      const isCur = li === st.levels.length - 1;
+      Lv.layer.style.transform = `translate(${Lv.cx + Lv.ox.x}px, ${Lv.cy + Lv.oy.x}px) scale(${st.s})`;
+      Lv.layer.style.opacity = String(Math.max(0, Math.min(1, Lv.op.x)));
+      Lv.center.style.transform = `scale(${Lv.cScale.x})`;
+      Lv.cIcon.style.opacity = String(clamp01(Lv.iconOp.x));
+      Lv.cText.style.opacity = String(clamp01(Lv.textOp.x));
+      if (isCur) {
+        Lv.rim.style.transform = `rotate(${Lv.rimA.x}deg) scale(${Lv.cScale.x})`;
+        Lv.rim.style.opacity = String(clamp01(Lv.rimOp.x));
+        Lv.hlPath.style.opacity = String(clamp01(Lv.hlOp.x));
+        Lv.wedgeSvg.style.transform = `rotate(${Lv.spin.x}deg)`;
+      }
+      if (Lv.link) {
+        const prev = st.levels[li - 1];
+        Lv.link.setAttribute('x1', prev.cx + prev.ox.x);
+        Lv.link.setAttribute('y1', prev.cy + prev.oy.x);
+        Lv.link.setAttribute('x2', Lv.cx + Lv.ox.x);
+        Lv.link.setAttribute('y2', Lv.cy + Lv.oy.x);
+      }
+    });
+
+    L.nodes.forEach((N, i) => {
+      const a = N.angle + L.spin.x;
+      const p = G.polar(0, 0, a, N.r.x);
+      const x = p.x + N.dx.x;
+      const y = p.y + N.dy.x;
+      N.el.style.transform = `translate(${x}px, ${y}px) scale(${Math.max(0, N.sc.x)})`;
+      N.el.style.opacity = String(clamp01(N.r.x / Math.max(1, L.r) * 1.4));
+      if (N.label) {
+        const lp = G.polar(0, 0, a, N.r.x + 46);
+        const s = Math.sin((a * Math.PI) / 180);
+        const c = Math.cos((a * Math.PI) / 180);
+        N.label.style.transform = `translate(${lp.x + N.dx.x}px, ${lp.y + N.dy.x}px) translate(${-50 + s * 50}%, ${-50 - c * 50}%)`;
+        N.label.style.opacity = String(clamp01(N.lop.x));
+      }
+      N.dots.forEach((d) => {
+        const dp = G.polar(x, y, d.a, 38 * Math.max(0.4, N.sc.x));
+        d.el.style.transform = `translate(${dp.x}px, ${dp.y}px)`;
+        d.el.style.opacity = String(clamp01(N.sc.x - 0.3));
+      });
+    });
+
+    if (st.closing && st.fade.x < 0.04) {
+      const after = st.closing.after;
+      hardClear();
+      after();
+      return;
+    }
+    if (busy || st.mode === 'hold' || L.rimOp.x > 0.01 || st.closing) {
+      raf = requestAnimationFrame(frame);
+    } else {
+      // Nothing moving: wake again on the next pointer move or for the labels.
+      if (lm === 'pause' && !paused) setTimeout(startLoop, LABEL_PAUSE_MS + 30);
+    }
+  }
+
+  function clamp01(v) {
+    return Math.max(0, Math.min(1, v));
   }
 
   // ------------------------------------------------------------ input
@@ -250,45 +556,63 @@
     st.px = e.clientX;
     st.py = e.clientY;
     aim();
+    startLoop();
   });
 
   window.addEventListener('pointerdown', (e) => {
-    if (!st || e.button !== 0) return;
-    const lv = cur();
+    if (!st || st.closing || e.button !== 0) return;
     st.px = e.clientX;
     st.py = e.clientY;
-    const dist = Math.hypot(st.px - lv.cx, st.py - lv.cy) / st.s;
-    if (e.target.closest('[data-center]') && e.target.closest('.level.current')) {
-      if (st.levels.length > 1) popLevel();
-      else switchCategory(1);
+    const parent = e.target.closest && e.target.closest('[data-parent]');
+    if (parent) {
+      while (st.levels.length - 1 > Number(parent.dataset.parent)) popLevel();
       return;
     }
-    if (dist > lv.r + 70) return dismiss();
-    const target = G.aimAt(lv.slots, st.px - lv.cx, st.py - lv.cy, DEAD * st.s);
+    const centerEl = e.target.closest && e.target.closest('[data-center]');
+    if (centerEl && !centerEl.dataset.parent) {
+      if (st.levels.length > 1) popLevel();
+      else switchCategory(1);
+      startLoop();
+      return;
+    }
+    const L = cur();
+    const dist = Math.hypot(st.px - L.cx, st.py - L.cy) / st.s;
+    if (dist > L.r + 80) return dismiss();
+    const target = G.aimAt(L.slots, (st.px - L.cx) / st.s, (st.py - L.cy) / st.s, DEAD);
     if (target !== -1) activate(target);
+    startLoop();
   });
 
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    if (!st) return;
+    if (!st || st.closing) return;
     if (st.levels.length > 1) popLevel();
     else dismiss();
+    startLoop();
   });
 
   window.addEventListener('wheel', (e) => {
-    if (!st) return;
+    if (!st || st.closing) return;
     e.preventDefault();
+    if (st.levels.length > 1) while (st.levels.length > 1) popLevel();
     switchCategory(e.deltaY > 0 ? 1 : -1);
+    startLoop();
   }, { passive: false });
 
   // ------------------------------------------------------------ wiring
 
-  window.RGRing = { open, release, clear, hooks, state: () => st };
+  window.RGRing = {
+    open,
+    release,
+    clear,
+    hooks,
+    state: () => (st && !st.closing ? { levels: st.levels, hover: st.hover, cat: st.cat, mode: st.mode } : null),
+  };
 
   if (window.radgesture) {
     window.radgesture.onOpen(open);
     window.radgesture.onRelease(release);
-    window.radgesture.onClose(clear);
+    window.radgesture.onClose(hardClear);
     hooks.select = (item) => window.radgesture.select(item);
     hooks.dismiss = () => window.radgesture.dismiss();
   }

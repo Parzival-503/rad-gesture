@@ -12,6 +12,10 @@ const js = ['src/common/menu.js', 'src/renderer/geometry.js', 'src/renderer/icon
   .map((p) => `/* ${p} */\n${read(p)}`)
   .join('\n');
 
+// The icon font goes in as a data URI so the page works as a single file.
+const fontB64 = fs.readFileSync(path.join(root, 'assets/fonts/material-symbols-rounded.woff2')).toString('base64');
+const css = read('src/renderer/ring.css').replace("url('../../assets/fonts/material-symbols-rounded.woff2')", `url(data:font/woff2;base64,${fontB64})`);
+
 const page = `<!doctype html>
 <html lang="en">
 <head>
@@ -19,7 +23,7 @@ const page = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>RadGesture Preview</title>
 <style>
-${read('src/renderer/ring.css')}
+${css}
 /* ---- preview page only ---- */
 html, body { background: #07090c; touch-action: none; }
 body::before {

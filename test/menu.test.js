@@ -35,8 +35,9 @@ test('PowerScribe opens the AI ring first, anything else the first ring', () => 
   assert.strictEqual(categoryForApp(m, 'epic.exe'), 1);
 });
 
-test('every icon in the default menu exists', () => {
-  const names = new Set(RGIcons.names);
+test('every icon in the default menu exists in the bundled icon font', () => {
+  const symbols = new Set(JSON.parse(fs.readFileSync(path.join(root, 'assets/fonts/material-symbols-names.json'), 'utf8')));
+  const names = { has: (n) => RGIcons.resolve(n).kind === 'text' || symbols.has(RGIcons.resolve(n).value) };
   for (const c of menu.categories) {
     assert.ok(names.has(c.icon), `category icon ${c.icon}`);
     walk(c.items, (it) => assert.ok(names.has(it.icon), `icon "${it.icon}" for ${it.name}`));

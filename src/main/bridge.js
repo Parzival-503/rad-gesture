@@ -4,16 +4,18 @@
 // PowerScribe work; the hub owns the ring. They talk over plain HTTP on
 // 127.0.0.1 only, with a shared token so no other program can drive it.
 //
-//   POST /show?app=<exe>  helper: trigger went down, open the ring
+//   POST /show?app=<exe>  helper: trigger went down -> "ok" | "paused"
 //   POST /release         helper: trigger came up -> "action:<id>" | "stay" | "none"
 //   POST /cancel          helper: Esc pressed
 //   GET  /poll            helper: "action:<id>" (queued) | "open" | "closed"
+//                         (also the heartbeat: it proves the helper is alive)
+//   POST /done?action=<id> helper: finished running an action
 //
 // Plain-text replies, because the helper is AutoHotkey v1 and has no JSON.
 
 const http = require('http');
 
-function createBridge({ token, onShow, onRelease, onCancel, isOpen }) {
+function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {} }) {
   const queue = [];
 
   const server = http.createServer(async (req, res) => {
@@ -26,14 +28,17 @@ function createBridge({ token, onShow, onRelease, onCancel, isOpen }) {
     try {
       switch (url.pathname) {
         case '/show':
-          await onShow(url.searchParams.get('app') || '');
-          return reply(200, 'ok');
+          return reply(200, (await onShow(url.searchParams.get('app') || '')) || 'ok');
         case '/release':
           return reply(200, (await onRelease()) || 'none');
         case '/cancel':
           await onCancel();
           return reply(200, 'ok');
+        case '/done':
+          onDone(url.searchParams.get('action') || '');
+          return reply(200, 'ok');
         case '/poll':
+          onPoll();
           if (queue.length) return reply(200, 'action:' + queue.shift());
           return reply(200, isOpen() ? 'open' : 'closed');
         case '/ping':

@@ -134,6 +134,12 @@ BuildTrayMenu()
 SetTimer, HubPoll, 750
 if (g_PriorAtStartup)
     ShowPriorBin()
+; CI runs "--selftest": the whole script has loaded and every startup step
+; above has run, so report and leave (tests-e2e / the Windows build job).
+if (A_Args[1] = "--selftest") {
+    FileAppend, SELFTEST OK`n, *
+    ExitApp, 0
+}
 return
 
 ; ----------------------------------------------------------------------------
@@ -2807,10 +2813,13 @@ HubTriggerDown:
     if (g_RingOpen)
         return  ; key auto-repeat while held
     WinGet, hubExe, ProcessName, A
-    if (HubRequest("POST", "/show?app=" . hubExe) = "ok") {
+    hubShow := HubRequest("POST", "/show?app=" . hubExe)
+    if (hubShow = "ok") {
         g_RingOpen := true
         Hotkey, Esc, On
         SetTimer, HubPoll, 50
+    } else if (hubShow = "paused") {
+        Notify("RadGesture is paused (tray icon > Pause the ring)", 1500)
     } else {
         Toast("The RadGesture ring isn't running. Start RadGesture from the Start menu.", "warn", 3500)
     }
@@ -2892,7 +2901,24 @@ RunHubAction(a) {
     ; tool sends Ctrl+A / Ctrl+C.
     KeyWait, Control, T1
     KeyWait, CapsLock, T1
-    if (a = "proofread") {
+    if (a = "reload") {
+        ; Settings were saved in the RadGesture window: read them again and
+        ; rebind every shortcut.
+        LoadSettings()
+        RegisterHotkey()
+        RegisterPriorHotkeys()
+        RegisterToolHotkeys()
+        RegisterHubHotkeys()
+        Menu, Tray, DeleteAll
+        BuildTrayMenu()
+    } else if (a = "suspend") {
+        ; The Settings window is recording a shortcut: don't act on the keys.
+        ; Comes back on its own after 30 s in case "resume" never arrives.
+        Suspend, On
+        SetTimer, HubAutoResume, -30000
+    } else if (a = "resume") {
+        Suspend, Off
+    } else if (a = "proofread") {
         ProofreadActiveReport()
     } else if (a = "impression") {
         if (!g_Busy)
@@ -2929,7 +2955,13 @@ RunHubAction(a) {
     } else {
         Toast("Unknown action from the ring: " . a, "warn")
     }
+    ; Tell the hub it ran (Settings > Status shows it; the Windows tests check it).
+    HubRequest("POST", "/done?action=" . a)
 }
+
+HubAutoResume:
+    Suspend, Off
+return
 
 ; ============================================================================
 ; LUNG-RADS  (Sina's standalone Lung-RADS script, merged unchanged)

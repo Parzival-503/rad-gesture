@@ -1,6 +1,7 @@
 {
-  "version": 1,
-  "showLabels": true,
+  "version": 2,
+  "labels": "pause",
+  "ringScale": 1,
   "startAtLogin": true,
   "helper": {
     "autoStart": true,
@@ -11,85 +12,85 @@
       "id": "ai",
       "name": "AI Tools",
       "color": "#7aa2ff",
-      "icon": "sparkle",
+      "icon": "stars",
       "apps": [
         "Nuance.PowerScribe360.exe"
       ],
       "items": [
         {
           "name": "Proofread",
-          "icon": "check",
+          "icon": "spellcheck",
           "action": "helper:proofread"
         },
         {
           "name": "Impression",
-          "icon": "quote",
+          "icon": "summarize",
           "action": "helper:impression"
         },
         {
           "name": "One-liner",
-          "icon": "lines",
+          "icon": "short_text",
           "items": [
             {
               "name": "Full",
-              "icon": "lines",
+              "icon": "notes",
               "action": "helper:oneliner:full"
             },
             {
               "name": "Oncologic",
-              "icon": "target",
+              "icon": "oncology",
               "action": "helper:oneliner:oncologic"
             },
             {
               "name": "Treatment",
-              "icon": "calendar",
+              "icon": "medication",
               "action": "helper:oneliner:treatment"
             },
             {
               "name": "Indication",
-              "icon": "pin",
+              "icon": "assignment",
               "action": "helper:oneliner:indication"
             }
           ]
         },
         {
           "name": "Priors",
-          "icon": "layers",
+          "icon": "history",
           "items": [
             {
               "name": "Add copied prior",
-              "icon": "plus",
+              "icon": "add",
               "action": "helper:prior:add"
             },
             {
               "name": "Checklist",
-              "icon": "list",
+              "icon": "checklist",
               "action": "helper:prior:checklist"
             },
             {
               "name": "Clear priors",
-              "icon": "trash",
+              "icon": "delete_sweep",
               "action": "helper:prior:clear"
             },
             {
               "name": "Show toolbar",
-              "icon": "panel",
+              "icon": "dock_to_left",
               "action": "helper:prior:show"
             }
           ]
         },
         {
           "name": "Settings",
-          "icon": "sliders",
+          "icon": "tune",
           "items": [
             {
               "name": "AI settings",
-              "icon": "sliders",
+              "icon": "key",
               "action": "helper:settings"
             },
             {
               "name": "Proofread history",
-              "icon": "history",
+              "icon": "manage_search",
               "action": "helper:history"
             },
             {
@@ -105,7 +106,7 @@
       "id": "pacs",
       "name": "PACS",
       "color": "#c79bff",
-      "icon": "grid",
+      "icon": "grid_view",
       "items": [
         {
           "name": "Window / level",
@@ -118,105 +119,105 @@
             },
             {
               "name": "Lung",
-              "icon": "lungs",
+              "icon": "pulmonology",
               "action": "helper:keys:^!2"
             },
             {
               "name": "Bone",
-              "icon": "contrast",
+              "icon": "skeleton",
               "action": "helper:keys:^!3"
             },
             {
               "name": "Brain",
-              "icon": "contrast",
+              "icon": "neurology",
               "action": "helper:keys:^!4"
             },
             {
               "name": "Stroke",
-              "icon": "contrast",
+              "icon": "emergency",
               "action": "helper:keys:^!6"
             }
           ]
         },
         {
           "name": "Measure",
-          "icon": "ruler",
+          "icon": "straighten",
           "items": [
             {
               "name": "Distance",
-              "icon": "ruler",
+              "icon": "straighten",
               "action": "helper:keys:^!d"
             },
             {
               "name": "ROI",
-              "icon": "target",
+              "icon": "adjust",
               "action": "helper:keys:^!h"
             },
             {
               "name": "Arrow",
-              "icon": "back",
+              "icon": "north_east",
               "action": "helper:keys:^!a"
             },
             {
               "name": "Circle",
-              "icon": "dot",
+              "icon": "circle",
               "action": "helper:keys:^!c"
             },
             {
               "name": "Insert measurement",
-              "icon": "plus",
+              "icon": "add_box",
               "action": "helper:keys:^!m"
             }
           ]
         },
         {
           "name": "Crosshair",
-          "icon": "crosshair",
+          "icon": "my_location",
           "items": [
             {
               "name": "Crosshair",
-              "icon": "crosshair",
+              "icon": "my_location",
               "action": "helper:keys:^!x"
             },
             {
               "name": "Link crosshair",
-              "icon": "crosshair",
+              "icon": "link",
               "action": "helper:keys:^!l"
             },
             {
               "name": "Orthogonal",
-              "icon": "grid",
+              "icon": "view_in_ar",
               "action": "helper:keys:^!o"
             }
           ]
         },
         {
           "name": "Layout",
-          "icon": "grid",
+          "icon": "dashboard",
           "items": [
             {
               "name": "Previous layout",
-              "icon": "back",
+              "icon": "arrow_back",
               "action": "helper:keys:^!r"
             },
             {
               "name": "Next layout",
-              "icon": "play",
+              "icon": "arrow_forward",
               "action": "helper:keys:^!t"
             },
             {
               "name": "MPR",
-              "icon": "layers",
+              "icon": "view_in_ar",
               "action": "helper:keys:^!s"
             },
             {
               "name": "Matrix",
-              "icon": "grid",
+              "icon": "grid_view",
               "action": "helper:keys:^!w"
             },
             {
               "name": "Image window",
-              "icon": "window",
+              "icon": "web",
               "action": "helper:keys:^!n"
             }
           ]
@@ -227,28 +228,28 @@
           "items": [
             {
               "name": "Previous key image",
-              "icon": "back",
+              "icon": "arrow_back",
               "action": "helper:keys:^!k"
             },
             {
               "name": "Next key image",
-              "icon": "play",
+              "icon": "arrow_forward",
               "action": "helper:keys:^!i"
             }
           ]
         },
         {
           "name": "Enhance",
-          "icon": "wand",
+          "icon": "wand_stars",
           "items": [
             {
               "name": "Enhance",
-              "icon": "wand",
+              "icon": "wand_stars",
               "action": "helper:keys:^!e"
             },
             {
               "name": "Sharpen",
-              "icon": "wand",
+              "icon": "filter_center_focus",
               "action": "helper:keys:^!b"
             }
           ]
@@ -264,27 +265,27 @@
           "items": [
             {
               "name": "Lung-RADS (auto)",
-              "icon": "lungs",
+              "icon": "pulmonology",
               "action": "helper:lungrads"
             },
             {
               "name": "Paste indication",
-              "icon": "clip",
+              "icon": "content_paste",
               "action": "helper:keys:^!g"
             },
             {
               "name": "Next field",
-              "icon": "field",
+              "icon": "arrow_forward",
               "action": "helper:keys:^!f"
             },
             {
               "name": "Previous field",
-              "icon": "field",
+              "icon": "arrow_back",
               "action": "helper:keys:^!v"
             },
             {
               "name": "Lung screening 2",
-              "icon": "lungs",
+              "icon": "pulmonology",
               "action": "helper:keys:+!i"
             }
           ]
@@ -295,93 +296,93 @@
       "id": "gallery",
       "name": "Gallery",
       "color": "#f2b84b",
-      "icon": "book",
+      "icon": "menu_book",
       "items": [
         {
           "name": "CT Chest",
-          "icon": "lungs",
+          "icon": "pulmonology",
           "items": [
             {
               "name": "Lung-RADS v2022",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://www.jacr.org/article/S1546-1440(23)00761-5/fulltext"
             },
             {
               "name": "Fleischner 2017",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://pubs.rsna.org/doi/full/10.1148/radiol.2017161659"
             }
           ]
         },
         {
           "name": "Abdomen",
-          "icon": "organ",
+          "icon": "gastroenterology",
           "items": [
             {
               "name": "LI-RADS v2018",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://radiologyassistant.nl/abdomen/liver/li-rads"
             },
             {
               "name": "Bosniak v2019",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://radiopaedia.org/articles/bosniak-classification-of-cystic-renal-masses-version-2019"
             },
             {
               "name": "PI-RADS v2.1",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://radiologyassistant.nl/abdomen/prostate/prostate-cancer-pi-rads-v2-1"
             },
             {
               "name": "O-RADS US",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://pubs.rsna.org/doi/full/10.1148/radiol.230685"
             },
             {
               "name": "O-RADS MRI",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://radiopaedia.org/articles/ovarian-adnexal-reporting-and-data-system-magnetic-resonance-imaging-o-rads-mri"
             },
             {
               "name": "ACR Incidentals",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://www.jacr.org/article/S1546-1440(17)30551-3/fulltext"
             }
           ]
         },
         {
           "name": "Ultrasound",
-          "icon": "wave",
+          "icon": "graphic_eq",
           "items": [
             {
               "name": "ACR TI-RADS",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://radiologyassistant.nl/head-neck/ti-rads/ti-rads"
             },
             {
               "name": "1st-Trimester Lexicon",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://pubs.rsna.org/doi/full/10.1148/radiol.240122"
             }
           ]
         },
         {
           "name": "PET-CT",
-          "icon": "atom",
+          "icon": "radiology",
           "items": [
             {
               "name": "Deauville 5-point",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://radiopaedia.org/search?q=Deauville%20five-point%20scale"
             },
             {
               "name": "PSMA-RADS 2.0",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://pmc.ncbi.nlm.nih.gov/articles/PMC11981304/"
             },
             {
               "name": "Krenning score",
-              "icon": "book",
+              "icon": "menu_book",
               "action": "url:https://radiopaedia.org/articles/krenning-score-of-neuroendocrine-tumour-uptake"
             }
           ]
@@ -397,14 +398,14 @@
             },
             {
               "name": "Google",
-              "icon": "globe",
+              "icon": "travel_explore",
               "action": "search:https://www.google.com/search?q={clipboard}"
             }
           ]
         },
         {
           "name": "My documents",
-          "icon": "folder",
+          "icon": "folder_open",
           "action": "file:%USERPROFILE%\\Documents"
         }
       ]
@@ -413,31 +414,31 @@
       "id": "apps",
       "name": "Apps",
       "color": "#5cc8d6",
-      "icon": "window",
+      "icon": "apps",
       "items": [
         {
           "name": "Epic",
-          "icon": "window",
+          "icon": "local_hospital",
           "action": "helper:keys:+!e"
         },
         {
           "name": "Teams",
-          "icon": "chat",
+          "icon": "groups",
           "action": "helper:keys:+!t"
         },
         {
           "name": "Chrome tabs",
-          "icon": "tabs",
+          "icon": "tab",
           "action": "helper:keys:+!c"
         },
         {
           "name": "Search selection",
-          "icon": "search",
+          "icon": "image_search",
           "action": "helper:keys:+!s"
         },
         {
           "name": "OpenEvidence",
-          "icon": "globe",
+          "icon": "public",
           "action": "url:https://www.openevidence.com/"
         }
       ]
@@ -450,7 +451,7 @@
       "items": [
         {
           "name": "Start study (F4)",
-          "icon": "play",
+          "icon": "play_arrow",
           "action": "helper:keys:{F4}"
         },
         {
