@@ -77,3 +77,16 @@ fs.mkdirSync(path.join(root, 'dist-preview'), { recursive: true });
 const out = path.join(root, 'dist-preview', 'RadGesture-preview.html');
 fs.writeFileSync(out, page);
 console.log('wrote', out, Math.round(page.length / 1024) + ' KB');
+
+// Same page as body content only, for publishing as a claude.ai artifact
+// (the host adds its own document skeleton).
+const art = page
+  .replace(/^<!doctype html>\n<html lang="en">\n<head>\n/, '')
+  .replace('<meta charset="utf-8">\n', '')
+  .replace(/<meta name="viewport"[^>]*>\n/, '')
+  .replace('<title>RadGesture Preview</title>', '<title>RadGesture Ring</title>')
+  .replace('</head>\n<body>\n', '')
+  .replace('</body>\n</html>\n', '')
+  .replace('/* ---- preview page only ---- */', '/* ---- preview page only ---- */\n:root { color-scheme: dark; }')
+  .replace('position: fixed; left: 16px; top: 16px;', 'position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); top: calc(16px + env(safe-area-inset-top, 0px));');
+fs.writeFileSync(path.join(root, 'dist-preview', 'radgesture-ring.html'), art);

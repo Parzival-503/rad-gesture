@@ -28,13 +28,13 @@
 
   // ------------------------------------------------------------ state
 
-  function open({ x, y, menu, category: cat }) {
+  function open({ x, y, menu, category: cat, mode }) {
     st = {
       menu,
       cat: cat || 0,
       levels: [],
       hover: -1,
-      mode: 'hold',
+      mode: mode === 'click' ? 'click' : 'hold',
       openedAt: performance.now(),
       px: x,
       py: y,

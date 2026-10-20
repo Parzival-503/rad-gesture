@@ -96,7 +96,9 @@ function createOverlay() {
   overlay.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 }
 
-function openRing(exe) {
+// mode 'hold': opened by the trigger, released by it (flick). 'click': opened
+// from the tray or a second launch, where nothing is held.
+function openRing(exe, mode = 'hold') {
   if (process.env.RG_SMOKE) console.log('SMOKE openRing');
   if (!overlay) return;
   const cursor = screen.getCursorScreenPoint();
@@ -109,6 +111,7 @@ function openRing(exe) {
     y: cursor.y - b.y,
     menu,
     category: categoryForApp(menu, exe),
+    mode,
   });
   overlay.showInactive();
   if (process.env.RG_SMOKE) smokeReport();
@@ -271,7 +274,7 @@ function buildTray() {
   tray.setToolTip('RadGesture - hold Ctrl+CapsLock');
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: 'Show the ring here (test)', click: () => openRing('') },
+      { label: 'Show the ring here (test)', click: () => openRing('', 'click') },
       { type: 'separator' },
       { label: 'Edit menu...', click: () => hubCommand('edit-menu') },
       { label: 'Open settings folder', click: () => hubCommand('open-folder') },
@@ -288,6 +291,8 @@ function buildTray() {
 
 // ---------------------------------------------------------------- start
 
+if (process.platform === 'win32') app.setAppUserModelId('menu.radgesture.hub'); // Windows notifications need it
+
 app.whenReady().then(async () => {
   loadMenu();
   watchMenu();
@@ -298,5 +303,5 @@ app.whenReady().then(async () => {
   if (!menu.helper || menu.helper.autoStart !== false) startHelper();
 });
 
-app.on('second-instance', () => openRing(''));
+app.on('second-instance', () => openRing('', 'click'));
 app.on('window-all-closed', (e) => e.preventDefault()); // tray app: keep running
