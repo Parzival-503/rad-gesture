@@ -66,7 +66,9 @@ SetBatchLines, -1
 ; ----------------------------------------------------------------------------
 ; Writable per-user folder: the helper is installed with the hub, where the
 ; script's own folder may not be writable and is replaced on every update.
-global g_DataDir := A_AppData . "\RadGesture"
+; The hub passes its data folder (same place by default, a temp folder in tests).
+EnvGet, g_DataDirEnv, RG_DATA_DIR
+global g_DataDir := (g_DataDirEnv != "") ? g_DataDirEnv : A_AppData . "\RadGesture"
 global INI_PATH := g_DataDir . "\RadGesture.ini"
 global API_URL  := "https://api.anthropic.com/v1/messages"
 global API_VERSION := "2023-06-01"

@@ -30,7 +30,7 @@ function findAutoHotkey(configured, env = process.env) {
   return candidates.find((c) => c && fs.existsSync(c)) || null;
 }
 
-function createSupervisor({ resourcesDir, ahkPathSetting, onChange, log = () => {} }) {
+function createSupervisor({ resourcesDir, ahkPathSetting, dataDir, onChange, log = () => {} }) {
   const exePath = path.join(resourcesDir, 'RadGestureHelper.exe');
   const scriptPath = path.join(resourcesDir, 'RadGestureHelper.ahk');
   const st = {
@@ -97,7 +97,11 @@ function createSupervisor({ resourcesDir, ahkPathSetting, onChange, log = () => 
     }
     log(`starting helper: ${cmd} ${args.join(' ')}`);
     try {
-      child = spawn(cmd, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      // The helper reads bridge.ini and RadGesture.ini from the hub's data
+      // folder; tell it where that is rather than both guessing.
+      const env = { ...process.env };
+      if (dataDir) env.RG_DATA_DIR = dataDir();
+      child = spawn(cmd, args, { windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
       st.lastError = 'Could not start the helper: ' + e.message;
       changed();

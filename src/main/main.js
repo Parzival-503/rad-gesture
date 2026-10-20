@@ -482,6 +482,7 @@ app.whenReady().then(async () => {
   supervisor = createSupervisor({
     resourcesDir: resourcesHelperDir(),
     ahkPathSetting: () => menu.helper && menu.helper.ahkPath,
+    dataDir: userDir,
     onChange: () => updateTray(),
     log: (m) => logEvent('helper', m),
   });
