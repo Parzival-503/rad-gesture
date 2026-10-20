@@ -64,73 +64,103 @@ Two parts, each doing what it is best at:
 
 | Part | Where | Job |
 |---|---|---|
-| **Hub** | `src/` (Electron, plain JS, no bundler) | Draws the ring, opens links and files, reads `menu.json`, tray icon |
-| **Helper** | `helper/RadGestureHelper.ahk` (AutoHotkey v1.1) | Owns Ctrl+CapsLock, does all typing / copying / PowerScribe work, holds the AI tools (proofread, prior checklist, one-liner, impression) |
+| **Hub** | `src/` (Electron, plain JS, no bundler) | The ring, the tray, the Settings window, links/files, keeps the helper alive |
+| **Helper** | `helper/RadGestureHelper.ahk` (AutoHotkey v1.1), shipped **compiled** as `RadGestureHelper.exe` | Owns Ctrl+CapsLock, does all typing / copying / PowerScribe work, holds the AI tools and Lung-RADS |
 
 They talk over `http://127.0.0.1:<port>` with a token (`src/main/bridge.js`,
 "HUB BRIDGE" in the helper). The hub writes `%APPDATA%\RadGesture\bridge.ini`;
-the helper reads it. Plain-text replies, because AHK v1 has no JSON.
+the helper reads it. Plain-text replies, because AHK v1 has no JSON. The
+helper's poll (every 750 ms) is the heartbeat: "connected" in Status means
+Ctrl+CapsLock will work. After every action it POSTs `/done?action=...`.
+
+### Lesson from the first draft (don't repeat it)
+
+v3.0's first build was unusable on the workstation: the hub looked for an
+installed AutoHotkey to start the helper, failed silently, so Ctrl+CapsLock
+and every helper-backed menu item did nothing, and the tray's "Edit menu"
+opened a JSON file. Rules since:
+
+- The helper is **compiled into the app** by CI (Ahk2Exe) and supervised by
+  `helper-supervisor.js` (restarts with back-off, captures errors, AHK
+  fallback with `/ErrorStdOut`). Its state is always visible (tray line,
+  Settings > Status, sidebar dot).
+- **No user-facing JSON or folders.** Everything goes through the Settings
+  window (`src/settings/`). The data folder is only an "advanced" button.
+- **Nothing ships without the Windows e2e passing** (below): real AutoHotkey
+  loads the helper, the compiled helper starts, injected Ctrl+CapsLock opens
+  the ring and a flick and a tap-click both reach the helper.
 
 ### Before handing over ANY change
 
 ```
-npm test                                          # ring geometry, menu, bridge, menu-to-helper cross-check
+npm test                                          # unit tests (geometry, menu, bridge, settings store, ini, hotkeys, conflicts, menu<->helper)
 python3 tools/ahk_check.py                        # helper static checks, must print PASS
 python3 tools/hotkey_audit.py                     # shortcut clashes across ALL workstation scripts; rewrites docs/shortcuts.md
 node scripts/build-preview.js && node scripts/preview.js   # ring flows + screenshots in scripts/shots/
-xvfb-run -a node scripts/smoke.js                 # the real Electron app, driven over the bridge
+xvfb-run -a node tests-e2e/run.js                 # the real app: tray items, every Settings page + saves, ring  (screens in e2e-shots/)
 ```
+
+Then push and read the **Windows** job of `.github/workflows/build-windows.yml`
+(GitHub MCP `get_job_logs`): it runs `tests-e2e/run.js` against the packaged
+app with the compiled helper and real key presses (`tests-e2e/inject.ahk`).
+The installer is published only if that job passes.
 
 `npm test` includes a check that every `helper:<id>` in the default menu has a
 branch in the helper's `RunHubAction()`. Add a tool = add both, or it fails.
 The AHK rules from rad-stopwatch's CLAUDE.md all apply to the helper.
 
-The ring is a web page, so unlike the AHK tools it CAN be checked in the cloud:
-`scripts/preview.js` screenshots it in Chromium. Look at the screenshots
-before handing over any visual change. (Headless Linux can't capture the real
-transparent window; `smoke.js` asserts on the DOM instead, and
-`RG_SMOKE_OPAQUE=1` gives an opaque window you can screenshot.)
+### The ring (`src/renderer/ring.js`, theme in `ring.css`)
 
-### How the ring works (`src/renderer/ring.js`)
+Every element stays alive while open and is moved each frame by springs
+(slightly under-damped: the overshoot is what makes it feel alive). Look at
+screenshots before handing over any visual change.
 
-- **Flick**: hold the trigger, move toward a direction, release. Moving past a
-  direction that has `items` opens its smaller ring there (Kando's idea), so a
-  whole path is one stroke. Direction is all that counts, not distance.
-- **Tap**: released within 320 ms with nothing aimed at = the ring stays open
-  for clicking.
-- **Center** switches category (DragShift's idea): click it or scroll. In a
-  smaller ring the center or the arrow goes back; right-click goes back too.
-- Max 8 directions per ring (validated): more stops being flickable.
-- A smaller ring reserves one slot pointing back at its parent, so the way back
-  is always where you came from.
-- The overlay window is `focusable: false` (WS_EX_NOACTIVATE) and shown with
-  `showInactive()`: it must never take focus, or dictation lands in the wrong
-  window. The helper runs a picked tool right after release, while PowerScribe
-  is still the active window.
+- Rim pointer follows the cursor; directions zoom with closeness of aim;
+  the aimed one fills with the ring's colour and its icon fills in.
+- **Flick**: hold, move, release. The aimed direction stretches after the
+  hand; moving past a direction with `items` opens its smaller ring there.
+- **Tap** (<320 ms, nothing aimed) keeps it open for clicking.
+- **Center** switches rings (click or wheel) with a spin; in a smaller ring
+  the parent's shrunken center is the way back (aim at it or click it).
+- Small dots around a direction preview its smaller ring's contents.
+- Names: `labels` = `always` | `pause` (fade in after 650 ms still) | `never`;
+  the center always shows the aimed name.
+- Icons: Material Symbols Rounded, bundled in `assets/fonts` (offline), or any
+  emoji. Names are validated against `material-symbols-names.json` in tests.
+- The overlay is `focusable: false` + `showInactive()`; the hub delays hiding
+  170 ms after a pick so the pick animation plays (the action already runs).
 
-### The menu (`config/default-menu.json` -> `%APPDATA%\RadGesture\menu.json`)
+### Settings window (`src/settings/`)
 
-The default is copied on first run; Sina edits his copy (tray > Edit menu) and
-the hub reloads it on save. A broken file is reported and the last good menu
-kept. Actions: `helper:<id>`, `url:`, `file:` (expands `%VARS%`), `search:`
-(`{clipboard}` = copied text), `hub:edit-menu|open-folder|reload-menu`.
-`apps` on a category picks which ring opens first over that program.
-Icons are hand-drawn in `src/renderer/icons.js`; add one there, then use its
-name.
+Rings (visual editor: rings list, mini ring preview, directions list,
+editor with icon picker / action type / key recorder with clash warnings,
+Try it), AI tools (key + live test, model, proofread pickiness, impression
+rules, priors), Shortcuts (recorder; the helper is suspended while
+recording so it doesn't fire), General (labels, size, start with Windows,
+pause), Status (helper state + restart, old tools that clash + close them,
+how to use, recent activity). `src/main/settings-store.js` maps it onto
+`menu.json` and `RadGesture.ini`; a save tells the helper to `reload`.
 
-The Gallery category carries over Sina's reference links from the old Kando
-gallery (Lung-RADS, Fleischner, LI-RADS, ...).
+### Tray
+
+Left-click: Settings. Right-click: Open the ring, Settings..., Edit rings...,
+AI tools..., Shortcuts..., helper state line (click to start it), close
+conflicting tools, Pause the ring, Start with Windows, Status and help...,
+Quit (also stops the helper).
+
+### The menu data (`config/default-menu.json` -> `%APPDATA%\RadGesture\menu.json`)
+
+Actions: `helper:<id>`, `url:`, `file:` (expands `%VARS%`), `search:`
+(`{clipboard}`), `hub:`. `apps` on a ring picks which ring opens first over
+that program. The Gallery ring carries Sina's reference links from the old
+Kando gallery. Edited only through Settings.
 
 ### Helper notes
 
-- Settings, API key, history: `%APPDATA%\RadGesture\` (`RadGesture.ini`). The
-  install folder is replaced on every update, so nothing is stored there.
-  `MigrateOldSettings()` copies a `RadProofread.ini` sitting next to the
-  script, but in an installed hub there usually isn't one: Sina re-enters the
-  key once (tray > AI settings).
-- `#Requires AutoHotkey v1.1.33+` so AutoHotkey v2's launcher runs it with v1.
-- The hub starts the helper from the AutoHotkey install it finds
-  (`findAutoHotkey()` in main.js), falling back to the `.ahk` file association.
+- Settings, API key, history: `%APPDATA%\RadGesture\` (`RadGesture.ini`).
+- `--selftest` runs the whole startup then prints `SELFTEST OK` and exits
+  (CI). `reload`, `suspend`/`resume` come from Settings.
+- `#Requires AutoHotkey v1.1.33+`; CI uses v1.1.37.02.
 - Stopwatch slices send keys with `SendLevel 1` so RadStopwatch's own hotkeys
   (F4 start, F12 stop) see them.
 - `WinHttp.SetProxy(1)`: a hospital WinHTTP proxy must not swallow localhost.
@@ -138,42 +168,34 @@ gallery (Lung-RADS, Fleischner, LI-RADS, ...).
   script merged unchanged. It CHANGES PowerScribe only by PostMessage, and asks
   the pick lists read-only questions (LB_FINDSTRINGEXACT, LB_GETCOUNT,
   LB_GETCURSEL, LB_GETITEMRECT) by SendMessage, because only SendMessage
-  returns an answer. That is the precise form of the family's "PostMessage,
-  never SendMessage" rule, and `ahk_check.py` enforces exactly it.
+  returns an answer. `ahk_check.py` enforces exactly that.
 
 ### Shortcuts
 
 `tools/hotkey_audit.py` collects every hotkey on the workstation: the helper's
 INI defaults, RadStopwatch (from `../rad-stopwatch` when checked out, else a
-saved copy) and Rad Optimizer (keys only, in `tools/external_hotkeys.json`).
-It fails on two scripts sharing a key, a hotkey swallowing a key another
-script presses into an app, a ring button whose key nothing handles, or a
-Windows-reserved combination, and writes the inventory to `docs/shortcuts.md`
-(with the free Ctrl+Alt letters for new tools). Proven to fire by planting
-each kind of clash. Update the JSON when Rad Optimizer changes.
+saved copy) and Rad Optimizer (keys only, in `tools/external_hotkeys.json`,
+also bundled so Settings can warn about clashes). Fails on shared keys,
+swallowed keys, ring buttons pressing unhandled keys, Windows-reserved
+combos; writes `docs/shortcuts.md`. Update the JSON when Rad Optimizer changes.
 
 ### Build
 
-`.github/workflows/build-windows.yml` runs the checks, then builds
-`RadGesture-Setup.exe` (one-click, per-user, no admin) and a portable
-zip on a Windows runner, on every push. Download from the run's artifacts.
-Building the installer locally needs Windows (or wine); the zip builds anywhere.
-
-Every build also refreshes the `radgesture-latest` release, so the installer
-has one fixed link: `.../releases/download/radgesture-latest/RadGesture-Setup.exe`.
+`.github/workflows/build-windows.yml`: Linux checks + e2e, then Windows:
+download AHK v1.1, selftest, compile the helper, `npm run dist`, Windows e2e
+with real keys, then publish `RadGesture-Setup.exe` to the
+`radgesture-latest` release (fixed link
+`.../releases/download/radgesture-latest/RadGesture-Setup.exe`).
 
 ### Not here, on purpose
 
-- **RadStopwatch** stays its own program; the Stopwatch ring just sends its keys.
-- **Rad Optimizer** (Sina's shortcut script for PowerScribe, Sectra PACS and
-  apps) stays its own script and keeps its keys. The **PACS** and **Apps**
-  rings send its hotkeys (`helper:keys:^!2` etc.), so those rings only work
-  while it runs. Its code is not in any repo: it holds internal hospital URLs
-  and login variables. Two notes for whenever it is brought in: it uses
-  `SendMessageW` on PowerScribe listboxes (LB_FINDSTRINGEXACT, LB_GETITEMRECT),
-  which the family rules say to replace with PostMessage-safe reads; and
-  Ctrl+Alt+F4 there toggles dictation while RadStopwatch also starts its timer
-  on it, which is intended.
+- **RadStopwatch** stays its own program; the Stopwatch ring sends its keys.
+- **Rad Optimizer** stays its own script and keeps its keys; the PACS and
+  Apps rings send them, so those rings need it running. Its code is not in any
+  repo (internal URLs, login variables). If it is ever brought in: it uses
+  `SendMessageW` on PowerScribe listboxes, which must be reduced to the four
+  read-only queries above; Ctrl+Alt+F4 there toggles dictation while
+  RadStopwatch also starts its timer on it, which is intended.
 
 <!-- BEGIN wrap-skill (synced by sync-wrap-skill.sh — do not hand-edit) -->
 ## Close working sessions with a wrap summary
