@@ -10,3 +10,4 @@ RadProofread.ini
 *_lastresponse.txt
 scripts/shots/
 dist-preview/
+__pycache__/
