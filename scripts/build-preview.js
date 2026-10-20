@@ -1,0 +1,79 @@
+// Builds one self-contained HTML page of the ring for trying in a browser
+// (phone, Mac, anything). Same ring code as the app, plus demo.js.
+//   node scripts/build-preview.js  ->  dist-preview/RadGesture-preview.html
+
+const fs = require('fs');
+const path = require('path');
+
+const root = path.join(__dirname, '..');
+const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
+const menu = JSON.parse(read('config/default-menu.json'));
+const js = ['src/common/menu.js', 'src/renderer/geometry.js', 'src/renderer/icons.js', 'src/renderer/ring.js', 'src/renderer/demo.js']
+  .map((p) => `/* ${p} */\n${read(p)}`)
+  .join('\n');
+
+const page = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>RadGesture Preview</title>
+<style>
+${read('src/renderer/ring.css')}
+/* ---- preview page only ---- */
+html, body { background: #07090c; touch-action: none; }
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 30% 38% at 58% 52%, rgba(160,165,175,.22), transparent 70%),
+    radial-gradient(ellipse 14% 20% at 50% 46%, rgba(210,214,222,.16), transparent 70%),
+    radial-gradient(ellipse 60% 70% at 55% 50%, rgba(70,74,82,.28), transparent 75%),
+    #07090c;
+}
+.card {
+  position: fixed; left: 16px; top: 16px; max-width: 330px; z-index: 5;
+  background: rgba(20,23,30,.88); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px; padding: 14px 16px; box-shadow: 0 12px 30px rgba(0,0,0,.4);
+  font-size: 13px; line-height: 1.5; color: rgba(232,236,244,.85);
+  transition: opacity .2s ease;
+}
+.card h1 { margin: 0 0 6px; font-size: 15px; color: #e8ecf4; }
+.card kbd { background: #262b35; border-radius: 5px; padding: 1px 6px; font: inherit; font-size: 12px; }
+.card ul { margin: 6px 0 0; padding-left: 18px; }
+body.ring-open .card { opacity: .25; }
+#toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); z-index: 6;
+  background: rgba(20,23,30,.94); border: 1px solid rgba(255,255,255,.1); border-radius: 12px;
+  padding: 10px 16px; font-size: 14px; color: #e8ecf4; opacity: 0; transition: all .22s ease;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; max-width: calc(100% - 32px);
+}
+#toast span { font-size: 12px; color: rgba(232,236,244,.6); }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+@media (max-width: 520px) { .card { right: 16px; max-width: none; font-size: 12px; } }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>RadGesture ring - preview</h1>
+  On the workstation you hold <kbd>Ctrl</kbd>+<kbd>CapsLock</kbd>. Here:
+  <ul>
+    <li><b>Hold</b> the mouse button (or <kbd>Space</kbd>, or a finger) anywhere, <b>flick</b> toward a tool, let go.</li>
+    <li><b>Tap</b> instead and the ring stays open: click a tool.</li>
+    <li>Flick past <b>One-liner</b>, <b>Priors</b> or a Gallery section to open its smaller ring.</li>
+    <li><b>Scroll</b> or <b>click the center</b> to switch rings: AI Tools, Gallery, Stopwatch.</li>
+  </ul>
+</div>
+<div id="stage"></div>
+<div id="toast"></div>
+<script>window.RG_DEMO_MENU = ${JSON.stringify(menu)};</script>
+<script>
+${js}
+</script>
+</body>
+</html>
+`;
+
+fs.mkdirSync(path.join(root, 'dist-preview'), { recursive: true });
+const out = path.join(root, 'dist-preview', 'RadGesture-preview.html');
+fs.writeFileSync(out, page);
+console.log('wrote', out, Math.round(page.length / 1024) + ' KB');

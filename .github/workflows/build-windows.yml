@@ -1,62 +1,71 @@
-# SPDX-FileCopyrightText: 2026 Sina Mazaheri
-# SPDX-License-Identifier: CC0-1.0
-
+# RadGesture: checks + Windows installer.
+#
+# Runs on every push. When it finishes, open the run on GitHub (Actions tab),
+# download the "RadGesture-Windows" artifact, and run "RadGesture-Setup-....exe"
+# inside it on the Windows PC. Pushes to main also refresh the "windows-dev"
+# release, which gives a direct download link.
 name: Build Windows
 
-# One-click manual build. Run it from GitHub:
-#   Actions tab  ->  "Build Windows"  ->  "Run workflow".
-# When it finishes, download the "RadGesture-Windows-x64" artifact and run the
-# "...Setup.exe" inside it on your Windows PC.
 on:
   workflow_dispatch:
+  push:
+    branches: [main, 'claude/**']
 
 permissions:
   contents: write
 
 env:
-  # Run the JS-based actions on Node 24 to silence the Node 20 deprecation warning.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  windows:
-    name: Build Windows (x64)
-    runs-on: windows-2022
+  checks:
+    name: Checks (tests + AutoHotkey checker)
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
-      - name: Check out the code
-        uses: actions/checkout@v6
-
-      - name: Set up Node (version from .node-version)
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
+      - run: npm ci
+      - name: Unit tests (ring geometry, menu, bridge, menu-to-helper cross-check)
+        run: npm test
+      - name: AutoHotkey helper static checks
+        run: python3 tools/ahk_check.py helper/RadGestureHelper.ahk
 
-      - name: Install dependencies (also compiles the native module)
-        run: npm install
-
-      - name: Build the Windows app
-        run: npm run make
-
-      - name: Upload the installer + portable build
+  windows:
+    name: Build Windows installer (x64)
+    needs: checks
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+      - run: npm ci
+      - name: Build installer + portable zip
+        run: npm run dist
+      - name: Upload the installer + portable zip
         uses: actions/upload-artifact@v7
         with:
-          name: RadGesture-Windows-x64
+          name: RadGesture-Windows
           path: |
-            out/make/squirrel.windows/**/*.exe
-            out/make/squirrel.windows/**/*.nupkg
-            out/make/zip/win32/**/*.zip
+            dist/RadGesture-Setup-*.exe
+            dist/RadGesture-*-win-x64.zip
           if-no-files-found: error
           retention-days: 30
-
-      - name: Publish to the rolling "windows-dev" release (direct download link)
+      - name: Publish to the rolling "windows-dev" release (main only)
+        if: github.ref == 'refs/heads/main'
         uses: svenstaro/upload-release-action@2.11.5
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: windows-dev
           release_name: RadGesture (Windows, latest build)
           body: |
-            Automatically built Windows installer from the latest commit on main.
-            Download the "...Setup.exe" asset below and run it on your Windows PC.
+            Latest RadGesture hub built from main. Download "RadGesture-Setup-....exe" below
+            and run it. Needs AutoHotkey v1.1 installed for the helper.
           prerelease: true
           overwrite: true
           file_glob: true
-          file: out/make/squirrel.windows/*/*.exe
+          file: dist/RadGesture-Setup-*.exe

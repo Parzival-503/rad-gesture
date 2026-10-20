@@ -1,11 +1,12 @@
-# SPDX-FileCopyrightText: Simon Schneegans <code@simonschneegans.de>
-# SPDX-License-Identifier: CC0-1.0
-
-.vscode
-.webpack
-node_modules
-build
-out
-bin
-.DS_Store
-.codegpt
+node_modules/
+dist/
+out/
+*.log
+# Runtime files never belong in git (API key, report text).
+RadGesture.ini
+RadProofread.ini
+*_history.jsonl
+*_lastrequest.txt
+*_lastresponse.txt
+scripts/shots/
+dist-preview/
