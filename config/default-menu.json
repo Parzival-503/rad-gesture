@@ -263,6 +263,11 @@
           "icon": "mic",
           "items": [
             {
+              "name": "Lung-RADS (auto)",
+              "icon": "lungs",
+              "action": "helper:lungrads"
+            },
+            {
               "name": "Paste indication",
               "icon": "clip",
               "action": "helper:keys:^!g"

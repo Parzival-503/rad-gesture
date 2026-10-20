@@ -133,7 +133,7 @@ function smokeReport() {
       console.log('SMOKE capture failed: ' + e.message); // headless displays sometimes can't
     }
     console.log('SMOKE captured');
-  }, 500);
+  }, 900);
 }
 
 function hideRing() {

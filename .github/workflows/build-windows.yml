@@ -33,6 +33,8 @@ jobs:
         run: npm test
       - name: AutoHotkey helper static checks
         run: python3 tools/ahk_check.py helper/RadGestureHelper.ahk
+      - name: Shortcut clash audit (all workstation scripts + ring buttons)
+        run: python3 tools/hotkey_audit.py --check
 
   windows:
     name: Build Windows installer (x64)

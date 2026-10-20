@@ -76,6 +76,7 @@ the helper reads it. Plain-text replies, because AHK v1 has no JSON.
 ```
 npm test                                          # ring geometry, menu, bridge, menu-to-helper cross-check
 python3 tools/ahk_check.py                        # helper static checks, must print PASS
+python3 tools/hotkey_audit.py                     # shortcut clashes across ALL workstation scripts; rewrites docs/shortcuts.md
 node scripts/build-preview.js && node scripts/preview.js   # ring flows + screenshots in scripts/shots/
 xvfb-run -a node scripts/smoke.js                 # the real Electron app, driven over the bridge
 ```
@@ -133,6 +134,23 @@ gallery (Lung-RADS, Fleischner, LI-RADS, ...).
 - Stopwatch slices send keys with `SendLevel 1` so RadStopwatch's own hotkeys
   (F4 start, F12 stop) see them.
 - `WinHttp.SetProxy(1)`: a hospital WinHTTP proxy must not swallow localhost.
+- **Lung-RADS** (Alt+Shift+L, ring: PACS > PowerScribe) is Sina's standalone
+  script merged unchanged. It CHANGES PowerScribe only by PostMessage, and asks
+  the pick lists read-only questions (LB_FINDSTRINGEXACT, LB_GETCOUNT,
+  LB_GETCURSEL, LB_GETITEMRECT) by SendMessage, because only SendMessage
+  returns an answer. That is the precise form of the family's "PostMessage,
+  never SendMessage" rule, and `ahk_check.py` enforces exactly it.
+
+### Shortcuts
+
+`tools/hotkey_audit.py` collects every hotkey on the workstation: the helper's
+INI defaults, RadStopwatch (from `../rad-stopwatch` when checked out, else a
+saved copy) and Rad Optimizer (keys only, in `tools/external_hotkeys.json`).
+It fails on two scripts sharing a key, a hotkey swallowing a key another
+script presses into an app, a ring button whose key nothing handles, or a
+Windows-reserved combination, and writes the inventory to `docs/shortcuts.md`
+(with the free Ctrl+Alt letters for new tools). Proven to fire by planting
+each kind of clash. Update the JSON when Rad Optimizer changes.
 
 ### Build
 

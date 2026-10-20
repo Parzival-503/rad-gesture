@@ -20,5 +20,6 @@ Scroll or click the center to switch rings. Edit the rings from the tray icon:
 
 ## For developers
 
+Every shortcut on the workstation, and which are free: `docs/shortcuts.md`.
 See `CLAUDE.md`. `npm test`, `python3 tools/ahk_check.py`,
 `node scripts/build-preview.js` (a clickable preview page).

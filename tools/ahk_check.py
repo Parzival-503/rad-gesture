@@ -521,16 +521,33 @@ def check_secrets(lines):
     return problems
 
 
+# Read-only list questions that need an answer, so they can't be PostMessage.
+SENDMESSAGE_READ_ONLY = ('LB_FINDSTRINGEXACT', 'LB_GETCOUNT', 'LB_GETCURSEL', 'LB_GETITEMRECT')
+
 def check_no_sendmessage(lines):
-    """PowerScribe rules, learned the hard way: SendMessage causes
-    RPC_E_CANTCALLOUT_ININPUTSYNCCALL (use PostMessage), and raw EM_* messages
-    to the report editor crash it. Nothing in RadProofread needs either."""
+    """PowerScribe rules, learned the hard way: a SendMessage that CHANGES
+    something there gave RPC_E_CANTCALLOUT_ININPUTSYNCCALL (use PostMessage),
+    and raw EM_* messages to the report editor crash it.
+
+    Allowed: DllCall SendMessage for the four read-only pick-list questions in
+    SENDMESSAGE_READ_ONLY (Lung-RADS has used exactly these daily). The whole
+    statement is read, including `, ...` continuation lines, and must name one
+    of them. The SendMessage command and EM_* are never allowed."""
     problems = []
+    n = len(lines)
     for idx, raw in enumerate(lines, 1):
         code = strip_line_comment(raw)
-        if re.match(r'^\s*SendMessage\b', code, re.IGNORECASE) \
-                or re.search(r'DllCall\(\s*"(?:user32\\)?SendMessage', code, re.IGNORECASE) \
-                or re.search(r'\bEM_[A-Z]+\b', code):
+        if re.match(r'^\s*SendMessage\b', code, re.IGNORECASE) or re.search(r'\bEM_[A-Z]+\b', code):
+            problems.append((idx, raw.strip()[:80]))
+            continue
+        if not re.search(r'DllCall\(\s*"(?:user32\\)?SendMessage', code, re.IGNORECASE):
+            continue
+        stmt = code
+        j = idx  # 0-based index of the next line
+        while j < n and re.match(r'^\s*,', lines[j]):
+            stmt += ' ' + strip_line_comment(lines[j])
+            j += 1
+        if not any(re.search(r'\b%s\b' % q, stmt) for q in SENDMESSAGE_READ_ONLY):
             problems.append((idx, raw.strip()[:80]))
     return problems
 
@@ -731,8 +748,8 @@ def main():
 
     ok = report(ok, check_secrets(lines), "possible API key / secret in the script",
                 lambda t: f"L{t[0]}: {t[1]}", "no secrets in the script")
-    ok = report(ok, check_no_sendmessage(lines), "SendMessage / raw EM_* message (PowerScribe crash risk)",
-                lambda t: f"L{t[0]}: {t[1]}", "no SendMessage or raw editor messages")
+    ok = report(ok, check_no_sendmessage(lines), "SendMessage that is not a read-only list query, or raw EM_* (PowerScribe crash risk)",
+                lambda t: f"L{t[0]}: {t[1]}", "SendMessage only for read-only list queries; no editor messages")
     ok = report(ok, check_noactivate(lines), "window that could steal focus",
                 lambda t: (f"L{t[0]}: " if t[0] else "") + t[1], "no-focus windows are NOACTIVATE everywhere")
     ok = report(ok, check_no_msgbox_in_prior_mode(lines), "MsgBox in a mid-workflow mode (prior checklist, impression, one-liner)",

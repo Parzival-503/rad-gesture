@@ -102,6 +102,8 @@ global g_ImpHotkey       := ""    ; blank = toolbar button only
 global g_ImpRules        := "Keep it very short. No measurements or other numbers."
 global g_ImpMaxTokens    := 400
 global g_BoundOneLiner   := ""
+global g_LungHotkey      := "!+l"  ; Alt+Shift+L, as in Sina's standalone Lung-RADS script
+global g_BoundLung       := ""
 global g_BoundImp        := ""
 global g_ImpLastFindings := ""
 global g_ImpLastText     := ""
@@ -173,6 +175,8 @@ LoadSettings() {
     g_OneLinerHotkey := Trim(v)
     IniRead, v, %INI_PATH%, Impression, Hotkey, %A_Space%
     g_ImpHotkey := Trim(v)
+    IniRead, v, %INI_PATH%, LungRADS, Hotkey, !+l
+    g_LungHotkey := Trim(v)
     IniRead, v, %INI_PATH%, Impression, ExtraRules, %g_ImpRules%
     g_ImpRules := Trim(v)
     IniRead, v, %INI_PATH%, Hub, Trigger, ^CapsLock
@@ -191,6 +195,7 @@ SaveExtraSettings() {
     IniWrite, %g_PriorAtStartup%,  %INI_PATH%, Priors, ShowAtStartup
     IniWrite, %g_OneLinerHotkey%,  %INI_PATH%, OneLiner, Hotkey
     IniWrite, %g_ImpHotkey%,       %INI_PATH%, Impression, Hotkey
+    IniWrite, %g_LungHotkey%,      %INI_PATH%, LungRADS, Hotkey
     IniWrite, %g_ImpRules%,        %INI_PATH%, Impression, ExtraRules
     IniWrite, %g_HubTrigger%,      %INI_PATH%, Hub, Trigger
 }
@@ -2175,7 +2180,7 @@ ReadExamTitle() {
 ; ============================================================================
 
 RegisterToolHotkeys() {
-    global g_OneLinerHotkey, g_ImpHotkey, g_BoundOneLiner, g_BoundImp
+    global g_OneLinerHotkey, g_ImpHotkey, g_BoundOneLiner, g_BoundImp, g_LungHotkey, g_BoundLung
     if (g_BoundOneLiner != "") {
         try Hotkey, %g_BoundOneLiner%, Off
         g_BoundOneLiner := ""
@@ -2183,6 +2188,10 @@ RegisterToolHotkeys() {
     if (g_BoundImp != "") {
         try Hotkey, %g_BoundImp%, Off
         g_BoundImp := ""
+    }
+    if (g_BoundLung != "") {
+        try Hotkey, %g_BoundLung%, Off
+        g_BoundLung := ""
     }
     bad := ""
     if (g_OneLinerHotkey != "") {
@@ -2201,6 +2210,14 @@ RegisterToolHotkeys() {
             bad .= " " . g_ImpHotkey
         }
     }
+    if (g_LungHotkey != "") {
+        try {
+            Hotkey, %g_LungHotkey%, LungRADSHotkey, On
+            g_BoundLung := g_LungHotkey
+        } catch e {
+            bad .= " " . g_LungHotkey
+        }
+    }
     if (bad != "")
         TrayTip, RadProofread, Could not bind hotkey(s):%bad%, 5, 2
 }
@@ -2215,6 +2232,10 @@ ImpressionHotkey:
     if (g_Busy)
         return
     ImpressionRun()
+return
+
+LungRADSHotkey:
+    LungScreening()
 return
 
 Trigger_OneLiner() {
@@ -2884,6 +2905,8 @@ RunHubAction(a) {
             g_DirectFlavor := SubStr(a, 10)
             Trigger_OneLiner()
         }
+    } else if (a = "lungrads") {
+        LungScreening()
     } else if (a = "prior:add") {
         PriorAdd()
     } else if (a = "prior:checklist") {
@@ -2906,4 +2929,271 @@ RunHubAction(a) {
     } else {
         Toast("Unknown action from the ring: " . a, "warn")
     }
+}
+
+; ============================================================================
+; LUNG-RADS  (Sina's standalone Lung-RADS script, merged unchanged)
+; ----------------------------------------------------------------------------
+; Alt+Shift+L (or the ring: PACS > PowerScribe > Lung-RADS). In the open
+; PowerScribe report: reads the Micronodule field; "None" means Lung-RADS 1,
+; anything else 2. Then sets the "Chest Screening LungRADS" field and the
+; Impression field to that value.
+;
+; How it talks to PowerScribe, and why this is allowed here:
+;   - Every CHANGE (select a field, pick a value, click) goes by PostMessage,
+;     which never makes PowerScribe stop and answer mid-action. That is the
+;     rule that matters (SendMessage there gave RPC_E_CANTCALLOUT_ININPUTSYNCCALL).
+;   - Read-only QUESTIONS to the pick lists (LB_FINDSTRINGEXACT, LB_GETCOUNT,
+;     LB_GETCURSEL, LB_GETITEMRECT) use SendMessage, because only it returns an
+;     answer. This is exactly how it has worked daily on the workstation.
+;   - Nothing is ever sent to the report editor (RichEdit) itself.
+; tools/ahk_check.py allows SendMessage for those four queries only.
+; Only change from the original: tooltips go through Notify().
+; ============================================================================
+
+LungScreening()
+{
+    static psExe := "Nuance.PowerScribe360.exe"
+    static fieldLungRADS := "Chest Screening LungRADS"
+    static fieldImpression := "Impression"
+    static fieldMicronodule := "Micronodule"
+    psWin := "ahk_exe " . psExe
+
+    if !WinExist(psWin)
+    {
+        Notify("PowerScribe not found", 2000)
+        return false
+    }
+    WinActivate, %psWin%
+    WinWaitActive, %psWin%, , 1.5
+    if !WinActive(psWin)
+    {
+        Notify("Could not activate PowerScribe", 2000)
+        return false
+    }
+
+    ; Step 1: Check Micronodule field
+    choice := "2"
+    if (PS_NavigateToField(psWin, fieldMicronodule))
+    {
+        Sleep 300
+        if (PS_IsFieldValue(psWin, "None"))
+            choice := "1"
+    }
+
+    ; Step 2: Set CSL field
+    if (!PS_SetFieldValue(psWin, fieldLungRADS, choice))
+    {
+        Notify("Failed to set CSL", 2000)
+        return false
+    }
+
+    Sleep 300
+
+    ; Step 3: Set Impression field (same value)
+    if (!PS_SetFieldValue(psWin, fieldImpression, choice))
+    {
+        Notify("Failed to set Impression", 2000)
+        return false
+    }
+
+    return true
+}
+
+; Navigate to a field, find its pick-list, select the value, and double-click
+PS_SetFieldValue(psWin, fieldName, choice) {
+    if (!PS_NavigateToField(psWin, fieldName))
+        return false
+    Sleep 800
+
+    ctrl := ""
+    hCtrl := 0
+    idxFound := -1
+    if (!PS_FindPickListControl(psWin, choice, fieldName, ctrl, hCtrl, idxFound))
+        return false
+
+    PS_SelectItem(hCtrl, idxFound)
+    Sleep 200
+
+    return PS_SimulateDblClick(hCtrl, idxFound)
+}
+
+PS_IsFieldValue(psWin, checkValue) {
+    static LB_GETCURSEL := 0x188
+    static LB_GETCOUNT := 0x18B
+
+    bestHwnd := 0
+    bestCount := 999999
+
+    WinGet, list, ControlList, %psWin%
+    Loop, Parse, list, `n
+    {
+        ctrl := A_LoopField
+        if (ctrl = "")
+            continue
+        if !InStr(ctrl, "LISTBOX")
+            continue
+
+        ControlGet, hCtrl, Hwnd,, %ctrl%, %psWin%
+        if (!hCtrl)
+            continue
+
+        count := DllCall("SendMessage", "Ptr", hCtrl, "UInt", LB_GETCOUNT, "Ptr", 0, "Ptr", 0, "Ptr")
+        if (count <= 0)
+            continue
+
+        targetIdx := PS_LB_FindExact(hCtrl, checkValue)
+        if (targetIdx < 0)
+            continue
+
+        if (count < bestCount)
+        {
+            bestCount := count
+            bestHwnd := hCtrl
+        }
+    }
+
+    if (!bestHwnd)
+        return false
+
+    targetIdx := PS_LB_FindExact(bestHwnd, checkValue)
+    curSel := DllCall("SendMessage", "Ptr", bestHwnd, "UInt", LB_GETCURSEL, "Ptr", 0, "Ptr", 0, "Ptr")
+
+    return (curSel >= 0 && curSel = targetIdx)
+}
+
+PS_NavigateToField(psWin, fieldName) {
+    static LB_SETCURSEL := 0x186
+    static LBN_SELCHANGE := 1
+    static WM_COMMAND := 0x111
+
+    WinGet, list, ControlList, %psWin%
+    Loop, Parse, list, `n
+    {
+        ctrl := A_LoopField
+        if (ctrl = "")
+            continue
+        if !InStr(ctrl, "LISTBOX")
+            continue
+
+        ControlGet, hCtrl, Hwnd,, %ctrl%, %psWin%
+        if (!hCtrl)
+            continue
+
+        idx := PS_LB_FindExact(hCtrl, fieldName)
+        if (idx < 0)
+            continue
+
+        ControlFocus, %ctrl%, %psWin%
+        Sleep 30
+
+        DllCall("PostMessage", "Ptr", hCtrl, "UInt", LB_SETCURSEL, "Ptr", idx, "Ptr", 0)
+        Sleep 50
+
+        dlgCtrlId := DllCall("GetDlgCtrlID", "Ptr", hCtrl)
+        parentHwnd := DllCall("GetParent", "Ptr", hCtrl)
+        wParam := (LBN_SELCHANGE << 16) | (dlgCtrlId & 0xFFFF)
+        DllCall("PostMessage", "Ptr", parentHwnd, "UInt", WM_COMMAND, "Ptr", wParam, "Ptr", hCtrl)
+
+        return true
+    }
+    return false
+}
+
+PS_SelectItem(hCtrl, idx) {
+    static LB_SETCURSEL := 0x186
+    static LBN_SELCHANGE := 1
+    static WM_COMMAND := 0x111
+
+    DllCall("PostMessage", "Ptr", hCtrl, "UInt", LB_SETCURSEL, "Ptr", idx, "Ptr", 0)
+    Sleep 30
+
+    dlgCtrlId := DllCall("GetDlgCtrlID", "Ptr", hCtrl)
+    parentHwnd := DllCall("GetParent", "Ptr", hCtrl)
+    wParam := (LBN_SELCHANGE << 16) | (dlgCtrlId & 0xFFFF)
+    DllCall("PostMessage", "Ptr", parentHwnd, "UInt", WM_COMMAND, "Ptr", wParam, "Ptr", hCtrl)
+}
+
+PS_FindPickListControl(psWin, choice, fieldName, ByRef outCtrl, ByRef outHwnd, ByRef outIdx) {
+    WinGet, list, ControlList, %psWin%
+    Loop, Parse, list, `n
+    {
+        ctrl := A_LoopField
+        if (ctrl = "")
+            continue
+        if !InStr(ctrl, "LISTBOX")
+            continue
+
+        ControlGet, hCtrl, Hwnd,, %ctrl%, %psWin%
+        if (!hCtrl)
+            continue
+
+        navCheck := PS_LB_FindExact(hCtrl, fieldName)
+        if (navCheck >= 0)
+            continue
+
+        idx := PS_LB_FindExact(hCtrl, choice)
+        if (idx >= 0) {
+            outCtrl := ctrl
+            outHwnd := hCtrl
+            outIdx  := idx
+            return true
+        }
+    }
+    return false
+}
+
+PS_LB_FindExact(hCtrl, text) {
+    static LB_FINDSTRINGEXACT := 0x1A2
+    VarSetCapacity(wText, (StrLen(text)+1)*2, 0)
+    StrPut(text, &wText, "UTF-16")
+    return DllCall("SendMessageW"
+        , "Ptr", hCtrl
+        , "UInt", LB_FINDSTRINGEXACT
+        , "Ptr", -1
+        , "Ptr", &wText
+        , "Ptr")
+}
+
+PS_SimulateDblClick(hCtrl, idx) {
+    static LB_GETITEMRECT := 0x198
+    static LB_ERR := -1
+    static WM_LBUTTONDOWN := 0x201
+    static WM_LBUTTONUP := 0x202
+    static WM_LBUTTONDBLCLK := 0x203
+    static MK_LBUTTON := 0x0001
+
+    VarSetCapacity(rc, 16, 0)
+    result := DllCall("SendMessage"
+        , "Ptr", hCtrl
+        , "UInt", LB_GETITEMRECT
+        , "Ptr", idx
+        , "Ptr", &rc
+        , "Ptr")
+
+    if (result = LB_ERR)
+    {
+        Notify("LB_GETITEMRECT failed", 2000)
+        return false
+    }
+
+    left   := NumGet(rc, 0, "Int")
+    top    := NumGet(rc, 4, "Int")
+    right  := NumGet(rc, 8, "Int")
+    bottom := NumGet(rc, 12, "Int")
+
+    cx := left + ((right - left) // 2)
+    cy := top  + ((bottom - top) // 2)
+
+    lParam := (cy << 16) | (cx & 0xFFFF)
+
+    DllCall("PostMessage", "Ptr", hCtrl, "UInt", WM_LBUTTONDOWN, "Ptr", MK_LBUTTON, "Ptr", lParam)
+    Sleep, 30
+    DllCall("PostMessage", "Ptr", hCtrl, "UInt", WM_LBUTTONUP, "Ptr", 0, "Ptr", lParam)
+    Sleep, 50
+    DllCall("PostMessage", "Ptr", hCtrl, "UInt", WM_LBUTTONDBLCLK, "Ptr", MK_LBUTTON, "Ptr", lParam)
+    Sleep, 30
+    DllCall("PostMessage", "Ptr", hCtrl, "UInt", WM_LBUTTONUP, "Ptr", 0, "Ptr", lParam)
+
+    return true
 }
