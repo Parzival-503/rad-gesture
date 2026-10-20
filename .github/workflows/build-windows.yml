@@ -1,9 +1,9 @@
 # RadGesture: checks + Windows installer.
 #
-# Runs on every push. When it finishes, open the run on GitHub (Actions tab),
-# download the "RadGesture-Windows" artifact, and run "RadGesture-Setup-....exe"
-# inside it on the Windows PC. Pushes to main also refresh the "windows-dev"
-# release, which gives a direct download link.
+# Runs on every push and refreshes the "radgesture-latest" release, so the
+# installer always has the same direct link:
+#   https://github.com/Parzival-503/rad-gesture/releases/download/radgesture-latest/RadGesture-Setup.exe
+# The run's "RadGesture-Windows" artifact holds the same files.
 name: Build Windows
 
 on:
@@ -51,21 +51,19 @@ jobs:
         with:
           name: RadGesture-Windows
           path: |
-            dist/RadGesture-Setup-*.exe
+            dist/RadGesture-Setup.exe
             dist/RadGesture-*-win-x64.zip
           if-no-files-found: error
           retention-days: 30
-      - name: Publish to the rolling "windows-dev" release (main only)
-        if: github.ref == 'refs/heads/main'
+      - name: Publish to the rolling "radgesture-latest" release (fixed download link)
         uses: svenstaro/upload-release-action@2.11.5
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: windows-dev
-          release_name: RadGesture (Windows, latest build)
+          tag: radgesture-latest
+          release_name: RadGesture (latest build)
           body: |
-            Latest RadGesture hub built from main. Download "RadGesture-Setup-....exe" below
-            and run it. Needs AutoHotkey v1.1 installed for the helper.
+            Latest RadGesture hub. Download "RadGesture-Setup.exe" below and run it.
+            Needs AutoHotkey v1.1 installed (it runs the helper).
           prerelease: true
           overwrite: true
-          file_glob: true
-          file: dist/RadGesture-Setup-*.exe
+          file: dist/RadGesture-Setup.exe

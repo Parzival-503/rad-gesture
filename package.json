@@ -26,6 +26,6 @@
     "files": ["src/**", "config/**", "assets/**", "package.json"],
     "extraResources": [{ "from": "helper", "to": "helper", "filter": ["*.ahk"] }],
     "win": { "icon": "assets/icon.ico", "target": ["nsis", "zip"] },
-    "nsis": { "artifactName": "RadGesture-Setup-${version}.${ext}", "oneClick": true, "perMachine": false, "runAfterFinish": true, "shortcutName": "RadGesture" }
+    "nsis": { "artifactName": "RadGesture-Setup.${ext}", "oneClick": true, "perMachine": false, "runAfterFinish": true, "shortcutName": "RadGesture" }
   }
 }

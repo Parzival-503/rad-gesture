@@ -137,13 +137,25 @@ gallery (Lung-RADS, Fleischner, LI-RADS, ...).
 ### Build
 
 `.github/workflows/build-windows.yml` runs the checks, then builds
-`RadGesture-Setup-<version>.exe` (one-click, per-user, no admin) and a portable
+`RadGesture-Setup.exe` (one-click, per-user, no admin) and a portable
 zip on a Windows runner, on every push. Download from the run's artifacts.
 Building the installer locally needs Windows (or wine); the zip builds anywhere.
 
+Every build also refreshes the `radgesture-latest` release, so the installer
+has one fixed link: `.../releases/download/radgesture-latest/RadGesture-Setup.exe`.
+
 ### Not here, on purpose
 
-RadStopwatch stays its own program; the Stopwatch ring just sends its keys.
+- **RadStopwatch** stays its own program; the Stopwatch ring just sends its keys.
+- **Rad Optimizer** (Sina's shortcut script for PowerScribe, Sectra PACS and
+  apps) stays its own script and keeps its keys. The **PACS** and **Apps**
+  rings send its hotkeys (`helper:keys:^!2` etc.), so those rings only work
+  while it runs. Its code is not in any repo: it holds internal hospital URLs
+  and login variables. Two notes for whenever it is brought in: it uses
+  `SendMessageW` on PowerScribe listboxes (LB_FINDSTRINGEXACT, LB_GETITEMRECT),
+  which the family rules say to replace with PostMessage-safe reads; and
+  Ctrl+Alt+F4 there toggles dictation while RadStopwatch also starts its timer
+  on it, which is intended.
 
 <!-- BEGIN wrap-skill (synced by sync-wrap-skill.sh — do not hand-edit) -->
 ## Close working sessions with a wrap summary

@@ -52,7 +52,12 @@ const shots = path.join(__dirname, 'shots');
   assert.ok(s && s.mode === 'click', 'a tap leaves the ring open for clicking');
   await page.mouse.wheel(0, 120);
   s = await state();
-  assert.strictEqual(s.cat, 1, 'scroll switches to Gallery');
+  assert.strictEqual(s.cat, 1, 'scroll switches to PACS');
+  await page.mouse.move(cx + 70, cy - 70);
+  await shot('3a-pacs');
+  await page.mouse.wheel(0, 120);
+  s = await state();
+  assert.strictEqual(s.cat, 2, 'scroll again: Gallery');
   await page.mouse.move(cx - 60, cy - 100);
   await shot('3-gallery-click-mode');
 
@@ -67,7 +72,8 @@ const shots = path.join(__dirname, 'shots');
   // 5. Stopwatch ring, and a phone-sized view.
   await page.keyboard.press('Escape');
   await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.up();
-  await page.mouse.wheel(0, 120); await page.mouse.wheel(0, 120);
+  await page.mouse.wheel(0, -120); // backwards wraps round to Stopwatch
+  assert.strictEqual((await state()).cat, 4, 'scrolling back from the first ring wraps to Stopwatch');
   await page.mouse.move(cx + 2, cy - 90);
   await shot('5-stopwatch');
   await page.keyboard.press('Escape');
