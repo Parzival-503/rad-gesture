@@ -106,6 +106,7 @@ global g_OneLinerHotkey  := "^!u" ; Ctrl+Alt+U, free per the Rad Optimizer audit
 global g_ImpHotkey       := ""    ; blank = toolbar button only
 global g_ImpRules        := "Keep it very short. No measurements or other numbers."
 global g_ImpMaxTokens    := 400
+global g_ImpModel        := ""    ; "" = same model as the other tools; or claude-opus-5-5
 global g_BoundOneLiner   := ""
 global g_LungHotkey      := "!+l"  ; Alt+Shift+L, as in Sina's standalone Lung-RADS script
 global g_BoundLung       := ""
@@ -190,6 +191,8 @@ LoadSettings() {
     g_LungHotkey := Trim(v)
     IniRead, v, %INI_PATH%, Impression, ExtraRules, %g_ImpRules%
     g_ImpRules := Trim(v)
+    IniRead, v, %INI_PATH%, Impression, Model, %A_Space%
+    g_ImpModel := Trim(v)
     IniRead, v, %INI_PATH%, Hub, Trigger, ^CapsLock
     g_HubTrigger := Trim(v)
     ; Write the [Priors] keys back so they show up in an existing INI and can
@@ -2180,12 +2183,12 @@ PriorChecklist() {
 
 ; Shared API call: returns {text, error}. Writes the same debug files as the
 ; proofread call, so Tray -> Show Last API Call works for both modes.
-PostClaude(systemPrompt, userMsg, maxTokens, effort := "low") {
+PostClaude(systemPrompt, userMsg, maxTokens, effort := "low", model := "") {
     global g_ApiKey, g_Model
     out := { text: "", error: "" }
 
     body := "{"
-        . """model"":"      . JsonStr(g_Model) . ","
+        . """model"":"      . JsonStr(model != "" ? model : g_Model) . ","
         . """max_tokens"":" . ApiMaxTokens(maxTokens) . ","
         . ApiExtras(effort)
         . """system"":"     . JsonStr(systemPrompt) . ","
@@ -2832,9 +2835,14 @@ ImpressionRun() {
     }
     g_ImpLastFindings := findings
     g_ImpLastText := ""
+    ; The history decides what matters (gallstones only with pain), so send
+    ; what comes before FINDINGS: too: exam, history, comparison, technique.
+    context := ImpressionContext(report)
+    userMsg := (context != "" ? "CLINICAL CONTEXT (exam, history, comparison):`n" . context . "`n`n" : "")
+        . "FINDINGS:`n" . findings
 
     Toast("Writing impression...", "info", 0)
-    res := PostClaude(ImpressionPrompt(), "FINDINGS:`n" . findings, g_ImpMaxTokens, "low")
+    res := PostClaude(ImpressionPrompt(), userMsg, g_ImpMaxTokens, "medium", ImpressionModel())
     KillToast()
 
     if (res.error != "") {
@@ -2846,6 +2854,22 @@ ImpressionRun() {
     Clipboard := g_ImpLastText
     ShowImpression(g_ImpLastText, "")
     g_Busy := false
+}
+
+; What comes before FINDINGS: (exam, clinical history, comparison), at most
+; about 1500 characters. "" when the selection has no FINDINGS: header.
+ImpressionContext(t) {
+    t := Trim(t, " `t`r`n")
+    p := InStr(t, "FINDINGS:")
+    if (p <= 1)
+        return ""
+    return SubStr(Trim(SubStr(t, 1, p - 1), " `t`r`n"), 1, 1500)
+}
+
+; Impression can use its own model (Settings > AI tools); default: the same one.
+ImpressionModel() {
+    global g_ImpModel, g_Model
+    return (g_ImpModel = "claude-opus-5-5") ? g_ImpModel : g_Model
 }
 
 ; The findings part of a report: text after FINDINGS:, cut at IMPRESSION:.
@@ -2864,14 +2888,23 @@ ImpressionFindings(t) {
 ImpressionPrompt() {
     global g_ImpRules
     p := ""
-    . "You write the IMPRESSION section of a radiology report from its findings, for the radiologist who dictated them."
-    . "`n`nRULES:"
-    . "`n- Very short: 1 to 4 lines. One line is fine for a simple study. One finding or conclusion per line, most important first."
+    . "You write the IMPRESSION of a radiology report for the radiologist who dictated the findings. The impression is a SYNTHESIS, not a summary: what the referring clinician needs to know and do, put together at a high level. Restating the findings in fewer words is wrong."
+    . "`n`nHOW TO THINK:"
+    . "`n- Read the clinical history first. Ask what question the exam was ordered to answer, and answer it first."
+    . "`n- Put related findings together into one conclusion (for example, several signs of one process become one line naming the process), instead of one line per finding."
+    . "`n- Say what the findings mean, not what they look like, when the findings support it. Keep the radiologist's level of certainty; never make it stronger."
+    . "`n- Rank by what changes management: acute or urgent findings, then the answer to the clinical question, then new findings that need follow-up or workup."
+    . "`n`nLEAVE OUT:"
+    . "`n- Chronic, stable, degenerative and incidental findings that need no follow-up, unless they explain the symptoms in the history. Example: gallstones go in only if the history mentions abdominal pain, RUQ pain or similar; otherwise leave them out."
+    . "`n- Normal and negative findings, except one pertinent negative that answers the clinical question (for example, no pulmonary embolism)."
+    . "`n- Anything already fully conveyed by a line you kept."
+    . "`n- When you leave out chronic or incidental findings, end with this exact line: Additional chronic and incidental findings as described in the body of the report."
+    . "`n`nFORM:"
+    . "`n- Very short: 1 to 4 lines, plus that closing line when it applies. One line is fine for a simple study. Most important first."
     . "`n- No measurements, sizes, dates, or counts written as digits, and no series or image numbers. Anatomic labels such as L4-5, C2 or segment 7 are allowed."
     . "`n- No list numbering and no bullets. PowerScribe numbers the lines itself."
-    . "`n- Do not list negative findings, except one pertinent negative when it answers the clinical question."
-    . "`n- Use only what is in the findings. Do not add a diagnosis they do not support."
-    . "`n- Include a follow-up recommendation only if the findings already state one."
+    . "`n- Use only what is in the report. Do not add a diagnosis the findings do not support."
+    . "`n- Include a follow-up recommendation only if the findings already state one, or a standard guideline clearly applies to a finding you kept (name the guideline, for example Fleischner)."
     . "`n- Output only the impression lines. No heading, no preamble, no commentary."
     if (Trim(g_ImpRules) != "")
         p .= "`n`nADDITIONAL RULES FROM THE RADIOLOGIST (these override the rules above):`n" . g_ImpRules

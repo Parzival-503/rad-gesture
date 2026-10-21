@@ -706,6 +706,8 @@
         seg([['conservative', 'Only clear errors'], ['moderate', 'Balanced'], ['aggressive', 'Flag anything odd']], a.sensitivity, (v) => { a.sensitivity = v; markDirty('ai'); render(); }))));
     $main.append(h('div', { class: 'card' },
       h('h2', {}, 'Impression'),
+      row('Model', 'Writes a short synthesis, not a summary. Opus thinks harder and costs more per impression.',
+        seg([['', 'Same as above'], ['claude-opus-5-5', 'Opus 5.5']], a.impressionModel === 'claude-opus-5-5' ? 'claude-opus-5-5' : '', (v) => { a.impressionModel = v; markDirty('ai'); render(); })),
       row('Your rules', 'Added to every impression, and they win over the built-in rules.',
         h('textarea', { class: 'wide', id: 'rules', rows: 3, oninput: (e) => { a.impressionRules = e.target.value; markDirty('ai'); } }, a.impressionRules))));
     $main.append(h('div', { class: 'card' },

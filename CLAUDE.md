@@ -234,6 +234,15 @@ first one removes v3.0's Stopwatch ring while it is still the shipped one.
   floating Priors toolbar shows at startup, as in RadProofread: the first v3
   builds hid it and Sina lost track of the tool (`migrateIni()` turned it
   back on once for INIs those builds wrote).
+- **Impression** (`ImpressionPrompt()`): a high-level SYNTHESIS, not a
+  summary (Sina: the first one just reworded the findings). Answers the
+  clinical question first, merges related findings, leaves out chronic and
+  incidental findings that need no follow-up unless the history makes them
+  relevant (gallstones only with pain), and then ends with "Additional
+  chronic and incidental findings as described in the body of the report."
+  It sends the text before FINDINGS: (history) too (`ImpressionContext`),
+  at effort medium. Settings > AI tools can switch Impression alone to Opus
+  5.5 (`[Impression] Model`); default is the shared model (Sonnet 5.5).
 - `WinHttp.SetProxy(1)`: a hospital WinHTTP proxy must not swallow localhost.
 - **Lung-RADS** (Alt+Shift+L, ring: PACS > PowerScribe) is Sina's standalone
   script merged unchanged. It CHANGES PowerScribe only by PostMessage, and asks

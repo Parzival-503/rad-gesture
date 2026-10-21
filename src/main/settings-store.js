@@ -27,6 +27,7 @@ const AI_FIELDS = {
   model: ['API', 'Model', 'claude-sonnet-5-5'],
   sensitivity: ['Behavior', 'Sensitivity', 'moderate'],
   impressionRules: ['Impression', 'ExtraRules', 'Keep it very short. No measurements or other numbers.'],
+  impressionModel: ['Impression', 'Model', ''],
   priorExpireMinutes: ['Priors', 'ExpireMinutes', '30'],
   priorCapture: ['Priors', 'CaptureMode', 'clipboard'],
   toolbarAtStartup: ['Priors', 'ShowAtStartup', '1'],
