@@ -659,6 +659,7 @@
     $main.append(h('div', { class: 'card' },
       h('div', { class: 'big' }, h('div', { class: 'orb ' + (ok ? 'good' : 'bad') }, msym(ok ? 'check_circle' : 'error')), h('div', {}, h('h3', {}, headline), h('p', {}, detail))),
       h0.lastError && !h0.connected ? h('pre', { class: 'err' }, h0.lastError) : null,
+      s.elevated ? h('p', { class: 'hint', id: 'elevatedNote' }, 'RadGesture is running as administrator. It works, but the next installer may not be able to close it: quit it from the tray icon before updating, and start it normally (not "Run as administrator").') : null,
       h('div', { class: 'addrow', style: 'margin-top:14px' },
         h('button', { class: 'btn', id: 'restartHelper', onclick: async () => { D.status = await api.restartHelper(); toast('Restarting the helper...'); render(); } }, msym('restart_alt'), 'Restart the helper'),
         h('button', { class: 'btn ghost', onclick: () => api.tryRing(null) }, msym('play_circle'), 'Open the ring')),

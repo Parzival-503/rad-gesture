@@ -195,6 +195,22 @@ with real keys, then publish `RadGesture-Setup.exe` to the
 `radgesture-latest` release (fixed link
 `.../releases/download/radgesture-latest/RadGesture-Setup.exe`).
 
+**Closing the running app on install/uninstall** is ours, not
+electron-builder's (`build/installer.nsh`, `customCheckAppRunning`): ask it
+to quit over the bridge (`POST /quit`), then force-close only `RadGesture.exe`
+and the helper, then a message naming the tray Quit. The stock step showed
+"RadGesture cannot be closed. Please close it manually" on Sina's PC, which
+is what Windows does when the app runs as administrator and Setup does not;
+the bridge request crosses that line, a kill does not. Settings > Status
+warns when RadGesture runs elevated. `tests-e2e/installer.ps1` (Windows job)
+installs over and uninstalls a running copy.
+
+**AI models**: Sonnet 5.5 (default), Haiku 5.5, Opus 5.5 only; a retired
+model in the INI reads back as Sonnet 5.5 (hub `readAI`, helper
+`NormalizeModel`). They reject `temperature` and think before writing, so
+the helper sends an effort level (`ApiExtras`) and at least 8000 max_tokens
+(`ApiMaxTokens`).
+
 ### Not here, on purpose
 
 - **RadStopwatch** stays its own program; the Stopwatch ring sends its keys.

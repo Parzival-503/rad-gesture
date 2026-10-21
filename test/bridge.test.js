@@ -45,3 +45,18 @@ test('bridge moves to the next port if the first is taken', async () => {
   await a.close();
   await b.close();
 });
+
+test('bridge: Setup can ask the app to quit (POST, token required)', async () => {
+  let quits = 0;
+  const b = createBridge({ token: 't0k', onShow() {}, onRelease: async () => 'none', onCancel() {}, isOpen: () => false, onQuit: () => { quits++; } });
+  const port = await b.listen(47940);
+  try {
+    assert.strictEqual((await call(port, 'POST', '/quit', 'wrong')).status, 403);
+    assert.strictEqual((await call(port, 'GET', '/quit')).status, 405);
+    assert.strictEqual(quits, 0);
+    assert.strictEqual((await call(port, 'POST', '/quit')).text, 'bye');
+    assert.strictEqual(quits, 1);
+  } finally {
+    await b.close();
+  }
+});

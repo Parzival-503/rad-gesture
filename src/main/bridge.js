@@ -15,7 +15,7 @@
 
 const http = require('http');
 
-function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {} }) {
+function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {}, onQuit = () => {} }) {
   const queue = [];
 
   const server = http.createServer(async (req, res) => {
@@ -43,6 +43,13 @@ function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () 
           return reply(200, isOpen() ? 'open' : 'closed');
         case '/ping':
           return reply(200, 'radgesture');
+        case '/quit':
+          // The installer / uninstaller asks the running copy to quit. Works
+          // even when RadGesture runs as administrator and Setup doesn't,
+          // where Windows refuses to let Setup close it by force.
+          if (req.method !== 'POST') return reply(405, 'POST only');
+          reply(200, 'bye');
+          return onQuit();
         default:
           return reply(404, 'unknown');
       }

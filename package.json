@@ -57,7 +57,8 @@
       "oneClick": true,
       "perMachine": false,
       "runAfterFinish": true,
-      "shortcutName": "RadGesture"
+      "shortcutName": "RadGesture",
+      "include": "build/installer.nsh"
     }
   }
 }

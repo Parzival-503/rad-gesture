@@ -254,6 +254,10 @@ async function startBridge() {
       logEvent('done', action);
       supervisor && supervisor.noteDone(action);
     },
+    onQuit: () => {
+      logEvent('quit', 'asked by Setup');
+      setTimeout(() => app.quit(), 50); // before-quit stops the helper
+    },
   });
   const port = await bridge.listen(PREFERRED_PORT);
   fs.mkdirSync(userDir(), { recursive: true });
@@ -293,9 +297,19 @@ function openSettings(tab = 'rings') {
   return settingsWin;
 }
 
+// Running as administrator: an ordinary installer cannot close (update) it,
+// so Settings > Status says so. "net session" succeeds only when elevated.
+let elevated = false;
+if (process.platform === 'win32') {
+  require('child_process').execFile('net', ['session'], { windowsHide: true }, (err) => {
+    elevated = !err;
+  });
+}
+
 function fullStatus() {
   return {
     version: app.getVersion(),
+    elevated,
     helper: supervisor.status(),
     paused,
     conflicts: lastConflicts,

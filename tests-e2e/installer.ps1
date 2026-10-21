@@ -30,7 +30,19 @@ $running = @(Ours)
 Write-Host "running from the install folder:`n  $($running -join "`n  ")"
 Check 'app and helper running' ($running.Count -ge 2)
 
-# 3. Install again over the running copy.
+# 3. The polite way the installer now closes it: POST /quit over the bridge.
+#    (Works even when RadGesture runs as administrator and Setup does not,
+#    which is what produced "RadGesture cannot be closed" on Sina's PC.)
+$ini = Get-Content (Join-Path $env:APPDATA 'RadGesture\bridge.ini')
+$port = (($ini | ? { $_ -like 'Port=*' }) -replace 'Port=', '').Trim()
+$tok = (($ini | ? { $_ -like 'Token=*' }) -replace 'Token=', '').Trim()
+try { $q = Invoke-WebRequest -UseBasicParsing -Method Post -TimeoutSec 3 -Headers @{ 'x-rg-token' = $tok } -Uri "http://127.0.0.1:$port/quit" } catch { $q = $_ }
+Start-Sleep 4
+Check 'the app quits when asked over the bridge (helper too)' (@(Ours).Count -eq 0) "reply=$($q.Content) left: $(@(Ours) -join ' | ')"
+Start-Process $exe
+Start-Sleep 8
+
+# 4. Install again over the running copy.
 $before = (Get-Item $exe).LastWriteTimeUtc
 Start-Sleep 2
 (Get-Item $exe).LastWriteTimeUtc = [datetime]'2000-01-01'
@@ -38,7 +50,7 @@ $r = RunFor $setup '/S' 120
 $after = (Get-Item $exe -ErrorAction SilentlyContinue).LastWriteTimeUtc
 Check 'install over a running copy finishes' ($r -eq 0 -and $after -gt [datetime]'2001-01-01') "exit=$r left: $(@(Ours) -join ' | ')"
 
-# 4. Start it again, then uninstall while it runs.
+# 5. Start it again, then uninstall while it runs.
 Start-Process $exe
 Start-Sleep 8
 $un = Join-Path $dir 'Uninstall RadGesture.exe'
