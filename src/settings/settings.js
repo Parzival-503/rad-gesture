@@ -477,7 +477,7 @@
           if (r.images) I.setImages(r.images), (D.images = r.images);
           it.action = 'app:' + r.path;
           if (!it.name || it.name === 'New direction') it.name = r.name;
-          if (r.icon && (!it.icon || it.icon === 'public' || it.icon === 'apps')) it.icon = r.icon;
+          if (r.icon) it.icon = r.icon; // the program's own icon; change it after if you like
           markDirty('menu');
           render();
         } }, msym('folder_open'), 'Choose...'),
