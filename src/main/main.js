@@ -510,6 +510,7 @@ app.whenReady().then(async () => {
         return true;
       },
       openRing: (mode = 'click') => openRing('', mode),
+      hideRing: () => hideRing(),
       trayLabels: () => trayTemplate().map((i) => i.label || '---'),
       clickTray: (label) => {
         const it = trayTemplate().find((i) => i.label === label);

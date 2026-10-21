@@ -188,8 +188,20 @@ async function waitFor(fn, ms, step = 200) {
         check('real Ctrl+CapsLock tap + click runs the clicked direction', tap, (await ev()).slice(-8).join(' | '));
         await sleep(600);
         const page = app.windows().find((w) => w.url().includes('renderer/index.html'));
-        const geo = await page.evaluate(() => ({ s: Math.max(0.62, Math.min(1, Math.min(innerWidth, innerHeight) / 640)) }));
-        spawnSync(ahk, [path.join(__dirname, 'inject.ahk'), 'move', String(menu.categories.length), String(geo.s)], { timeout: 20000 });
+        // Where the 3rd ring button will be once the ring opens at screen center
+        // (open it the same way first, read the real position, close it).
+        await rg((r) => r.openRing('click'));
+        await sleep(700);
+        const chipAt = await page.evaluate(() => {
+          const r = document.querySelector('.dchip[data-cat="2"]').getBoundingClientRect();
+          // Below the ring at screen center; near the bottom edge it flips above.
+          return { x: Math.round(r.x + r.width / 2 - window.RGRing.state().x), y: Math.abs(Math.round(r.y + r.height / 2 - window.RGRing.state().y)) };
+        });
+        await page.evaluate(() => window.RGRing.clear());
+        await rg((r) => r.hideRing());
+        await sleep(400);
+        const scr = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
+        spawnSync(ahk, [path.join(__dirname, 'inject.ahk'), 'move', String(Math.floor(scr.w / 2) + chipAt.x), String(Math.floor(scr.h / 2) + chipAt.y)], { timeout: 20000 });
         await sleep(500);
         const mv = await page.evaluate(() => { const s = window.RGRing.state(); return s && { cat: s.cat, x: s.x, y: s.y, w: innerWidth, h: innerHeight }; });
         await page.screenshot({ path: path.join(SHOTS, 'win-ring-moved.png') }).catch(() => {});
