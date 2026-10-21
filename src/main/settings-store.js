@@ -29,7 +29,7 @@ const AI_FIELDS = {
   impressionRules: ['Impression', 'ExtraRules', 'Keep it very short. No measurements or other numbers.'],
   priorExpireMinutes: ['Priors', 'ExpireMinutes', '30'],
   priorCapture: ['Priors', 'CaptureMode', 'clipboard'],
-  toolbarAtStartup: ['Priors', 'ShowAtStartup', '0'],
+  toolbarAtStartup: ['Priors', 'ShowAtStartup', '1'],
 };
 const SHORTCUT_FIELDS = {
   trigger: ['Hub', 'Trigger', '^CapsLock'],
@@ -88,6 +88,22 @@ function createStore({ userDir, defaultMenuPath }) {
     return { ok: true, errors: [] };
   }
 
+  // One-time changes to an older RadGesture.ini (recorded in [RadGesture]
+  // Migrated). Runs before the helper starts, so it reads the result.
+  function migrateIni() {
+    if (!fs.existsSync(iniPath())) return false;
+    const s = readIni();
+    const done = String(ini.get(s, 'RadGesture', 'Migrated', '')).split(',').filter(Boolean);
+    if (done.includes('prior-toolbar')) return false;
+    // The first v3 builds hid RadProofread's floating Priors toolbar by default
+    // and saving AI settings wrote that down; Sina relies on it. Show it again.
+    ini.set(s, 'Priors', 'ShowAtStartup', '1');
+    done.push('prior-toolbar');
+    ini.set(s, 'RadGesture', 'Migrated', done.join(','));
+    fs.writeFileSync(iniPath(), ini.serialize(s), 'latin1');
+    return true;
+  }
+
   function readIni() {
     return ini.parse(fs.existsSync(iniPath()) ? fs.readFileSync(iniPath(), 'latin1') : '');
   }
@@ -113,6 +129,7 @@ function createStore({ userDir, defaultMenuPath }) {
     iniPath,
     defaultMenu,
     readMenu,
+    migrateIni,
     writeMenu,
     readAI: () => {
       const v = readFields(AI_FIELDS);

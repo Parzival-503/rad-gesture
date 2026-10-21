@@ -132,3 +132,16 @@ test('an older menu loses the shipped Stopwatch ring once, a home-made one stays
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify({ ...base, categories: [...base.categories, mine] }));
   assert.ok(store.readMenu().categories.some((c) => c.id === 'stopwatch'));
 });
+
+test('an older RadGesture.ini gets the Priors toolbar back once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-ini-'));
+  const store = createStore({ userDir: () => dir, defaultMenuPath: path.join(__dirname, '..', 'config', 'default-menu.json') });
+  assert.strictEqual(store.migrateIni(), false, 'no INI yet: nothing to do');
+  fs.writeFileSync(path.join(dir, 'RadGesture.ini'), '[API]\r\nModel=claude-sonnet-5-5\r\n[Priors]\r\nShowAtStartup=0\r\n', 'latin1');
+  assert.strictEqual(store.migrateIni(), true);
+  assert.strictEqual(store.readAI().toolbarAtStartup, '1');
+  assert.strictEqual(store.readAI().model, 'claude-sonnet-5-5', 'other settings are kept');
+  store.writeAI({ toolbarAtStartup: '0' }); // turned off on purpose afterwards
+  assert.strictEqual(store.migrateIni(), false);
+  assert.strictEqual(store.readAI().toolbarAtStartup, '0', 'and stays off');
+});

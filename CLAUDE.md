@@ -227,6 +227,13 @@ first one removes v3.0's Stopwatch ring while it is still the shipped one.
 - `#Requires AutoHotkey v1.1.33+`; CI uses v1.1.37.02.
 - Stopwatch slices send keys with `SendLevel 1` so RadStopwatch's own hotkeys
   (F4 start, F12 stop) see them.
+- **Prior checklist** (ring: AI Tools > Priors): copy each prior report,
+  **+ Add** (as many as needed), then **Checklist**; its window has
+  **Insert into report** (pastes with Ctrl+V where the cursor is, then
+  restores the clipboard; the window never takes focus) and Copy. The
+  floating Priors toolbar shows at startup, as in RadProofread: the first v3
+  builds hid it and Sina lost track of the tool (`migrateIni()` turned it
+  back on once for INIs those builds wrote).
 - `WinHttp.SetProxy(1)`: a hospital WinHTTP proxy must not swallow localhost.
 - **Lung-RADS** (Alt+Shift+L, ring: PACS > PowerScribe) is Sina's standalone
   script merged unchanged. It CHANGES PowerScribe only by PostMessage, and asks

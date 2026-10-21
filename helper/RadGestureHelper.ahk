@@ -98,7 +98,8 @@ global g_PriorMaxTokens  := 600
 global g_PriorBoundAdd   := ""
 global g_PriorBoundList  := ""
 global g_PriorBinShown   := false
-global g_PriorAtStartup  := 0    ; the ring replaces the toolbar; Priors > Show toolbar opens it
+global g_PriorAtStartup  := 1    ; the floating Priors toolbar, as RadProofread had it (Settings > AI tools can hide it)
+global g_PriorListText   := ""   ; the last checklist, for Insert / Copy
 
 ; One-liner (from RadOneLiner.ahk) and impression helper.
 global g_OneLinerHotkey  := "^!u" ; Ctrl+Alt+U, free per the Rad Optimizer audit
@@ -179,7 +180,7 @@ LoadSettings() {
     g_PriorExpireMin := v + 0
     IniRead, v, %INI_PATH%, Priors, CaptureMode, clipboard
     g_PriorCapture := (v = "selectall") ? "selectall" : "clipboard"
-    IniRead, v, %INI_PATH%, Priors, ShowAtStartup, 0
+    IniRead, v, %INI_PATH%, Priors, ShowAtStartup, 1
     g_PriorAtStartup := v + 0
     IniRead, v, %INI_PATH%, OneLiner, Hotkey, ^!u
     g_OneLinerHotkey := Trim(v)
@@ -2259,11 +2260,29 @@ ShowPriorList(examTitle, nPriors, text, err) {
     Gui, PriorList:Font, s10 cE8E8E8 Norm, Segoe UI
     Gui, PriorList:Add, Text, x12 y+10 w456, %pl_body%
     Gui, PriorList:Font, s9 cE8E8E8 Norm, Segoe UI
-    Gui, PriorList:Add, Button, x12 y+14 w90 h26 gPriorList_Close, Close
-    Gui, PriorList:Add, Button, x+8 w170 h26 gPriorList_ClearClose, Clear priors && close
+    ; Insert pastes into the report: this window never takes focus, so the
+    ; window you were in (PowerScribe) still has the cursor.
+    g_PriorListText := (err != "") ? "" : pl_body
+    if (g_PriorListText != "") {
+        Gui, PriorList:Add, Button, x12 y+14 w130 h26 gPriorList_Insert, Insert into report
+        Gui, PriorList:Add, Button, x+8 w70 h26 gPriorList_Copy, Copy
+        Gui, PriorList:Add, Button, x+8 w70 h26 gPriorList_Close, Close
+    } else {
+        Gui, PriorList:Add, Button, x12 y+14 w90 h26 gPriorList_Close, Close
+    }
+    Gui, PriorList:Add, Button, x+8 w150 h26 gPriorList_ClearClose, Clear priors && close
     pl_x := A_ScreenWidth - 520
     Gui, PriorList:Show, x%pl_x% y190 w480 NoActivate, RadGesture Prior Checklist
 }
+
+PriorList_Insert:
+    PriorListPaste()
+return
+
+PriorList_Copy:
+    Clipboard := g_PriorListText
+    Toast(Chr(0x2713) . " Checklist copied", "ok")
+return
 
 PriorList_ClearClose:
     PriorClear()
@@ -2271,6 +2290,27 @@ PriorList_Close:
 PriorListGuiClose:
     Gui, PriorList:Destroy
 return
+
+; Paste the checklist where the cursor is (normally the PowerScribe report),
+; then put the old clipboard back. Keystrokes only: nothing is sent to the
+; report editor's window directly, which crashes it.
+PriorListPaste() {
+    global g_PriorListText
+    if (g_PriorListText = "")
+        return
+    if WinActive("RadGesture ahk_class AutoHotkeyGUI") {
+        Toast("Click in the report first, then Insert.", "info", 3000)
+        return
+    }
+    savedClip := ClipboardAll
+    Clipboard := ""
+    Clipboard := g_PriorListText . "`r`n"
+    ClipWait, 1
+    Send, ^v
+    Sleep, 250
+    Clipboard := savedClip
+    Toast(Chr(0x2713) . " Checklist inserted", "ok")
+}
 
 ; ----------------------------------------------------------------------------
 ; Current exam title from PowerScribe. Copied from RadStopwatch's

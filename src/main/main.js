@@ -627,6 +627,7 @@ app.whenReady().then(async () => {
   buildTray();
   setInterval(updateTray, 2000); // helper connected/disconnected shows in the tray
   if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: menu.startAtLogin !== false });
+  try { store.migrateIni(); } catch (e) { logEvent('error', 'ini migration: ' + e.message); }
   if ((!menu.helper || menu.helper.autoStart !== false) && !process.env.RG_NO_HELPER) supervisor.start();
   startPrograms();
   scanConflicts(true);
