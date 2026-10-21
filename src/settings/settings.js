@@ -8,6 +8,7 @@
   const KS = window.RGKeyset;
   const G = window.RGGeometry;
   const M = window.RGMenu;
+  const T = window.RGThemes;
   const $main = document.getElementById('main');
 
   let D = await api.get();
@@ -215,6 +216,7 @@
   // ------------------------------------------------------------------ render
 
   function render() {
+    T.apply(document.documentElement, menuDraft && menuDraft.theme, 'ui');
     $main.innerHTML = '';
     const page = { rings: renderRings, ai: renderAI, shortcuts: renderShortcuts, general: renderGeneral, status: renderStatus }[ui.tab] || renderRings;
     page();
@@ -251,7 +253,7 @@
         class: 'lrow' + (i === ui.ring ? ' on' : ''), role: 'button', tabindex: '0',
         onclick: () => { ui.ring = i; ui.path = []; ui.sel = 'ring'; render(); },
       },
-      h('span', { class: 'ic', style: `color:${c.color || '#8fb0ff'}` }, icon(c.icon)),
+      h('span', { class: 'ic', style: `color:${T.ringColor(menuDraft, i)}` }, icon(c.icon)),
       h('span', { class: 'tx' }, h('b', {}, c.name), h('small', {}, `${c.items.length} direction${c.items.length === 1 ? '' : 's'}${c.apps && c.apps.length ? ' · first over ' + c.apps.join(', ') : ''}`)),
       h('span', { class: 'tools' },
         h('button', { class: 'iconbtn', title: 'Move up', 'aria-label': 'Move up', onclick: (e) => { e.stopPropagation(); moveRing(i, -1); } }, msym('arrow_upward')),
@@ -281,7 +283,7 @@
   function levelPanel() {
     const ring = curRing();
     const items = levelItems();
-    const box = h('div', { class: 'card', style: `--accent:${ring.color || '#8fb0ff'}` });
+    const box = h('div', { class: 'card', style: `--accent:${T.ringColor(menuDraft, ui.ring)}` });
     // breadcrumbs
     const crumbs = h('div', { class: 'crumbs' }, h('button', { onclick: () => { ui.path = []; ui.sel = 'ring'; render(); } }, ring.name));
     let its = ring.items;
@@ -516,7 +518,12 @@
     box.append(h('h2', {}, 'Ring'));
     box.append(field('Name', h('input', { type: 'text', id: 'ringName', value: ring.name, oninput: (e) => { ring.name = e.target.value; markDirty('menu'); } })));
     box.append(field('Icon', iconPicker(ring.icon, (v) => { ring.icon = v; markDirty('menu'); render(); })));
-    box.append(field('Colour', h('div', { class: 'colors' }, ACCENTS.map((c) => h('button', { class: c === ring.color ? 'on' : '', style: `background:${c}`, 'aria-label': c, onclick: () => { ring.color = c; markDirty('menu'); render(); } })))));
+    if (T.usesThemeColors(menuDraft)) {
+      box.append(field('Colour', h('div', { class: 'hint' }, `The ${T.get(menuDraft.theme).name} theme colours the rings. `,
+        h('button', { class: 'linkbtn', onclick: () => { menuDraft.ringColors = 'mine'; markDirty('menu'); render(); } }, 'Use my own colours'))));
+    } else {
+      box.append(field('Colour', h('div', { class: 'colors' }, ACCENTS.map((c) => h('button', { class: c === ring.color ? 'on' : '', style: `background:${c}`, 'aria-label': c, onclick: () => { ring.color = c; markDirty('menu'); render(); } })))));
+    }
     box.append(field('Opens first over', h('input', { type: 'text', value: (ring.apps || []).join(', '), placeholder: 'e.g. Nuance.PowerScribe360.exe',
       oninput: (e) => { ring.apps = e.target.value.split(',').map((s) => s.trim()).filter(Boolean); markDirty('menu'); } }),
     'Program names. When you open the ring over one of these, this ring comes up first.'));
@@ -822,7 +829,7 @@
       const group = k.path.slice(0, -1).join(' › ');
       if (group !== lastGroup) {
         const cat = menuDraft.categories[k.ring];
-        list.append(h('div', { class: 'kgroup' }, h('span', { class: 'swatch', style: `background:${cat.color || '#8fb0ff'}` }), group));
+        list.append(h('div', { class: 'kgroup' }, h('span', { class: 'swatch', style: `background:${T.ringColor(menuDraft, k.ring)}` }), group));
         lastGroup = group;
       }
       const notes = [];
@@ -849,6 +856,7 @@
     $main.append(h('h1', {}, 'General'), h('p', { class: 'lede' }, 'How the ring looks and behaves.'));
     const m = menuDraft;
     const labels = m.labels || (m.showLabels === false ? 'never' : 'pause');
+    $main.append(themeCard(m));
     $main.append(h('div', { class: 'card' },
       h('h2', {}, 'The ring'),
       row('Names around the ring', 'The center always shows the name of what you aim at.',
@@ -865,6 +873,34 @@
       row('Start with Windows', null, sw(m.startAtLogin !== false, (v) => { m.startAtLogin = v; markDirty('menu'); render(); }, 'Start with Windows')),
       row('Pause the ring', 'Ctrl+CapsLock does nothing while paused. The AI shortcuts keep working.',
         sw(D.status.paused, async (v) => { D.status = await api.setPaused(v); render(); }, 'Pause the ring'))));
+  }
+
+  // All dark on purpose (reading rooms are dark). Each tile is a tiny ring
+  // drawn with the theme's own variables, so what you pick is what you get.
+  function themeCard(m) {
+    const cur = T.get(m.theme).id;
+    const grid = h('div', { class: 'themes', role: 'radiogroup', 'aria-label': 'Theme' });
+    for (const t of T.THEMES) {
+      const vars = T.cssVars(t.id, 'ring').map(([k, v]) => `${k}:${v}`).join(';');
+      const colors = t.palette || m.categories.map((c) => c.color || t.ui.accent);
+      const tile = h('div', { class: 'tmini', 'data-lit': t.lit, 'data-fx': t.fx.join(' '), style: `${vars};--accent:${colors[0]};background:${t.ui.bg}` });
+      tile.append(h('span', { class: 'tc' }));
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        tile.append(h('span', { class: 'tn' + (i === 1 ? ' on' : ''), style: `left:${50 + Math.sin(a) * 31}%;top:${50 - Math.cos(a) * 31}%;--accent:${colors[0]}` }));
+      }
+      const dots = h('span', { class: 'tdots' }, ...colors.slice(0, 5).map((c) => h('i', { style: `background:${c}` })));
+      grid.append(h('button', {
+        class: 'tpick' + (t.id === cur ? ' on' : ''), role: 'radio', 'aria-checked': String(t.id === cur), 'data-theme-id': t.id,
+        onclick: () => { m.theme = t.id; markDirty('menu'); render(); },
+      }, tile, h('span', { class: 'tname' }, t.name, dots), h('span', { class: 'tblurb' }, t.blurb)));
+    }
+    const t = T.get(m.theme);
+    return h('div', { class: 'card' },
+      h('h2', {}, 'Theme'),
+      grid,
+      t.palette ? row('Ring colours', `${t.name} gives each ring a colour from its palette.`,
+        seg([['theme', "The theme's"], ['mine', 'My own']], m.ringColors === 'mine' ? 'mine' : 'theme', (v) => { if (v === 'mine') m.ringColors = 'mine'; else delete m.ringColors; markDirty('menu'); render(); })) : null);
   }
 
   // ---------------------------------------------------------------- Status

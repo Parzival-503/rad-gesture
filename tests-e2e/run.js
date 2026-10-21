@@ -219,11 +219,24 @@ async function waitFor(fn, ms, step = 200) {
     check('Open a program saves the program, and starting with RadGesture', appItem.action === 'app:' + prog && appItem.startWithHub === true, JSON.stringify(appItem).slice(0, 200));
     if (WIN) check('the program\'s own icon is taken', (appItem.icon || '').startsWith('img:app-'), appItem.icon);
 
+    // Theme: pick one in General, Settings repaints in it, it is saved.
+    await win.click('#nav button[data-tab="general"]');
+    await sleep(300);
+    check('General shows every theme', (await win.$$('.tpick')).length >= 8, `${(await win.$$('.tpick')).length} tiles`);
+    await win.click('.tpick[data-theme-id="synthwave"]');
+    await sleep(300);
+    check('picking a theme repaints Settings in it', (await win.evaluate(() => document.documentElement.dataset.theme)) === 'synthwave');
+    await win.screenshot({ path: path.join(SHOTS, 'settings-general-synthwave.png') });
+    await win.click('#saveAll');
+    await sleep(600);
+    check('the theme is saved', menuNow().theme === 'synthwave', menuNow().theme);
+
     // ---------------- the ring
     await rg((r) => r.openRing('click'));
     const ringPage = await waitFor(async () => app.windows().find((w) => w.url().includes('renderer/index.html')), 10000);
     const st = await waitFor(() => ringPage.evaluate(() => window.RGRing.state() && { levels: window.RGRing.state().levels.length, cat: window.RGRing.state().cat }), 5000);
     check('tray > Open the ring shows the ring', st && st.levels === 1);
+    check('the ring opens in the saved theme', (await ringPage.evaluate(() => document.getElementById('stage').dataset.theme)) === 'synthwave');
     await sleep(500);
     await ringPage.screenshot({ path: path.join(SHOTS, 'ring-open.png') });
     const c0 = await ringPage.evaluate(() => ({ x: window.RGRing.state().x, y: window.RGRing.state().y }));

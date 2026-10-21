@@ -141,6 +141,15 @@ screenshots before handing over any visual change.
   Settings as data: URLs, so no page reads files outside the app. All
   bundled offline. Material names in the default menu and the suggested
   Tabler names are checked by tests.
+- **Themes** (`src/common/themes.js`, one list for the ring, Settings and the
+  picker in Settings > General): Graphite (default) plus seven neon/CRT
+  looks. **All dark, no light theme, on purpose**: reading rooms are dark
+  (Darkroom is red-only for dark-adapted eyes; Amber has no blue). A theme
+  is CSS variables plus `lit` (`fill` / `outline`: neon looks glow instead
+  of filling) and `fx` (`scan`, `pulse`, `glass`) that `ring.css` keys off.
+  Neon themes colour rings from their palette unless `ringColors: "mine"`;
+  use `T.ringColor(menu, i)` everywhere, never `category.color` directly.
+  `scripts/preview.js` screenshots every theme (`9-theme-*.png`).
 - The overlay is `focusable: false` + `showInactive()`; the hub delays hiding
   170 ms after a pick so the pick animation plays (the action already runs).
 
@@ -199,6 +208,11 @@ Actions: `helper:<id>`, `url:`, `file:` (expands `%VARS%`), `search:`
 (`{clipboard}`), `hub:`. `apps` on a ring picks which ring opens first over
 that program. The Gallery ring carries Sina's reference links from the old
 Kando gallery. Edited only through Settings.
+
+**Saved menus are migrated once** (`migrate()` in `settings-store.js`,
+recorded in `menu.migrated`): installing keeps `menu.json`, so a change to
+the default menu reaches existing users only through a step there. The
+first one removes v3.0's Stopwatch ring while it is still the shipped one.
 
 ### Helper notes
 

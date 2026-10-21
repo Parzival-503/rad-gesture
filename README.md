@@ -40,6 +40,14 @@ AutoHotkey script; it brings the window up if it is already open, and can
 start with RadGesture), and its icon can be any of about 9,000 bundled icons
 (Material and Tabler), an emoji, or a picture of your own.
 
+## Themes
+
+Settings > **General** > Theme: Graphite (the calm default) or one of seven
+neon looks, all dark for a reading room: Synthwave, Grid, Phosphor (green
+terminal), Amber (no blue light), Abyss, Darkroom (red only, keeps your eyes
+dark-adapted) and Hologram. The neon themes colour the rings for you; choose
+"My own" under Ring colours to keep yours.
+
 ## For developers
 
 See `CLAUDE.md`. Every shortcut on the workstation, and which are free:

@@ -8,7 +8,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const menu = JSON.parse(read('config/default-menu.json'));
-const js = ['src/common/menu.js', 'src/renderer/geometry.js', 'src/renderer/icons.js', 'src/renderer/ring.js', 'src/renderer/demo.js']
+const js = ['src/common/menu.js', 'src/common/themes.js', 'src/renderer/geometry.js', 'src/renderer/icons.js', 'src/renderer/ring.js', 'src/renderer/demo.js']
   .map((p) => `/* ${p} */\n${read(p)}`)
   .join('\n');
 

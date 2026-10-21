@@ -1,4 +1,5 @@
-/* RadGesture Settings - same family as the ring: graphite, one accent, calm. */
+/* RadGesture Settings - same family as the ring. The theme
+   (src/common/themes.js) overrides the variables below on <html>. */
 @font-face {
   font-family: 'Tabler Icons';
   font-style: normal;
@@ -67,7 +68,7 @@ button { cursor: pointer; }
   position: relative;
 }
 .side button:hover { background: rgba(255, 255, 255, 0.04); color: var(--ink); }
-.side button.on { background: rgba(143, 176, 255, 0.12); color: var(--ink); }
+.side button.on { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--ink); }
 .side button.on .msym { color: var(--accent); font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
 .side .dot { position: absolute; right: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
 .side .dot.good { background: var(--good); box-shadow: 0 0 8px rgba(95, 211, 141, 0.6); }
@@ -75,7 +76,7 @@ button { cursor: pointer; }
 .side-foot { margin-top: auto; padding: 10px 12px; color: var(--ink-3); font-size: 12px; line-height: 1.5; }
 
 main { flex: 1; min-width: 0; overflow: auto; padding: 26px 30px 90px; }
-main h1 { margin: 0 0 4px; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+main h1 { font-family: var(--theme-font, var(--font)); margin: 0 0 4px; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
 main .lede { margin: 0 0 22px; color: var(--ink-2); max-width: 70ch; }
 h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin: 0 0 12px; font-weight: 650; }
 
@@ -259,3 +260,31 @@ pre.err { white-space: pre-wrap; background: #11141a; border: 1px solid var(--li
 .icongrid button.addpic { border: 1px dashed var(--line-hi); color: var(--accent); }
 .icongrid button.addpic .msym { font-size: 22px; }
 .seg.packs button .msym { font-size: 16px; }
+
+/* ---- theme picker (General) ---- */
+.themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.tpick {
+  display: flex; flex-direction: column; gap: 4px; padding: 8px 8px 10px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--card);
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+.tpick:hover { border-color: var(--line-hi); transform: translateY(-1px); }
+.tpick.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 18px color-mix(in srgb, var(--accent) 30%, transparent); }
+.tname { display: flex; align-items: center; justify-content: space-between; font-weight: 600; margin-top: 4px; }
+.tdots { display: flex; gap: 3px; }
+.tdots i { width: 8px; height: 8px; border-radius: 50%; }
+.tblurb { color: var(--ink-3); font-size: 12px; line-height: 1.35; }
+.tmini { position: relative; height: 104px; border-radius: 8px; overflow: hidden; }
+.tmini .tc, .tmini .tn { position: absolute; border-radius: 50%; transform: translate(-50%, -50%);
+  background: linear-gradient(170deg, var(--center-a), var(--center-b)); border: 1px solid var(--edge); }
+.tmini .tc { left: 50%; top: 50%; width: 34px; height: 34px; }
+.tmini .tn { width: 18px; height: 18px; background: linear-gradient(170deg, var(--node-hi), var(--node)); }
+.tmini[data-lit="fill"] .tn.on { background: var(--accent); border-color: transparent; box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 50%, transparent); }
+.tmini[data-lit="outline"] .tn, .tmini[data-lit="outline"] .tc { border-color: color-mix(in srgb, var(--accent) 35%, var(--edge)); }
+.tmini[data-lit="outline"] .tn.on { border: 1.5px solid var(--accent); background: color-mix(in srgb, var(--accent) 25%, var(--node));
+  box-shadow: 0 0 calc(9px * var(--glow)) var(--accent), inset 0 0 6px color-mix(in srgb, var(--accent) 40%, transparent); }
+.tmini[data-lit="outline"] .tc { box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 22%, transparent); }
+.tmini[data-fx~="scan"]::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.25) 0 1px, transparent 1px 3px); }
+.tmini[data-fx~="glass"] .tn, .tmini[data-fx~="glass"] .tc { border-color: rgba(200, 240, 255, 0.6); }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; }

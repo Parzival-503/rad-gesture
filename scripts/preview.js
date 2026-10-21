@@ -109,6 +109,20 @@ const shots = path.join(__dirname, 'shots');
   await page.mouse.move(150, 380);
   await shot('8-phone');
 
+  // 9. Every theme, aimed at Impression, with the dock showing.
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const themes = await page.evaluate(() => window.RGThemes.THEMES.map((t) => t.id));
+  for (const id of themes) {
+    await page.evaluate((t) => { window.RG_DEMO_MENU.theme = t; }, id);
+    await page.waitForTimeout(250);
+    await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.up();
+    await page.mouse.move(cx + 80, cy - 26);
+    assert.strictEqual(await page.evaluate(() => document.getElementById('stage').dataset.theme), id, `theme ${id} is applied`);
+    await shot('9-theme-' + id);
+    await page.keyboard.press('Escape');
+  }
+
   assert.deepStrictEqual(errors, [], 'no page errors');
   await browser.close();
   console.log('PASS preview flows; screenshots in scripts/shots/');

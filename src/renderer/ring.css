@@ -1,6 +1,8 @@
-/* RadGesture ring - "Graphite" theme.
+/* RadGesture ring look.
    Positions and sizes are driven every frame by ring.js (spring physics);
-   this file only sets the look. One accent per ring, everything else calm. */
+   this file only sets the look. The theme (src/common/themes.js) sets the
+   variables below on #stage, plus data-lit / data-fx for its effects.
+   The defaults here are Graphite. */
 
 @font-face {
   font-family: 'Tabler Icons';
@@ -25,6 +27,13 @@
   --node-hi: #262a34;
   --edge: rgba(255, 255, 255, 0.09);
   --shadow: 0 10px 28px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --node-ink: #dfe4ee;
+  --center-a: #22252e;
+  --center-b: #15171d;
+  --halo: 8, 9, 12;
+  --sep: rgba(255, 255, 255, 0.07);
+  --glow: 1;
+  --font: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 html, body {
@@ -32,14 +41,14 @@ html, body {
   height: 100%;
   overflow: hidden;
   background: transparent;
-  font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: var(--font);
   color: var(--ink);
   user-select: none;
   -webkit-user-select: none;
   cursor: default;
 }
 
-#stage { position: fixed; inset: 0; }
+#stage { position: fixed; inset: 0; font-family: var(--font); color: var(--ink); }
 #stage .layer { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform, opacity; }
 
 .msym {
@@ -67,7 +76,7 @@ svg.links .wire { stroke: color-mix(in srgb, var(--accent) 70%, white); stroke-w
 
 /* ---- wedges: thin separators + a soft highlight for the aimed direction ---- */
 svg.wedges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-svg.wedges .sep { stroke: rgba(255, 255, 255, 0.07); stroke-width: 1.2; }
+svg.wedges .sep { stroke: var(--sep); stroke-width: 1.2; }
 svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
 
 /* ---- halo: keeps everything readable over a bright CT ---- */
@@ -75,7 +84,7 @@ svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
   position: absolute; left: 0; top: 0;
   width: 420px; height: 420px; margin: -210px 0 0 -210px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(8, 9, 12, 0.55) 0%, rgba(8, 9, 12, 0.32) 45%, rgba(8, 9, 12, 0) 70%);
+  background: radial-gradient(circle, rgba(var(--halo), 0.55) 0%, rgba(var(--halo), 0.32) 45%, rgba(var(--halo), 0) 70%);
   pointer-events: none;
 }
 
@@ -86,7 +95,7 @@ svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
   border-radius: 50%;
   background:
     radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 60%),
-    linear-gradient(170deg, #22252e, #15171d);
+    linear-gradient(170deg, var(--center-a), var(--center-b));
   border: 1px solid var(--edge);
   box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   cursor: pointer;
@@ -144,7 +153,7 @@ svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
   border: 1px solid var(--edge);
   box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   display: flex; align-items: center; justify-content: center;
-  color: #dfe4ee;
+  color: var(--node-ink);
   font-size: 28px;
   cursor: pointer;
   transition: background 140ms ease, color 140ms ease, box-shadow 160ms ease;
@@ -157,7 +166,7 @@ svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
 }
 .node.on .msym { font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24; }
 .node.back { width: 40px; height: 40px; margin: -20px 0 0 -20px; font-size: 20px; color: var(--ink-dim); }
-.node.back.on { background: #2c313c; color: var(--ink); box-shadow: var(--shadow); }
+.node.back.on { background: var(--node-hi); color: var(--ink); box-shadow: var(--shadow); }
 
 /* Tiny dots that preview what a direction holds (its smaller ring). */
 .gdot {
@@ -186,7 +195,7 @@ svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
   position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
   display: flex; gap: 6px; padding: 5px;
   border-radius: 999px;
-  background: linear-gradient(170deg, rgba(34, 37, 46, 0.92), rgba(21, 23, 29, 0.92));
+  background: linear-gradient(170deg, var(--center-a), var(--center-b));
   border: 1px solid var(--edge);
   box-shadow: var(--shadow);
 }
@@ -194,7 +203,7 @@ svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
   all: unset; box-sizing: border-box;
   width: 34px; height: 34px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 19px; color: color-mix(in srgb, var(--c) 75%, #9aa3b2);
+  font-size: 19px; color: color-mix(in srgb, var(--c) 75%, var(--node-ink));
   cursor: pointer;
   transition: background 140ms ease, color 140ms ease, transform 160ms cubic-bezier(.3, 1.6, .5, 1);
 }
@@ -216,6 +225,67 @@ svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
 .dock.above .dname { top: -44px; }
 .dock.above .dhint { top: -62px; }
 
+/* ---- neon looks (data-lit="outline"): the aimed direction stays dark and
+   its rim and icon glow in the ring colour instead of filling. ---- */
+#stage[data-lit="outline"] .node { border-color: color-mix(in srgb, var(--accent) 30%, var(--edge)); }
+#stage[data-lit="outline"] .node.on {
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--accent) 30%, var(--node)), var(--node) 75%);
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent),
+    0 0 calc(18px * var(--glow)) color-mix(in srgb, var(--accent) 70%, transparent),
+    0 0 calc(42px * var(--glow)) color-mix(in srgb, var(--accent) 35%, transparent),
+    inset 0 0 calc(14px * var(--glow)) color-mix(in srgb, var(--accent) 35%, transparent);
+  text-shadow: 0 0 calc(10px * var(--glow)) var(--accent);
+}
+#stage[data-lit="outline"] .node.on .imgic { filter: drop-shadow(0 0 6px var(--accent)); }
+#stage[data-lit="outline"] .center {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--edge));
+  box-shadow: var(--shadow), 0 0 calc(22px * var(--glow)) color-mix(in srgb, var(--accent) 28%, transparent),
+    inset 0 0 calc(18px * var(--glow)) color-mix(in srgb, var(--accent) 18%, transparent);
+}
+#stage[data-lit="outline"] .center .cicon, #stage[data-lit="outline"] .center .cname { text-shadow: 0 0 calc(12px * var(--glow)) var(--accent); }
+#stage[data-lit="outline"] .center .ctitle { text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent), 0 1px 3px rgba(0, 0, 0, 0.8); }
+#stage[data-lit="outline"] .gdot.on, #stage[data-lit="outline"] .center .ccat i.on { box-shadow: 0 0 8px var(--accent); }
+#stage[data-lit="outline"] .dock .dchips { border-color: color-mix(in srgb, var(--accent) 35%, var(--edge)); }
+#stage[data-lit="outline"] .dock .dchip.on {
+  background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--c);
+  box-shadow: inset 0 0 0 1.5px var(--c), 0 0 calc(14px * var(--glow)) color-mix(in srgb, var(--c) 60%, transparent);
+  text-shadow: 0 0 8px var(--c);
+}
+#stage[data-lit="outline"] svg.links line { stroke: color-mix(in srgb, var(--accent) 45%, transparent); opacity: 0.6; }
+#stage[data-lit="outline"] .label.on { text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent), 0 1px 3px rgba(0, 0, 0, 0.95); }
+
+/* fx "pulse": the aimed direction's glow breathes. */
+@keyframes rg-pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.28); } }
+#stage[data-fx~="pulse"] .node.on { animation: rg-pulse 1.6s ease-in-out infinite; }
+
+/* fx "scan": CRT scan lines and a faint flicker on the center. */
+#stage[data-fx~="scan"] .center::after, #stage[data-fx~="scan"] .node.on::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+#stage[data-fx~="scan"] .label, #stage[data-fx~="scan"] .center .cname { letter-spacing: 0.04em; }
+#stage[data-fx~="scan"] .center .cname { letter-spacing: 0.16em; }
+
+/* fx "glass": see-through buttons with an iridescent rim (a masked
+   pseudo-element, so the see-through fill stays see-through). */
+#stage[data-fx~="glass"] .node, #stage[data-fx~="glass"] .center, #stage[data-fx~="glass"] .dock .dchips { border-color: transparent; }
+#stage[data-fx~="glass"] .node::after, #stage[data-fx~="glass"] .center::after, #stage[data-fx~="glass"] .dock .dchips::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px; pointer-events: none;
+  background: conic-gradient(from 200deg, #8ff7ff, #ff9ef0, #c3a8ff, #a6ffcf, #ffd59e, #8ff7ff);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: 0.75;
+}
+#stage[data-fx~="glass"] .node.on::after { opacity: 1; padding: 2px; }
+#stage[data-fx~="glass"] .node.on { border-color: transparent; }
+#stage[data-fx~="glass"] .center::before {
+  content: ""; position: absolute; inset: 6px; border-radius: 50%; pointer-events: none;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 45%);
+}
+
 /* Grab the middle to move the ring. */
 .center:not([data-parent]) { cursor: grab; }
 body.dragging, body.dragging * { cursor: grabbing !important; }
@@ -224,4 +294,5 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
   .dock .dchip { transition: none; }
 
   .msym, .node, .center .ccat i { transition: none; }
+  #stage[data-fx~="pulse"] .node.on { animation: none; }
 }

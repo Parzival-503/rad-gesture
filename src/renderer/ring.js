@@ -19,6 +19,7 @@
 (function () {
   const G = window.RGGeometry;
   const I = window.RGIcons;
+  const T = window.RGThemes;
 
   const R_ROOT = 120; // direction distance from the center
   const R_SUB = 104;
@@ -96,9 +97,9 @@
     L.wedgeSvg = svgEl('svg', { class: 'wedges', width: 1, height: 1 }, layer);
     const defs = svgEl('defs', {}, L.wedgeSvg);
     const grad = svgEl('radialGradient', { id: 'hlgrad', cx: 0, cy: 0, r: L.r + 60, gradientUnits: 'userSpaceOnUse' }, defs);
-    svgEl('stop', { offset: '0.35', 'stop-color': category().color || '#8fb0ff', 'stop-opacity': '0.0' }, grad);
-    svgEl('stop', { offset: '0.75', 'stop-color': category().color || '#8fb0ff', 'stop-opacity': '0.28' }, grad);
-    svgEl('stop', { offset: '1', 'stop-color': category().color || '#8fb0ff', 'stop-opacity': '0.0' }, grad);
+    svgEl('stop', { offset: '0.35', 'stop-color': catColor(st.cat), 'stop-opacity': '0.0' }, grad);
+    svgEl('stop', { offset: '0.75', 'stop-color': catColor(st.cat), 'stop-opacity': '0.28' }, grad);
+    svgEl('stop', { offset: '1', 'stop-color': catColor(st.cat), 'stop-opacity': '0.0' }, grad);
     L.seps = svgEl('g', {}, L.wedgeSvg);
     L.hlPath = svgEl('path', { class: 'hl', d: '' }, L.wedgeSvg);
 
@@ -213,11 +214,17 @@
     return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   }
 
+  // Ring i's colour: the theme's palette, or the person's own colours.
+  function catColor(i) {
+    return T.ringColor(st.menu, i);
+  }
+
   // ------------------------------------------------------------ state changes
 
   function open({ x, y, menu, category: catIndex, mode, images }) {
     if (images) I.setImages(images);
     hardClear();
+    T.apply(stage, menu.theme, 'ring');
     const scale = Math.max(0.62, Math.min(1, Math.min(innerWidth, innerHeight) / 640)) * (menu.ringScale || 1);
     st = {
       menu,
@@ -238,7 +245,7 @@
     };
     st.links = svgEl('svg', { class: 'links', width: 1, height: 1 });
     stage.appendChild(st.links);
-    stage.style.setProperty('--accent', category().color || '#8fb0ff');
+    stage.style.setProperty('--accent', catColor(st.cat));
     pushLevel(category().items, x, y, null, null, null, category().icon);
     buildDock();
     startLoop();
@@ -256,7 +263,7 @@
     const d = el('dock');
     d.innerHTML =
       '<div class="dchips">' +
-      cats.map((c, i) => `<button class="dchip" data-cat="${i}" style="--c:${escapeHtml(c.color || '#8fb0ff')}" title="${escapeHtml(c.name)}">${I.icon(c.icon || 'circle')}</button>`).join('') +
+      cats.map((c, i) => `<button class="dchip" data-cat="${i}" style="--c:${escapeHtml(catColor(i))}" title="${escapeHtml(c.name)}">${I.icon(c.icon || 'circle')}</button>`).join('') +
       '</div><div class="dname"></div><div class="dhint">drag the middle to move</div>';
     st.dock = d;
     st.dockName = d.querySelector('.dname');
@@ -373,7 +380,7 @@
     });
     st.levels = [];
     st.cat = (st.cat + stepBy + n) % n;
-    stage.style.setProperty('--accent', category().color || '#8fb0ff');
+    stage.style.setProperty('--accent', catColor(st.cat));
     pushLevel(category().items, root.cx, root.cy, null, null, null, category().icon);
     const L = cur();
     L.spin.x = stepBy > 0 ? -38 : 38; // spin in from the side you scrolled toward
