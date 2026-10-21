@@ -41,6 +41,26 @@ const SHORTCUT_FIELDS = {
   priorChecklist: ['Priors', 'ChecklistHotkey', ''],
 };
 
+// One-time changes to a menu saved by an older version. Each runs once
+// (recorded in `migrated`), so something the person adds back stays.
+const OLD_STOPWATCH_KEYS = ['helper:keys:{F4}', 'helper:keys:{F12}'];
+function migrate(m) {
+  const done = Array.isArray(m.migrated) ? m.migrated : [];
+  let changed = false;
+  if (!done.includes('no-stopwatch-ring')) {
+    // v3.0 shipped a Stopwatch ring; RadStopwatch is no longer part of
+    // RadGesture. Remove it only while it is still the shipped one (just the
+    // F4 / F12 keys), never a ring the person built up themselves.
+    const i = m.categories.findIndex((c) => c.id === 'stopwatch' &&
+      (c.items || []).every((it) => OLD_STOPWATCH_KEYS.includes(it.action)));
+    if (i >= 0 && m.categories.length > 1) m.categories.splice(i, 1);
+    done.push('no-stopwatch-ring');
+    changed = true;
+  }
+  if (changed) m.migrated = done;
+  return changed;
+}
+
 function createStore({ userDir, defaultMenuPath }) {
   const menuPath = () => path.join(userDir(), 'menu.json');
   const iniPath = () => path.join(userDir(), 'RadGesture.ini');
@@ -54,6 +74,7 @@ function createStore({ userDir, defaultMenuPath }) {
     const m = JSON.parse(fs.readFileSync(menuPath(), 'utf8'));
     const v = validateMenu(m);
     if (!v.ok) throw new Error(v.errors.slice(0, 3).join('; '));
+    if (migrate(m)) writeMenu(m);
     return m;
   }
 

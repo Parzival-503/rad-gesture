@@ -110,3 +110,25 @@ test('settings store saves the cleaned key', () => {
   store.writeAI({ apiKey: ' sk-ant-api03-k1\n', model: 'claude-sonnet-5-5' });
   assert.match(fs.readFileSync(path.join(dir, 'RadGesture.ini'), 'latin1'), /ApiKey=sk-ant-api03-k1\r\n/);
 });
+
+test('an older menu loses the shipped Stopwatch ring once, a home-made one stays', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-mig-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const base = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const shipped = { id: 'stopwatch', name: 'Stopwatch', color: '#5fd38d', icon: 'timer', items: [
+    { name: 'Start study (F4)', icon: 'play_arrow', action: 'helper:keys:{F4}' },
+    { name: 'Stop / sign (F12)', icon: 'stop', action: 'helper:keys:{F12}' }] };
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify({ ...base, categories: [...base.categories, shipped] }));
+  let m = store.readMenu();
+  assert.ok(!m.categories.some((c) => c.id === 'stopwatch'), 'the shipped Stopwatch ring is removed');
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'menu.json'), 'utf8')).migrated, ['no-stopwatch-ring'], 'and that is saved');
+  // Added back by hand afterwards: left alone.
+  m.categories.push(shipped);
+  store.writeMenu(m);
+  assert.ok(store.readMenu().categories.some((c) => c.id === 'stopwatch'));
+  // A Stopwatch ring the person added to: never removed.
+  const mine = { ...shipped, items: [...shipped.items, { name: 'Open RadStopwatch', icon: 'timer', action: 'app:C:\\RadStopwatch\\RadStopwatch.ahk' }] };
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify({ ...base, categories: [...base.categories, mine] }));
+  assert.ok(store.readMenu().categories.some((c) => c.id === 'stopwatch'));
+});
