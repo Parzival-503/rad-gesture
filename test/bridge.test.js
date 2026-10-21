@@ -60,3 +60,15 @@ test('bridge: Setup can ask the app to quit (POST, token required)', async () =>
     await b.close();
   }
 });
+
+test('bridge: the helper can open Settings on a page', async () => {
+  let tab = null;
+  const b = createBridge({ token: 't0k', onShow() {}, onRelease: async () => 'none', onCancel() {}, isOpen: () => false, onOpenSettings: (t) => { tab = t; } });
+  const port = await b.listen(47950);
+  try {
+    assert.strictEqual((await call(port, 'POST', '/open-settings?tab=ai')).text, 'ok');
+    assert.strictEqual(tab, 'ai');
+  } finally {
+    await b.close();
+  }
+});

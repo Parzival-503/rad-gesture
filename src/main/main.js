@@ -18,6 +18,7 @@ const { createStore, MODELS, MODEL_LABELS } = require('./settings-store');
 const { createSupervisor } = require('./helper-supervisor');
 const conflicts = require('./conflicts');
 const { categoryForApp } = require('../common/menu');
+const apikey = require('../common/apikey');
 
 const PREFERRED_PORT = 47811;
 const RELEASE_TIMEOUT_MS = 600;
@@ -254,6 +255,7 @@ async function startBridge() {
       logEvent('done', action);
       supervisor && supervisor.noteDone(action);
     },
+    onOpenSettings: (tab) => openSettings(tab || 'general'),
     onQuit: () => {
       logEvent('quit', 'asked by Setup');
       setTimeout(() => app.quit(), 50); // before-quit stops the helper
@@ -320,7 +322,9 @@ function fullStatus() {
 }
 
 async function testApiKey(key, model) {
-  if (!key) return { ok: false, error: 'Enter an API key first.' };
+  key = apikey.cleanKey(key);
+  const why = apikey.keyProblem(key);
+  if (why) return { ok: false, error: why };
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -334,7 +338,7 @@ async function testApiKey(key, model) {
     try {
       msg = JSON.parse(t).error.message;
     } catch (_) {}
-    return { ok: false, error: `HTTP ${r.status}: ${msg}`.slice(0, 300) };
+    return { ok: false, error: apikey.errorText(r.status, msg) };
   } catch (e) {
     return { ok: false, error: 'Could not reach Anthropic: ' + e.message };
   }

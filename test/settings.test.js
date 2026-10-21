@@ -89,3 +89,22 @@ test('a retired model saved in the INI reads back as Sonnet 5.5', () => {
   assert.strictEqual(store.readAI().model, 'claude-sonnet-5-5');
   assert.deepStrictEqual(MODELS, ['claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-opus-5-5']);
 });
+
+test('API key: pasted junk is cleaned, wrong kinds of key are named', () => {
+  const { cleanKey, keyProblem, errorText } = require('../src/common/apikey');
+  assert.strictEqual(cleanKey('  sk-ant-api03-abc\r\n'), 'sk-ant-api03-abc');
+  assert.strictEqual(cleanKey('"sk-ant-api03-abc"'), 'sk-ant-api03-abc');
+  assert.strictEqual(cleanKey('x-api-key: sk-ant-api03-abc'), 'sk-ant-api03-abc');
+  assert.strictEqual(cleanKey('sk-ant-api03-OLDsk-ant-api03-NEW'), 'sk-ant-api03-NEW', 'new key pasted after an old one');
+  assert.strictEqual(keyProblem('sk-ant-api03-abc'), '');
+  assert.match(keyProblem('sk-ant-oat01-abc'), /login code/);
+  assert.match(keyProblem('hello'), /does not look like/);
+  assert.match(errorText(401, 'invalid x-api-key'), /not valid/);
+});
+
+test('settings store saves the cleaned key', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-key-'));
+  const store = createStore({ userDir: () => dir, defaultMenuPath: path.join(__dirname, '..', 'config', 'default-menu.json') });
+  store.writeAI({ apiKey: ' sk-ant-api03-k1\n', model: 'claude-sonnet-5-5' });
+  assert.match(fs.readFileSync(path.join(dir, 'RadGesture.ini'), 'latin1'), /ApiKey=sk-ant-api03-k1\r\n/);
+});

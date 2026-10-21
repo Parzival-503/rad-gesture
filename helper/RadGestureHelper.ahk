@@ -156,7 +156,7 @@ LoadSettings() {
         return
     }
     IniRead, v, %INI_PATH%, API, ApiKey, %A_Space%
-    g_ApiKey := v
+    g_ApiKey := CleanApiKey(v)
     IniRead, v, %INI_PATH%, API, Model, claude-sonnet-5-5
     g_Model := NormalizeModel(v)
     IniRead, v, %INI_PATH%, API, MaxTokens, 1500
@@ -235,7 +235,7 @@ RegisterHotkey() {
         Hotkey, %g_Hotkey%, ProofreadHotkey, On
         g_BoundHotkey := g_Hotkey
     } catch e {
-        MsgBox, 48, RadProofread, Could not bind hotkey "%g_Hotkey%":`n%e%
+        MsgBox, 48, RadGesture, Could not bind hotkey "%g_Hotkey%":`n%e%
     }
 }
 
@@ -277,7 +277,7 @@ TrayHeader:
 return
 
 MenuSettings:
-    ShowSettingsGui()
+    OpenAiSettings()
 return
 
 MenuTestKey:
@@ -331,7 +331,7 @@ ShowSettingsGui() {
     Gui, SetGui:Color, 1e1e1e, 252525
     Gui, SetGui:Font, s10 cE8E8E8, Segoe UI
 
-    Gui, SetGui:Add, Text, x16 y14 w400, RadProofread Settings
+    Gui, SetGui:Add, Text, x16 y14 w400, RadGesture Settings
 
     Gui, SetGui:Font, s9 cAAAAAA Bold, Segoe UI
     Gui, SetGui:Add, Text, x16 y44 w400, API
@@ -380,7 +380,7 @@ ShowSettingsGui() {
     Gui, SetGui:Add, Button, x290 y353 w95  h28 gSetGui_Cancel, Cancel
     Gui, SetGui:Add, Button, x393 y353 w110 h28 gSetGui_Save Default, Save
 
-    Gui, SetGui:Show, w520 h398, RadProofread Settings
+    Gui, SetGui:Show, w520 h398, RadGesture Settings
     return
 
 ToggleKeyVisibility:
@@ -392,7 +392,7 @@ ToggleKeyVisibility:
 
 SetGui_Save:
     Gui, SetGui:Submit, NoHide
-    g_ApiKey      := Trim(SetGui_ApiKey)
+    g_ApiKey      := CleanApiKey(SetGui_ApiKey)
     g_Model       := SetGui_Model
     g_Sensitivity := SetGui_Sens
     g_MaxTokens   := SetGui_MaxTok ? (SetGui_MaxTok+0) : 1500
@@ -412,7 +412,7 @@ SetGui_Save:
     Menu, Tray, DeleteAll
     BuildTrayMenu()
     Gui, SetGui:Destroy
-    TrayTip, RadProofread, Settings saved., 2, 1
+    TrayTip, RadGesture, Settings saved., 2, 1
     return
 
 SetGui_Cancel:
@@ -423,18 +423,18 @@ SetGuiGuiEscape:
 
 SetGui_Test:
     Gui, SetGui:Submit, NoHide
-    testKey   := Trim(SetGui_ApiKey)
+    testKey   := CleanApiKey(SetGui_ApiKey)
     testModel := SetGui_Model
     if (testKey = "") {
-        MsgBox, 48, RadProofread, Enter an API key first.
+        MsgBox, 48, RadGesture, Enter an API key first.
         return
     }
     Gui, SetGui:+OwnDialogs
     res := PingClaude(testKey, testModel)
     if (res.ok)
-        MsgBox, 64, RadProofread - API Test, OK. Model "%testModel%" responded.
+        MsgBox, 64, RadGesture - API Test, OK. Model "%testModel%" responded.
     else
-        MsgBox, 16, RadProofread - API Test, % "Failed:`n`n" . res.error
+        MsgBox, 16, RadGesture - API Test, % "Failed:`n`n" . res.error
     return
 }
 
@@ -455,9 +455,9 @@ BuildDdl(items, current) {
 ProofreadActiveReport() {
     global g_ApiKey, g_StripHeader, g_ShowOnEmpty
 
-    if (g_ApiKey = "") {
-        MsgBox, 48, RadProofread, No API key set.`n`nOpen Settings from the tray icon to add one.
-        ShowSettingsGui()
+    if (!HaveKey()) {
+        MsgBox, 48, RadGesture, No API key yet.`n`nPaste it in RadGesture Settings > AI tools (left-click the RadGesture tray icon).
+        OpenAiSettings()
         return
     }
 
@@ -469,7 +469,7 @@ ProofreadActiveReport() {
     ClipWait, 2
     if ErrorLevel {
         Clipboard := savedClip
-        Notify("RadProofread: clipboard copy failed", 1500)
+        Notify("RadGesture: clipboard copy failed", 1500)
         return
     }
     reportText := Clipboard
@@ -480,16 +480,16 @@ ProofreadActiveReport() {
         reportText := StripPatientHeader(reportText)
 
     if (StrLen(reportText) < 20) {
-        Notify("RadProofread: report too short / nothing copied", 1500)
+        Notify("RadGesture: report too short / nothing copied", 1500)
         return
     }
 
-    Notify("RadProofread: analyzing...", 0)
+    Notify("RadGesture: analyzing...", 0)
     apiResponse := CallClaudeAPI(reportText)
     Notify("", 0, true)
 
     if (apiResponse.error) {
-        MsgBox, 16, RadProofread - API error, % apiResponse.error
+        MsgBox, 16, RadGesture - API error, % apiResponse.error
         return
     }
 
@@ -497,7 +497,7 @@ ProofreadActiveReport() {
         ; No popup will open, so log immediately
         if (g_LogHistory)
             LogHistorySession(reportText, apiResponse.flags, {})
-        Notify("RadProofread: no issues found", 1500)
+        Notify("RadGesture: no issues found", 1500)
         return
     }
 
@@ -572,7 +572,7 @@ ShowLastApiCall() {
     reqPath  := g_DataDir . "\RadProofread_lastrequest.txt"
     respPath := g_DataDir . "\RadProofread_lastresponse.txt"
     if !FileExist(reqPath) {
-        MsgBox, 64, RadProofread, No API calls made yet this session.
+        MsgBox, 64, RadGesture, No API calls made yet this session.
         return
     }
     Run, notepad.exe "%reqPath%"
@@ -586,7 +586,7 @@ ShowHistoryViewer() {
     global IE_HIST  ; ActiveX control variable must be global/static inside a function
 
     if !FileExist(HISTORY_PATH) {
-        MsgBox, 64, RadProofread, No history yet. Run a proofreading session to start logging.
+        MsgBox, 64, RadGesture, No history yet. Run a proofreading session to start logging.
         return
     }
 
@@ -603,7 +603,7 @@ ShowHistoryViewer() {
     }
 
     if (sessions.Length() = 0) {
-        MsgBox, 64, RadProofread, History file is empty.
+        MsgBox, 64, RadGesture, History file is empty.
         return
     }
 
@@ -706,7 +706,7 @@ ShowHistoryViewer() {
     IE_HIST.Silent := true
     IE_HIST.Navigate("file:///" . StrReplace(htmlPath, "\", "/"))
 
-    Gui, HistGui:Show, w920 h645, RadProofread - History
+    Gui, HistGui:Show, w920 h645, RadGesture - History
     return
 
 HistGui_Open:
@@ -774,6 +774,11 @@ ExtractJsonNumber(line, key) {
 ; ----------------------------------------------------------------------------
 PingClaude(apiKey, model) {
     out := { ok: false, error: "" }
+    apiKey := CleanApiKey(apiKey)
+    if ((why := KeyProblem(apiKey)) != "") {
+        out.error := why
+        return out
+    }
     body := "{""model"":" . JsonStr(model)
         . ",""max_tokens"":64," . ApiExtras("low")
         . """messages"":[{""role"":""user"",""content"":""ping""}]}"
@@ -790,7 +795,7 @@ PingClaude(apiKey, model) {
             out.ok := true
             return out
         }
-        out.error := "HTTP " . st . ":`n" . SubStr(http.ResponseText, 1, 600)
+        out.error := ApiErrorText(st, http.ResponseText)
     } catch e {
         out.error := "Exception: " . e.Message
     }
@@ -799,15 +804,15 @@ PingClaude(apiKey, model) {
 
 TestApiKey() {
     global g_ApiKey, g_Model
-    if (g_ApiKey = "") {
-        MsgBox, 48, RadProofread, No API key configured. Open Settings first.
+    if (!HaveKey()) {
+        MsgBox, 48, RadGesture, No API key yet. Paste it in RadGesture Settings > AI tools.
         return
     }
     res := PingClaude(g_ApiKey, g_Model)
     if (res.ok)
-        MsgBox, 64, RadProofread - API Test, OK. Model "%g_Model%" responded.
+        MsgBox, 64, RadGesture - API Test, OK. Model "%g_Model%" responded.
     else
-        MsgBox, 16, RadProofread - API Test, % "Failed:`n`n" . res.error
+        MsgBox, 16, RadGesture - API Test, % "Failed:`n`n" . res.error
 }
 
 ; ----------------------------------------------------------------------------
@@ -941,7 +946,7 @@ CallClaudeAPI(reportText) {
     FileAppend, %debugDump%, %debugRespPath%, UTF-8
 
     if (status < 200 || status >= 300) {
-        result.error := "HTTP " . status . ":`n" . SubStr(respText, 1, 800)
+        result.error := ApiErrorText(status, respText)
         return result
     }
 
@@ -1036,6 +1041,65 @@ EmptyReplyReason(respText) {
     if InStr(respText, """stop_reason"":""max_tokens""")
         return "The reply was cut off before any text (token limit). Raise Max tokens in the AI settings."
     return "Empty reply. Tray -> Show Last API Call (debug) has the raw response."
+}
+
+; The key as saved right now. Read from the INI before every AI call, not
+; only at startup / reload: a copy held since startup went stale (Sina saved
+; a key in Settings and the helper still said "No API key set").
+HaveKey() {
+    global g_ApiKey, INI_PATH
+    IniRead, v, %INI_PATH%, API, ApiKey, %A_Space%
+    v := CleanApiKey(v)
+    if (v != "")
+        g_ApiKey := v
+    return g_ApiKey != ""
+}
+
+; AI settings live in the hub's Settings window (AI tools page). This old
+; built-in box is only the fallback for when the hub isn't running: two places
+; to type the key was one too many (Sina tested a key in the old box and got
+; "invalid x-api-key" with no way to see what was in the masked field).
+OpenAiSettings() {
+    if (HubRequest("POST", "/open-settings?tab=ai") = "")
+        ShowSettingsGui()
+}
+
+; What people paste is not always just the key: spaces, a line break, quotes,
+; "x-api-key:" from a docs page, or the new key pasted after an old one in a
+; masked field. Keep the key itself (the last sk-ant-... if there are two).
+CleanApiKey(k) {
+    k := RegExReplace(k, "[\s""'<>]")
+    k := RegExReplace(k, "i)^x-api-key:")
+    p := InStr(k, "sk-ant-", false, 0)
+    if (p > 1)
+        k := SubStr(k, p)
+    return k
+}
+
+; "" when the key looks like an Anthropic API key, else why not, in words.
+KeyProblem(k) {
+    if (k = "")
+        return "No API key yet. Paste it in Settings > AI tools."
+    if (SubStr(k, 1, 10) = "sk-ant-oat")
+        return "That is a Claude app login code, not an API key. Make an API key at console.anthropic.com > Settings > API keys (it starts with sk-ant-api) and paste that."
+    if (SubStr(k, 1, 10) != "sk-ant-api")
+        return "That does not look like an Anthropic API key (they start with sk-ant-api). Copy it again from console.anthropic.com > Settings > API keys."
+    return ""
+}
+
+; An API error in words; the raw reply stays in Show Last API Call (debug).
+ApiErrorText(status, body) {
+    if (status = 401)
+        return "Anthropic says this API key is not valid (HTTP 401). It may be mistyped, cut off, or deleted. Copy a fresh key from console.anthropic.com > Settings > API keys into Settings > AI tools."
+    if (status = 403)
+        return "This API key is not allowed to do that (HTTP 403). Check the key's workspace and permissions in the Anthropic console."
+    if (status = 404)
+        return "Anthropic does not know this model for your key (HTTP 404). Pick another model in Settings > AI tools."
+    if (status = 429)
+        return "Too many requests or out of credit (HTTP 429). Check usage and billing in the Anthropic console, or wait a minute."
+    if (status = 529 || status = 503)
+        return "Anthropic is busy right now (HTTP " . status . "). Try again in a moment."
+    return "HTTP " . status . ":`n" . SubStr(body, 1, 600)
 }
 
 ExtractAssistantText(json) {
@@ -1458,7 +1522,7 @@ ShowProofreadPopup(reportText, flags) {
     ; Wire up the JS->AHK bridge: intercept rp:action:index navigations
     ComObjConnect(IE, "IE_")
 
-    title := "RadProofread - " . countLabel
+    title := "RadGesture - " . countLabel
     Gui, ProofGui:Show, w900 h605, %title%
     return
 
@@ -1874,7 +1938,7 @@ RegisterPriorHotkeys() {
         }
     }
     if (bad != "")
-        TrayTip, RadProofread, Could not bind prior hotkey(s):%bad%, 5, 2
+        TrayTip, RadGesture, Could not bind prior hotkey(s):%bad%, 5, 2
 }
 
 PriorAddHotkey:
@@ -1966,7 +2030,7 @@ ShowPriorBin() {
         Gui, PriorBin:Add, Button, x8 y56 w108 h24 gPriorBin_Imp, Impression
         Gui, PriorBin:Add, Button, x120 y56 w108 h24 gPriorBin_OneLiner, One-liner
         priorBinX := A_ScreenWidth - 260
-        Gui, PriorBin:Show, x%priorBinX% y120 w236 h88 NoActivate, RadProofread
+        Gui, PriorBin:Show, x%priorBinX% y120 w236 h88 NoActivate, RadGesture
         g_PriorBinShown := true
     } else {
         Gui, PriorBin:Show, NoActivate
@@ -2017,8 +2081,8 @@ return
 PriorChecklist() {
     global g_Priors, g_ApiKey, g_PriorMaxTokens
 
-    if (g_ApiKey = "") {
-        Notify("RadProofread: no API key. Tray -> Settings to add one.", 3000)
+    if (!HaveKey()) {
+        Notify("RadGesture: no API key yet. Settings > AI tools.", 3000)
         return
     }
     if (PriorExpireCheck()) {
@@ -2055,7 +2119,7 @@ PriorChecklist() {
         userMsg .= "`n=== PRIOR P" . i . " ===`n" . p.text . "`n"
     }
 
-    Notify("RadProofread: making checklist from " . n . " prior" . (n = 1 ? "" : "s") . "...", 0)
+    Notify("RadGesture: making checklist from " . n . " prior" . (n = 1 ? "" : "s") . "...", 0)
     res := PostClaude(systemPrompt, userMsg, g_PriorMaxTokens, "low")
     Notify("", 0, true)
 
@@ -2101,7 +2165,7 @@ PostClaude(systemPrompt, userMsg, maxTokens, effort := "low") {
     FileAppend, %debugDump%, %debugRespPath%, UTF-8
 
     if (status < 200 || status >= 300) {
-        out.error := "HTTP " . status . ":`n" . SubStr(respText, 1, 600)
+        out.error := ApiErrorText(status, respText)
         return out
     }
     out.text := Trim(ExtractAssistantText(respText), " `t`r`n")
@@ -2147,7 +2211,7 @@ ShowPriorList(examTitle, nPriors, text, err) {
     Gui, PriorList:Add, Button, x12 y+14 w90 h26 gPriorList_Close, Close
     Gui, PriorList:Add, Button, x+8 w170 h26 gPriorList_ClearClose, Clear priors && close
     pl_x := A_ScreenWidth - 520
-    Gui, PriorList:Show, x%pl_x% y190 w480 NoActivate, RadProofread Prior Checklist
+    Gui, PriorList:Show, x%pl_x% y190 w480 NoActivate, RadGesture Prior Checklist
 }
 
 PriorList_ClearClose:
@@ -2261,7 +2325,7 @@ RegisterToolHotkeys() {
         }
     }
     if (bad != "")
-        TrayTip, RadProofread, Could not bind hotkey(s):%bad%, 5, 2
+        TrayTip, RadGesture, Could not bind hotkey(s):%bad%, 5, 2
 }
 
 OneLinerHotkey:
@@ -2286,7 +2350,7 @@ Trigger_OneLiner() {
     ; front so a failed copy can't leave it set for the next Ctrl+Alt+U.
     ol_direct := g_DirectFlavor
     g_DirectFlavor := ""
-    if (g_ApiKey = "") {
+    if (!HaveKey()) {
         Toast("No API key. Tray -> Settings to add one.", "warn")
         return
     }
@@ -2540,7 +2604,7 @@ Toast(text, kind := "info", autoCloseMs := -1) {
     ; Bottom-right corner
     SysGet, MonW, 16
     SysGet, MonH, 17
-    Gui, Toast:Show, x%MonW% y%MonH% NoActivate AutoSize, RadProofreadToast
+    Gui, Toast:Show, x%MonW% y%MonH% NoActivate AutoSize, RadGestureToast
     WinGetPos,,, tw, th, ahk_id %ToastHwnd%
     newX := MonW - tw - 20
     newY := MonH - th - 60
@@ -2642,7 +2706,7 @@ FlavorLabel(flavor) {
 ImpressionRun() {
     global g_ApiKey, g_ImpMaxTokens, g_ImpLastFindings, g_ImpLastText, g_Busy
 
-    if (g_ApiKey = "") {
+    if (!HaveKey()) {
         Toast("No API key. Tray -> Settings to add one.", "warn")
         return
     }
@@ -2763,7 +2827,7 @@ ShowImpression(text, err) {
     Gui, Impression:Add, Button, x+8 w160 h26 gImpression_OE, Open in OpenEvidence
     Gui, Impression:Add, Button, x+8 w80 h26 gImpression_Close, Close
     imp_x := A_ScreenWidth - 520
-    Gui, Impression:Show, x%imp_x% y220 w480 NoActivate, RadProofread Impression
+    Gui, Impression:Show, x%imp_x% y220 w480 NoActivate, RadGesture Impression
 }
 
 Impression_Copy:
@@ -2978,7 +3042,7 @@ RunHubAction(a) {
     } else if (a = "prior:show") {
         ShowPriorBin()
     } else if (a = "settings") {
-        ShowSettingsGui()
+        OpenAiSettings()
     } else if (a = "history") {
         ShowHistoryViewer()
     } else if (SubStr(a, 1, 5) = "keys:") {

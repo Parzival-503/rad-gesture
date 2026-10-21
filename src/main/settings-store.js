@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const ini = require('./ini');
 const { validateMenu } = require('../common/menu');
+const { cleanKey } = require('../common/apikey');
 
 // Offered in Settings > AI tools. A saved model not in this list (a retired
 // one) reads back as Sonnet 5.5; the helper does the same (NormalizeModel).
@@ -95,9 +96,10 @@ function createStore({ userDir, defaultMenuPath }) {
     readAI: () => {
       const v = readFields(AI_FIELDS);
       if (!MODELS.includes(v.model)) v.model = MODELS[0];
+      v.apiKey = cleanKey(v.apiKey);
       return v;
     },
-    writeAI: (v) => writeFields(AI_FIELDS, v),
+    writeAI: (v) => writeFields(AI_FIELDS, { ...v, ...(v.apiKey !== undefined ? { apiKey: cleanKey(v.apiKey) } : {}) }),
     readShortcuts: () => readFields(SHORTCUT_FIELDS),
     writeShortcuts: (v) => writeFields(SHORTCUT_FIELDS, v),
   };

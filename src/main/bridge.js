@@ -15,7 +15,7 @@
 
 const http = require('http');
 
-function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {}, onQuit = () => {} }) {
+function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {}, onQuit = () => {}, onOpenSettings = () => {} }) {
   const queue = [];
 
   const server = http.createServer(async (req, res) => {
@@ -43,6 +43,11 @@ function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () 
           return reply(200, isOpen() ? 'open' : 'closed');
         case '/ping':
           return reply(200, 'radgesture');
+        case '/open-settings':
+          // The helper's own "AI settings" (tray, ring, "no key" prompt) opens
+          // the Settings window instead of its old built-in box.
+          onOpenSettings(url.searchParams.get('tab') || '');
+          return reply(200, 'ok');
         case '/quit':
           // The installer / uninstaller asks the running copy to quit. Works
           // even when RadGesture runs as administrator and Setup doesn't,

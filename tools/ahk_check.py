@@ -505,16 +505,21 @@ def check_autoexec_truncated(lines):
 
 # ---- RadProofread-specific checks ------------------------------------------
 
-KEYISH_RE = re.compile(r'"[^"]*(?:sk-ant-|[A-Za-z0-9_\-]{40,})[^"]*"')
+KEYISH_RE = re.compile(r'"[^"]*(?:sk-ant-[A-Za-z0-9]+-[A-Za-z0-9_\-]{8,}|[A-Za-z0-9_\-]{40,})[^"]*"')
+# A real key anywhere on the line, comments included: the prefix, its kind
+# (api03, oat01...) and a long tail. The bare prefixes the key cleaner checks
+# for ("sk-ant-", "sk-ant-api") are not keys.
+REAL_KEY_RE = re.compile(r'sk-ant-[A-Za-z0-9]+-[A-Za-z0-9_\-]{8,}')
 
 def check_secrets(lines):
     """The API key lives in RadProofread.ini (gitignored), never in the
-    script. Flags an `sk-ant-` literal, any 40+ char token-looking string, and
+    script. Flags anything shaped like a real key (sk-ant-<kind>-<long tail>),
+    any 40+ char token-looking string, and
     g_ApiKey being assigned a non-empty literal."""
     problems = []
     for idx, raw in enumerate(lines, 1):
         code = strip_line_comment(raw)
-        if KEYISH_RE.search(code) or 'sk-ant-' in raw:
+        if KEYISH_RE.search(code) or REAL_KEY_RE.search(raw):
             problems.append((idx, raw.strip()[:80]))
         elif re.search(r'\bg_ApiKey\s*:=\s*"[^"]+"', code):
             problems.append((idx, raw.strip()[:80]))
