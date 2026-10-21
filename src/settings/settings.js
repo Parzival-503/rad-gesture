@@ -861,6 +861,8 @@
       h('h2', {}, 'The ring'),
       row('Names around the ring', 'The center always shows the name of what you aim at.',
         seg([['always', 'Always'], ['pause', 'When I pause'], ['never', 'Never']], labels, (v) => { m.labels = v; delete m.showLabels; markDirty('menu'); render(); })),
+      row('Open smaller rings by moving past them', 'Move the mouse past a direction that holds more, and its smaller ring opens, also after a tap. Off: click it (or let go on it).',
+        sw(m.passOpens !== false, (v) => { if (v) delete m.passOpens; else m.passOpens = false; markDirty('menu'); render(); }, 'Open smaller rings by moving past them')),
       row('Ring buttons under the ring', 'One click jumps to any ring. Off: scroll or click the center instead.',
         sw(m.dock !== false, (v) => { m.dock = v; markDirty('menu'); render(); }, 'Ring buttons under the ring')),
       row('Size', null,

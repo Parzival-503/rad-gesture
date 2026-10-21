@@ -30,6 +30,7 @@
   const LABEL_PAUSE_MS = 650; // labels fade in after this long without a choice
   const DRAG_PX = 6; // the center moves this far under a pressed button = a drag, not a click
   const DOCK_GAP = 104; // dock sits this far past the directions (unscaled)
+  const PASS_DWELL_MS = 120; // ring left open (after a tap): stay past a direction this long to open it
 
   const stage = document.getElementById('stage');
   const hooks = { select() {}, dismiss() {} };
@@ -213,6 +214,8 @@
   function escapeHtml(s) {
     return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   }
+
+  const passOpens = () => st.menu.passOpens !== false;
 
   // Ring i's colour: the theme's palette, or the person's own colours.
   function catColor(i) {
@@ -474,9 +477,23 @@
     const dy = (st.py - L.cy) / st.s;
     const target = G.aimAt(L.slots, dx, dy, DEAD);
     const dist = Math.hypot(dx, dy);
-    if (st.mode === 'hold') {
-      if (target !== -1 && target !== 'back' && L.items[target].items && dist > L.r + PASS) return openSub(target);
-      if (target === 'back' && dist > L.r * 0.78 + PASS) return popLevel();
+    // Moving past a direction that holds more opens it (past the way back:
+    // back). While holding that is the flick itself; with the ring left open
+    // it waits a moment, so passing on the way to the dock opens nothing.
+    // Settings > General can turn it off (`passOpens: false`): then click.
+    const pass = target !== -1 && passOpens() &&
+      (target === 'back' ? dist > L.r * 0.78 + PASS : L.items[target].items && dist > L.r + PASS);
+    if (!pass) st.passing = null;
+    else if (st.mode === 'hold') return target === 'back' ? popLevel() : openSub(target);
+    else {
+      const now = performance.now();
+      if (!st.passing || st.passing.target !== target || st.passing.level !== st.levels.length) {
+        st.passing = { target, level: st.levels.length, since: now };
+        setTimeout(aim, PASS_DWELL_MS + 10);
+      } else if (now - st.passing.since >= PASS_DWELL_MS) {
+        st.passing = null;
+        return target === 'back' ? popLevel() : openSub(target);
+      }
     }
     if (target !== st.hover) {
       st.hover = target;
@@ -556,7 +573,7 @@
         N.sc.t = !started ? 0.35 : hovered ? 1.2 : hoverIdx >= 0 ? 1.1 - Math.pow(diff / 180, 0.25) * 0.12 : 1;
       }
       // Flick: the aimed direction stretches out after the hand.
-      if (hovered && st.mode === 'hold' && !N.back && pdist > L.r) {
+      if (hovered && !N.back && pdist > L.r && (st.mode === 'hold' || (passOpens() && N.it.items))) {
         const reach = Math.min(pdist - L.r, PASS + 6) * 0.85;
         const p = G.polar(0, 0, N.angle, reach);
         N.dx.t = p.x;

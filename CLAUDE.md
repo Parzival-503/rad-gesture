@@ -120,6 +120,11 @@ screenshots before handing over any visual change.
 - **Flick**: hold, move, release. The aimed direction stretches after the
   hand; moving past a direction with `items` opens its smaller ring there.
 - **Tap** (<320 ms, nothing aimed) keeps it open for clicking.
+- **Moving past** a direction that holds more opens it in both modes (Sina
+  wants it; he missed it once v3 required a click after a tap). With the
+  ring left open it waits `PASS_DWELL_MS` so crossing on the way to the dock
+  opens nothing. Settings > General can turn it off (`passOpens: false`):
+  then click, or let go on it.
 - **Switching rings**: the dock (one button per ring, under the ring, above
   it near the bottom edge) jumps straight to any ring in one click; the wheel
   and a center click step one ring (right-click the center: back one). Sina

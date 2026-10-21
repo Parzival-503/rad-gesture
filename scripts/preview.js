@@ -109,6 +109,24 @@ const shots = path.join(__dirname, 'shots');
   await page.mouse.move(150, 380);
   await shot('8-phone');
 
+  // 8b. Ring left open after a tap: moving past a direction that holds more
+  // opens it (Sina's default); with passOpens off it waits for a click.
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.waitForTimeout(300);
+  for (const on of [true, false]) {
+    await page.evaluate((v) => { if (v) delete window.RG_DEMO_MENU.passOpens; else window.RG_DEMO_MENU.passOpens = false; }, on);
+    await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.up();
+    assert.strictEqual((await state()).mode, 'click');
+    await page.mouse.move(cx + 110, cy + 150, { steps: 8 }); // past One-liner (down-right)
+    await page.waitForTimeout(300);
+    assert.strictEqual((await state()).levels, on ? 2 : 1, on ? 'after a tap, moving past One-liner opens its smaller ring' : 'with the switch off it does not');
+    if (on) await shot('8b-pass-after-tap');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+  }
+  await page.evaluate(() => { delete window.RG_DEMO_MENU.passOpens; });
+
   // 9. Every theme, aimed at Impression, with the dock showing.
   await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 1280, height: 800 });
