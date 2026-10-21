@@ -116,8 +116,6 @@ scripts (or `tools/external_hotkeys.json` for Rad Optimizer) and re-run it.
 | Apps > Teams | Alt+Shift+T | Rad Optimizer: Switch to Teams |
 | Apps > Chrome tabs | Alt+Shift+C | Rad Optimizer: Open Chrome tabs |
 | Apps > Search selection | Alt+Shift+S | Rad Optimizer: Search selection (Radiopaedia / Google Images) |
-| Stopwatch > Start study (F4) | F4 | RadStopwatch: ~F4 |
-| Stopwatch > Stop / sign (F12) | F12 | RadStopwatch: ~F12 |
 
 ## Free for new tools
 

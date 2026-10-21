@@ -1,5 +1,12 @@
 /* RadGesture Settings - same family as the ring: graphite, one accent, calm. */
 @font-face {
+  font-family: 'Tabler Icons';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../../assets/fonts/tabler-icons.woff2') format('woff2');
+}
+@font-face {
   font-family: 'Material Symbols Rounded';
   font-style: normal;
   font-weight: 100 700;
@@ -37,6 +44,8 @@ button { cursor: pointer; }
   display: inline-block; white-space: nowrap; -webkit-font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle;
 }
+.tabler { font-size: 20px; font-family: 'Tabler Icons'; font-style: normal; font-weight: normal; line-height: 1; display: inline-block; -webkit-font-smoothing: antialiased; speak: never; }
+.imgic { font-size: 20px; width: 1em; height: 1em; object-fit: contain; display: inline-block; vertical-align: middle; }
 .emoji { font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; }
 
 /* ---- title bar (Windows draws min/max/close over the right side) ---- */
@@ -137,7 +146,7 @@ textarea { resize: vertical; min-height: 72px; }
 .lrow:hover { background: rgba(255, 255, 255, 0.04); }
 .lrow.on { background: var(--card-hi); border-color: var(--line-hi); }
 .lrow .ic { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #11141a; border: 1px solid var(--line); flex: 0 0 auto; }
-.lrow .ic .msym, .lrow .ic .emoji { font-size: 19px; }
+.lrow .ic .msym, .lrow .ic .emoji, .lrow .ic .tabler, .lrow .ic .imgic { font-size: 19px; }
 .lrow .tx { flex: 1; min-width: 0; }
 .lrow .tx b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lrow .tx small { display: block; color: var(--ink-3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -158,7 +167,7 @@ textarea { resize: vertical; min-height: 72px; }
 .mini .c { width: 84px; height: 84px; background: linear-gradient(170deg, #22252e, #15171d); border: 1px solid var(--line); box-shadow: 0 8px 22px rgba(0,0,0,0.45); color: var(--accent); text-align: center; font-size: 12px; font-weight: 600; flex-direction: column; gap: 2px; padding: 6px; }
 .mini .c .msym { font-size: 28px; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
 .mini .n { width: 46px; height: 46px; background: linear-gradient(170deg, #262a34, #1d2028); border: 1px solid var(--line); box-shadow: 0 6px 16px rgba(0,0,0,0.45); color: #dfe4ee; transition: transform 160ms cubic-bezier(.3,1.4,.6,1), background 140ms ease; cursor: pointer; }
-.mini .n .msym, .mini .n .emoji { font-size: 22px; }
+.mini .n .msym, .mini .n .emoji, .mini .n .tabler, .mini .n .imgic { font-size: 22px; }
 .mini .n.on { background: var(--accent); color: #0b0e14; transform: translate(-50%, -50%) scale(1.15); }
 .mini .n.back { width: 30px; height: 30px; opacity: 0.6; }
 .mini .n.back .msym { font-size: 16px; }
@@ -171,7 +180,7 @@ textarea { resize: vertical; min-height: 72px; }
 .editor .field input[type=text], .editor .field input[type=url], .editor .field select, .editor .field textarea { width: 100%; }
 .iconpick { display: flex; gap: 8px; align-items: center; }
 .iconpick .cur { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #11141a; border: 1px solid var(--line-hi); flex: 0 0 auto; }
-.iconpick .cur .msym, .iconpick .cur .emoji { font-size: 22px; }
+.iconpick .cur .msym, .iconpick .cur .emoji, .iconpick .cur .tabler, .iconpick .cur .imgic { font-size: 22px; }
 .icongrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; max-height: 210px; overflow: auto; margin-top: 8px; padding: 6px; background: #11141a; border: 1px solid var(--line); border-radius: 10px; }
 .icongrid button { height: 38px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); display: flex; align-items: center; justify-content: center; }
 .icongrid button:hover, .icongrid button.on { background: var(--card-hi); color: var(--ink); }
@@ -238,7 +247,7 @@ pre.err { white-space: pre-wrap; background: #11141a; border: 1px solid var(--li
 .krow { display: grid; grid-template-columns: 34px minmax(140px, 220px) auto 1fr 28px; align-items: center; gap: 12px; padding: 6px 4px; border-top: 1px solid var(--line); }
 .krow:hover { background: rgba(255,255,255,0.02); }
 .krow .kic { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #11141a; border: 1px solid var(--line); }
-.krow .kic .msym, .krow .kic .emoji { font-size: 17px; }
+.krow .kic .msym, .krow .kic .emoji, .krow .kic .tabler, .krow .kic .imgic { font-size: 17px; }
 .krow .kname { font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .krow.unset .kname { color: var(--ink-2); }
 .krow .knotes { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
@@ -246,3 +255,7 @@ pre.err { white-space: pre-wrap; background: #11141a; border: 1px solid var(--li
 .krow .note .msym { font-size: 15px; }
 @media (max-width: 1080px) { .setup .steps3 { grid-template-columns: 1fr; } }
 .krow .recorder { min-width: 210px; }
+.icongrid button .tabler, .icongrid button .imgic, .icongrid button .emoji { font-size: 22px; }
+.icongrid button.addpic { border: 1px dashed var(--line-hi); color: var(--accent); }
+.icongrid button.addpic .msym { font-size: 22px; }
+.seg.packs button .msym { font-size: 16px; }

@@ -215,7 +215,8 @@
 
   // ------------------------------------------------------------ state changes
 
-  function open({ x, y, menu, category: catIndex, mode }) {
+  function open({ x, y, menu, category: catIndex, mode, images }) {
+    if (images) I.setImages(images);
     hardClear();
     const scale = Math.max(0.62, Math.min(1, Math.min(innerWidth, innerHeight) / 640)) * (menu.ringScale || 1);
     st = {

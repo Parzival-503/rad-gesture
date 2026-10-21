@@ -60,3 +60,10 @@ test('every helper action in the menu is handled by the AutoHotkey helper', () =
   // The one-liner flavors must be ones the helper's prompts know.
   for (const f of ['full', 'oncologic', 'treatment', 'indication']) assert.ok(ahk.includes(`(flavor = "${f}")`), f);
 });
+
+test('every suggested Tabler icon exists in the bundled font', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'settings', 'settings.js'), 'utf8');
+  const names = (src.match(/const SUGGESTED_TABLER = \[([^\]]+)\]/) || [])[1].match(/'([^']+)'/g).map((s) => s.slice(1, -1));
+  const map = require('../assets/fonts/tabler-map.js');
+  assert.deepStrictEqual(names.filter((n) => !map[n]), []);
+});

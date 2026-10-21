@@ -1043,6 +1043,53 @@ EmptyReplyReason(respText) {
     return "Empty reply. Tray -> Show Last API Call (debug) has the raw response."
 }
 
+; "Open a program" from the ring, or "Start it with RadGesture" at startup.
+; spec = "<mode>|<path>|<options>"; mode: front (start it, or bring its window
+; up if it is already open), new (always another copy), start (only if it is
+; not running, never brings anything up). An AutoHotkey script that is already
+; running is left alone in every mode: a second copy would ask to replace it.
+RunProgram(spec) {
+    parts := StrSplit(spec, "|", , 3)
+    mode := parts[1]
+    target := parts[2]
+    opts := (parts.Length() >= 3) ? parts[3] : ""
+    if (target = "")
+        return
+    SplitPath, target, runName, runDir, runExt
+    if (runExt = "ahk") {
+        prevHidden := A_DetectHiddenWindows
+        DetectHiddenWindows, On
+        SetTitleMatchMode, 2
+        found := WinExist(target . " ahk_class AutoHotkey")
+        DetectHiddenWindows, %prevHidden%
+        if (found) {
+            if (mode != "start")
+                Notify(runName . " is already running", 1500)
+            return
+        }
+    } else if (runExt = "exe" && mode != "new") {
+        Process, Exist, %runName%
+        if (ErrorLevel) {
+            if (mode = "front" && WinExist("ahk_pid " . ErrorLevel)) {
+                WinGet, runMinMax, MinMax
+                if (runMinMax = -1)
+                    WinRestore  ; only un-minimise: a maximised Epic stays maximised
+                WinActivate
+            } else if (mode = "front" && WinExist("ahk_exe " . runName)) {
+                WinActivate
+            }
+            return
+        }
+    }
+    if (runDir = "")
+        runDir := A_WorkingDir
+    try {
+        Run, "%target%" %opts%, %runDir%
+    } catch e {
+        Notify("Could not open " . runName, 2500)
+    }
+}
+
 ; The key as saved right now. Read from the INI before every AI call, not
 ; only at startup / reload: a copy held since startup went stale (Sina saved
 ; a key in Settings and the helper still said "No API key set").
@@ -3049,6 +3096,8 @@ RunHubAction(a) {
         OpenAiSettings()
     } else if (a = "history") {
         ShowHistoryViewer()
+    } else if (SubStr(a, 1, 4) = "run:") {
+        RunProgram(SubStr(a, 5))
     } else if (SubStr(a, 1, 5) = "keys:") {
         hubKeys := SubStr(a, 6)
         ; SendLevel 1 so another script's hotkeys (RadStopwatch's F4 / F12)

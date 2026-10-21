@@ -442,24 +442,6 @@
           "action": "url:https://www.openevidence.com/"
         }
       ]
-    },
-    {
-      "id": "stopwatch",
-      "name": "Stopwatch",
-      "color": "#5fd38d",
-      "icon": "timer",
-      "items": [
-        {
-          "name": "Start study (F4)",
-          "icon": "play_arrow",
-          "action": "helper:keys:{F4}"
-        },
-        {
-          "name": "Stop / sign (F12)",
-          "icon": "stop",
-          "action": "helper:keys:{F12}"
-        }
-      ]
     }
   ]
 }

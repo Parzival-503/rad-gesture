@@ -133,8 +133,14 @@ screenshots before handing over any visual change.
 - Small dots around a direction preview its smaller ring's contents.
 - Names: `labels` = `always` | `pause` (fade in after 650 ms still) | `never`;
   the center always shows the aimed name.
-- Icons: Material Symbols Rounded, bundled in `assets/fonts` (offline), or any
-  emoji. Names are validated against `material-symbols-names.json` in tests.
+- Icons (`src/renderer/icons.js`): Material Symbols Rounded (`"spellcheck"`),
+  Tabler Icons (`"ti:lungs"`, MIT, `tabler-icons.woff2` + `tabler-map.js`,
+  5,247 icons), any emoji, or a picture (`"img:<file>"`): one the user added
+  or a program's own icon, kept in `%APPDATA%\RadGesture\icons`
+  (`src/main/icon-store.js`, shrunk to 96 px) and handed to the ring and
+  Settings as data: URLs, so no page reads files outside the app. All
+  bundled offline. Material names in the default menu and the suggested
+  Tabler names are checked by tests.
 - The overlay is `focusable: false` + `showInactive()`; the hub delays hiding
   170 ms after a pick so the pick animation plays (the action already runs).
 
@@ -147,6 +153,20 @@ rules, priors), Shortcuts (below), General (labels, size, start with Windows,
 pause), Status (helper state + restart, old tools that clash + close them,
 how to use, recent activity). `src/main/settings-store.js` maps it onto
 `menu.json` and `RadGesture.ini`; a save tells the helper to `reload`.
+
+### Open a program (`app:` actions)
+
+A direction can open a program, shortcut, `.ahk` script or batch file
+(RadStopwatch, Rad Optimizer, Epic...): `"action": "app:<path>"`, optional
+`args`, `ifRunning: "new"` (default: bring the open window up instead of a
+second copy), `startWithHub: true` (started, if not running, every time
+RadGesture starts - `startPrograms()` waits for the helper). The hub turns it
+into `run:<front|new|start>|<path>|<args>` (`runSpec` in `actions.js`) for the
+helper's `RunProgram()`: `Process Exist` + `WinActivate` (un-minimises, never
+un-maximises); a running `.ahk` is found by its hidden window and left alone,
+since a second copy would ask to replace it. Without the helper the hub
+starts it directly. Choosing a program in Settings also takes its icon
+(`app.getFileIcon`). The Windows e2e opens Notepad through it twice.
 
 ### Shortcuts page (made so colleagues can use RadGesture)
 
@@ -241,7 +261,13 @@ standalone script is running.
 
 ### Not here, on purpose
 
-- **RadStopwatch** stays its own program; the Stopwatch ring sends its keys.
+- **RadStopwatch** stays its own program and is not bundled. It is Sina's
+  (his department's workload values, pay credits, reward bank), it keeps its
+  data next to its script, and it has its own release rhythm; size was not
+  the reason (about 1.5 MB compiled against a 117 MB installer). The default
+  menu no longer has a Stopwatch ring: Sina launches it with an "Open a
+  program" direction set to start with RadGesture, and can still add
+  "Press keys" directions for F4 / F12.
 - **Rad Optimizer** stays its own script and keeps its keys; the PACS and
   Apps rings send them, so those rings need it running. Its code is not in any
   repo (internal URLs, login variables). If it is ever brought in: it uses

@@ -6,7 +6,6 @@ mouse. Flick toward a tool and let go, or tap and click.
 - **AI Tools**: Proofread, Impression, One-liner (4 flavors), Priors checklist
 - **PACS** and **Apps**: Rad Optimizer's shortcuts (needs Rad Optimizer running), Lung-RADS
 - **Gallery**: reference links (Lung-RADS, Fleischner, LI-RADS, TI-RADS, ...), search copied text
-- **Stopwatch**: start / stop a study in RadStopwatch
 
 Scroll or click the center to switch rings.
 
@@ -33,6 +32,13 @@ Their PACS has its own keys, so after installing:
    **Export** (one per department is enough).
 
 Rings they don't need can be deleted in Settings > Rings.
+
+## Your own buttons
+
+In Settings > Rings, a direction can **open a program** (an app, shortcut or
+AutoHotkey script; it brings the window up if it is already open, and can
+start with RadGesture), and its icon can be any of about 9,000 bundled icons
+(Material and Tabler), an emoji, or a picture of your own.
 
 ## For developers
 

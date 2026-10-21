@@ -21,9 +21,9 @@ test('every key-pressing direction is listed with its path', () => {
   const items = KS.keyItems(menu());
   const soft = items.find((k) => k.path.join(' > ') === 'PACS > Window / level > Soft tissue');
   assert.ok(soft && soft.keys === '^!1');
-  assert.ok(items.some((k) => k.path[0] === 'Stopwatch' && HK.same(k.keys, 'F4')));
+  assert.ok(items.some((k) => k.path[0] === 'Apps' && HK.same(k.keys, '+!e')));
   assert.ok(items.every((k) => k.item.action.startsWith('helper:keys:')));
-  assert.ok(items.length >= 30);
+  assert.ok(items.length >= 28);
 });
 
 test('export -> import onto a menu with other keys restores them; layout untouched', () => {

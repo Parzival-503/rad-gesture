@@ -11,6 +11,7 @@
   const $main = document.getElementById('main');
 
   let D = await api.get();
+  I.setImages(D.images);
   let menuDraft = clone(D.menu);
   let aiDraft = { ...D.ai };
   let scDraft = { ...D.shortcuts };
@@ -116,7 +117,7 @@
     if (it.items) return 'ring';
     const a = M.parseAction(it.action) || { kind: 'url', value: '' };
     if (a.kind === 'helper') return a.value.startsWith('keys:') ? 'keys' : 'ai';
-    return { url: 'web', file: 'file', search: 'search', hub: 'hub' }[a.kind] || 'web';
+    return { url: 'web', file: 'file', search: 'search', hub: 'hub', app: 'app' }[a.kind] || 'web';
   }
   function describe(it) {
     if (it.items) return `${it.items.length} inside`;
@@ -130,6 +131,7 @@
     if (a.kind === 'url') return a.value.replace(/^https?:\/\//, '').slice(0, 40);
     if (a.kind === 'search') return 'search copied text';
     if (a.kind === 'file') return a.value.split(/[\\/]/).pop() || a.value;
+    if (a.kind === 'app') return 'opens ' + (a.value.split(/[\\/]/).pop() || a.value) + (it.startWithHub ? ' (starts with RadGesture)' : '');
     return a.value;
   }
   // "^!2" / "{F4}" (Send syntax) <-> "^!2" / "F4" (hotkey syntax)
@@ -187,6 +189,7 @@
       dirty.shortcuts = false;
     }
     D = await api.get();
+    I.setImages(D.images);
     renderSaveBar();
     render();
     toast('Saved');
@@ -385,7 +388,7 @@
     box.append(field('Name', h('input', { type: 'text', id: 'itemName', value: it.name, oninput: (e) => { it.name = e.target.value; markDirty('menu'); refreshLists(); } })));
     box.append(field('Icon', iconPicker(it.icon, (v) => { it.icon = v; markDirty('menu'); render(); })));
     const type = actionType(it);
-    const types = [['ai', 'AI tool', 'stars'], ['web', 'Website', 'public'], ['search', 'Search copied text', 'search'], ['file', 'File or folder', 'folder_open'], ['keys', 'Press keys', 'keyboard'], ['ring', 'Smaller ring', 'donut_small']];
+    const types = [['ai', 'AI tool', 'stars'], ['app', 'Open a program', 'apps'], ['web', 'Website', 'public'], ['search', 'Search copied text', 'search'], ['file', 'File or folder', 'folder_open'], ['keys', 'Press keys', 'keyboard'], ['ring', 'Smaller ring', 'donut_small']];
     box.append(field('What it does', seg(types, type, (t) => changeType(it, t))));
     box.append(typeFields(it, type));
     return box;
@@ -414,7 +417,8 @@
       it.items = [{ name: 'New direction', icon: 'public', action: 'url:https://www.google.com' }];
     } else {
       delete it.items;
-      it.action = { ai: 'helper:proofread', web: 'url:https://www.google.com', search: 'search:' + SEARCHES[0][1], file: 'file:%USERPROFILE%\\Documents', keys: 'helper:keys:{F4}' }[t];
+      if (t !== 'app') ['args', 'ifRunning', 'startWithHub'].forEach((k) => delete it[k]);
+      it.action = { app: 'app:notepad.exe', ai: 'helper:proofread', web: 'url:https://www.google.com', search: 'search:' + SEARCHES[0][1], file: 'file:%USERPROFILE%\\Documents', keys: 'helper:keys:{F4}' }[t];
     }
     markDirty('menu');
     render();
@@ -460,10 +464,44 @@
       const handlers = HK.clashes(spec, knownHotkeys());
       box.append(field('Keys to press', recorder(spec, (v) => { set('helper:keys:' + hotkeyToSend(v)); render(); }, { plain: true }),
         handlers.length ? `Handled by ${handlers.map((x) => `${x.script}: ${x.does}`).join('; ')}.` : 'No script of yours handles this; it goes straight to the active window.'));
+    } else if (type === 'app') {
+      // A program, shortcut, AutoHotkey script or batch file (RadStopwatch,
+      // Rad Optimizer, Epic...). The helper starts it, or brings its window
+      // to the front when it is already open.
+      box.append(field('Program', h('input', { type: 'text', id: 'appPath', value: a.value, placeholder: 'C:\\...\\Program.exe', oninput: (e) => set('app:' + e.target.value.trim()) }),
+        'A program (.exe), a shortcut (.lnk), an AutoHotkey script (.ahk) or a batch file.'));
+      box.append(h('div', { class: 'addrow', style: 'margin-top:-6px;margin-bottom:12px' },
+        h('button', { class: 'btn small', id: 'pickProgram', onclick: async () => {
+          const r = await api.pickProgram();
+          if (!r.ok) return;
+          if (r.images) I.setImages(r.images), (D.images = r.images);
+          it.action = 'app:' + r.path;
+          if (!it.name || it.name === 'New direction') it.name = r.name;
+          if (r.icon && (!it.icon || it.icon === 'public' || it.icon === 'apps')) it.icon = r.icon;
+          markDirty('menu');
+          render();
+        } }, msym('folder_open'), 'Choose...'),
+        r0Icon(it)));
+      box.append(field('Options (optional)', h('input', { type: 'text', value: it.args || '', placeholder: 'e.g. a file to open with it', oninput: (e) => { const v = e.target.value; if (v.trim()) it.args = v; else delete it.args; markDirty('menu'); } })));
+      box.append(field('If it is already open', seg([['front', 'Bring it to the front'], ['new', 'Open another copy']], it.ifRunning === 'new' ? 'new' : 'front', (v) => { if (v === 'new') it.ifRunning = 'new'; else delete it.ifRunning; markDirty('menu'); render(); }),
+        'Scripts (.ahk) that are already running are left alone either way.'));
+      box.append(field('Start it with RadGesture', h('div', { class: 'addrow', style: 'margin:0;align-items:center' },
+        sw(!!it.startWithHub, (v) => { if (v) it.startWithHub = true; else delete it.startWithHub; markDirty('menu'); render(); }, 'Start it with RadGesture'),
+        h('span', { class: 'hint' }, 'Starts it (if it is not running) every time RadGesture starts, e.g. RadStopwatch or your shortcut script.'))));
     } else if (type === 'ring') {
       box.append(h('div', { class: 'addrow' }, h('button', { class: 'btn', onclick: () => { ui.path.push(ui.sel); ui.sel = null; render(); } }, msym('subdirectory_arrow_right'), `Open it (${it.items.length} inside)`)));
     }
     return box;
+  }
+  // "Use the program's own icon" when it has one and the direction shows another.
+  function r0Icon(it) {
+    const a = M.parseAction(it.action);
+    if (!a || a.kind !== 'app') return null;
+    return h('button', { class: 'btn small ghost', title: 'Use the program\'s own icon', onclick: async () => {
+      const r = await api.programIcon(a.value);
+      if (r && r.icon) { I.setImages(r.images); D.images = r.images; it.icon = r.icon; markDirty('menu'); render(); }
+      else toast('No icon found for that program.');
+    } }, msym('image'), 'Use its icon');
   }
 
   function ringEditor(box) {
@@ -492,33 +530,69 @@
     return box;
   }
 
+  // Icons from four places: Material Symbols, Tabler Icons (both bundled),
+  // emoji, and pictures of your own (or programs' icons) kept in
+  // %APPDATA%\RadGesture\icons.
+  const PACKS = [['material', 'Material', 'interests'], ['tabler', 'Tabler', 'category'], ['emoji', 'Emoji', 'mood'], ['mine', 'My pictures', 'photo_library']];
+  const SUGGESTED_TABLER = ['lungs', 'brain', 'heart', 'bone', 'skull', 'stethoscope', 'microscope', 'radioactive', 'scan', 'ruler-measure',
+    'crosshair', 'zoom-in', 'contrast', 'layout-grid', 'photo', 'book', 'notebook', 'clipboard-text', 'checklist', 'clipboard-check', 'file-text',
+    'search', 'world', 'folder', 'keyboard', 'player-play', 'player-stop', 'clock', 'stopwatch', 'brand-teams', 'brand-chrome', 'message',
+    'bolt', 'star', 'bookmark', 'link', 'calculator', 'pencil', 'microphone', 'users', 'building-hospital', 'apps'];
+  const SUGGESTED_EMOJI = ['🫁', '🧠', '❤️', '🦴', '🩻', '🩺', '🔬', '☢️', '📏', '🎯', '📋', '✅', '📝', '📚', '🔍', '🌐', '📁', '⏱️', '▶️', '⏹️', '💬', '⭐', '⚡', '🔗', '🧮', '🎤', '👥', '🏥'];
   function iconPicker(cur, onPick) {
     const wrap = h('div', {});
-    const top = h('div', { class: 'iconpick' },
+    const r = I.resolve(cur);
+    const curPack = { symbol: 'material', tabler: 'tabler', text: 'emoji', image: 'mine' }[r.kind] || 'material';
+    if (!ui.iconPack) ui.iconPack = curPack;
+    const label = r.kind === 'image' ? 'your picture' : r.kind === 'tabler' ? 'Tabler: ' + r.value : r.value;
+    wrap.append(h('div', { class: 'iconpick' },
       h('span', { class: 'cur' }, icon(cur)),
-      h('button', { class: 'btn small', onclick: () => { ui.iconOpen = !ui.iconOpen; render(); } }, msym('palette'), ui.iconOpen ? 'Close' : 'Change'),
-      h('span', { class: 'hint' }, I.resolve(cur).value));
-    wrap.append(top);
-    if (ui.iconOpen) {
-      const q = h('input', { type: 'text', placeholder: 'Search icons (e.g. lung, brain, book) or paste an emoji', value: ui.iconQuery, style: 'width:100%;margin-top:8px',
-        oninput: (e) => { ui.iconQuery = e.target.value; paintGrid(); } });
-      const grid = h('div', { class: 'icongrid' });
-      const paintGrid = () => {
-        grid.innerHTML = '';
-        const query = ui.iconQuery.trim().toLowerCase();
-        if (query && !/^[a-z0-9_ ]+$/.test(query)) {
-          grid.append(h('button', { title: 'Use this emoji', onclick: () => { onPick(ui.iconQuery.trim()); ui.iconOpen = false; } }, h('span', { class: 'emoji', style: 'font-size:22px' }, ui.iconQuery.trim())));
-          return;
-        }
-        const words = query.replace(/ /g, '_');
-        const list = query ? D.iconNames.filter((n) => n.includes(words)).slice(0, 160) : SUGGESTED_ICONS;
-        list.forEach((n) => grid.append(h('button', { class: n === cur ? 'on' : '', title: n, onclick: () => { onPick(n); ui.iconOpen = false; } }, msym(n))));
-        if (!list.length) grid.append(h('div', { class: 'hint', style: 'grid-column:1/-1;padding:8px' }, 'No icon by that name.'));
+      h('button', { class: 'btn small', id: 'changeIcon', onclick: () => { ui.iconOpen = !ui.iconOpen; ui.iconPack = curPack; render(); } }, msym('palette'), ui.iconOpen ? 'Close' : 'Change'),
+      h('span', { class: 'hint' }, label)));
+    if (!ui.iconOpen) return wrap;
+    const pick = (v) => { onPick(v); ui.iconOpen = false; };
+    const grid = h('div', { class: 'icongrid' });
+    const q = h('input', { type: 'text', id: 'iconSearch', value: ui.iconQuery, style: 'width:100%;margin-top:8px',
+      oninput: (e) => { ui.iconQuery = e.target.value; paintGrid(); } });
+    const tabs = h('div', { class: 'seg packs', style: 'margin-top:8px' }, PACKS.map(([id, name, ic]) =>
+      h('button', { class: ui.iconPack === id ? 'on' : '', 'data-pack': id, onclick: () => { ui.iconPack = id; render(); } }, msym(ic), name)));
+    const paintGrid = () => {
+      grid.innerHTML = '';
+      const query = ui.iconQuery.trim().toLowerCase();
+      const btn = (value, html, title) => {
+        const b = h('button', { class: value === cur ? 'on' : '', title, onclick: () => pick(value) });
+        b.innerHTML = html;
+        grid.append(b);
       };
-      paintGrid();
-      wrap.append(q, grid);
-      setTimeout(() => q.focus(), 0);
-    }
+      const none = (t) => grid.append(h('div', { class: 'hint', style: 'grid-column:1/-1;padding:8px' }, t));
+      if (ui.iconPack === 'material') {
+        const words = query.replace(/[ -]/g, '_');
+        const list = query ? D.iconNames.filter((n) => n.includes(words)).slice(0, 200) : SUGGESTED_ICONS;
+        list.forEach((n) => btn(n, I.icon(n), n));
+        if (!list.length) none('No Material icon by that name. Try the Tabler tab.');
+      } else if (ui.iconPack === 'tabler') {
+        const words = query.replace(/[ _]/g, '-');
+        const list = query ? I.tablerNames().filter((n) => n.includes(words)).slice(0, 200) : SUGGESTED_TABLER;
+        list.forEach((n) => btn('ti:' + n, I.icon('ti:' + n), n));
+        if (!list.length) none('No Tabler icon by that name. Try the Material tab.');
+      } else if (ui.iconPack === 'emoji') {
+        if (query && !/^[a-z0-9_ -]+$/.test(query)) btn(ui.iconQuery.trim(), I.icon(ui.iconQuery.trim()), 'Use this');
+        SUGGESTED_EMOJI.forEach((e) => btn(e, I.icon(e), e));
+      } else {
+        grid.append(h('button', { class: 'addpic', id: 'addPicture', title: 'Add a picture', onclick: async () => {
+          const res = await api.importIcon();
+          if (res.ok) { I.setImages(res.images); D.images = res.images; pick(res.icon); render(); }
+          else if (!res.canceled) toast(res.error);
+        } }, msym('add_photo_alternate')));
+        Object.keys(D.images || {}).forEach((f) => btn('img:' + f, I.icon('img:' + f), f.startsWith('app-') ? 'a program\'s icon' : 'your picture'));
+      }
+    };
+    q.placeholder = { material: 'Search Material icons (e.g. lung, brain, book)', tabler: 'Search Tabler icons (e.g. lungs, scan, ruler)', emoji: 'Paste or type any emoji', mine: 'Your pictures and programs\' icons' }[ui.iconPack];
+    q.style.display = ui.iconPack === 'mine' ? 'none' : '';
+    paintGrid();
+    wrap.append(tabs, q, grid);
+    if (ui.iconPack === 'mine') wrap.append(h('div', { class: 'hint', style: 'margin-top:6px' }, 'PNG, JPG, SVG, ICO, WEBP or GIF. Kept on this PC, also after updates.'));
+    setTimeout(() => q.focus(), 0);
     return wrap;
   }
 

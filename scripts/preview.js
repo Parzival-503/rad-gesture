@@ -69,13 +69,13 @@ const shots = path.join(__dirname, 'shots');
   await page.mouse.move(cx + 140, cy - 160);
   await shot('4-gallery-abdomen');
 
-  // 5. Stopwatch ring, and a phone-sized view.
+  // 5. Last ring (Apps), and a phone-sized view.
   await page.keyboard.press('Escape');
   await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.up();
-  await page.mouse.wheel(0, -120); // backwards wraps round to Stopwatch
-  assert.strictEqual((await state()).cat, 4, 'scrolling back from the first ring wraps to Stopwatch');
+  await page.mouse.wheel(0, -120); // backwards wraps round to the last ring
+  assert.strictEqual((await state()).cat, 3, 'scrolling back from the first ring wraps to the last');
   await page.mouse.move(cx + 2, cy - 90);
-  await shot('5-stopwatch');
+  await shot('5-last-ring');
 
   // 6. The dock: one click jumps straight to a ring (Gallery is the 3rd).
   const chip = await page.$('.dchip[data-cat="2"]');

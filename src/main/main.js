@@ -13,12 +13,13 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { createBridge } = require('./bridge');
-const { resolveAction } = require('./actions');
+const { resolveAction, runSpec } = require('./actions');
 const { createStore, MODELS, MODEL_LABELS } = require('./settings-store');
 const { createSupervisor } = require('./helper-supervisor');
 const conflicts = require('./conflicts');
 const { categoryForApp } = require('../common/menu');
 const apikey = require('../common/apikey');
+const { createIconStore } = require('./icon-store');
 
 const PREFERRED_PORT = 47811;
 const RELEASE_TIMEOUT_MS = 600;
@@ -34,6 +35,7 @@ if (!app.requestSingleInstanceLock()) {
 const ROOT = path.join(__dirname, '..', '..');
 const userDir = () => app.getPath('userData');
 const store = createStore({ userDir, defaultMenuPath: path.join(ROOT, 'config', 'default-menu.json') });
+const icons = createIconStore({ dir: () => path.join(userDir(), 'icons'), nativeImage });
 const resourcesHelperDir = () => (app.isPackaged ? path.join(process.resourcesPath, 'helper') : path.join(ROOT, 'helper'));
 
 let overlay = null;
@@ -119,7 +121,7 @@ function openRing(exe, mode = 'hold', menuOverride = null) {
   overlay.setBounds(b);
   ringOpen = true;
   const m = menuOverride || menu;
-  overlay.webContents.send('rg:open', { x: cursor.x - b.x, y: cursor.y - b.y, menu: m, category: categoryForApp(m, exe), mode });
+  overlay.webContents.send('rg:open', { x: cursor.x - b.x, y: cursor.y - b.y, menu: m, category: categoryForApp(m, exe), mode, images: icons.dataUrls(icons.usedBy(m)) });
   overlay.showInactive();
   logEvent('ring-open', `${mode} ${exe || ''}`.trim());
   if (process.env.RG_SMOKE) smokeReport();
@@ -179,10 +181,60 @@ function runItem(item, viaRelease) {
     case 'hub':
       hubCommand(r.value);
       return 'none';
+    case 'app': {
+      // The helper starts it or brings it to the front; without the helper,
+      // start it directly (no "already open" check).
+      const spec = runSpec(item, null, process.env);
+      if (supervisor.status().connected || E2E) {
+        if (viaRelease) return 'action:' + spec;
+        bridge.enqueue(spec);
+      } else openProgramDirect(r.value, item.args);
+      return 'none';
+    }
     default:
       notify(`"${item.name}" has no valid action. Fix it in Settings > Rings.`);
       return 'none';
   }
+}
+
+function openProgramDirect(file, args) {
+  if (!args || process.platform !== 'win32') {
+    shell.openPath(file).then((err) => err && notify(`Could not open ${file}: ${err}`));
+    return;
+  }
+  try {
+    require('child_process').spawn('cmd.exe', ['/c', 'start', '""', file, ...String(args).split(' ').filter(Boolean)], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  } catch (e) {
+    notify(`Could not open ${file}: ${e.message}`);
+  }
+}
+
+// Programs marked "Start it with RadGesture" (RadStopwatch, a shortcut
+// script...): once the helper checks in, it starts each one that is not
+// already running. Without the helper after 15 s, they are started directly.
+function startWithHubItems() {
+  const out = [];
+  const walk = (items) => (items || []).forEach((it) => {
+    if (it.items) walk(it.items);
+    else if (it.startWithHub && typeof it.action === 'string' && it.action.startsWith('app:')) out.push(it);
+  });
+  (menu.categories || []).forEach((c) => walk(c.items));
+  return out;
+}
+function startPrograms() {
+  const list = startWithHubItems();
+  if (!list.length || E2E) return;
+  const started = Date.now();
+  const tick = setInterval(() => {
+    const ok = supervisor.status().connected;
+    if (!ok && Date.now() - started < 15000) return;
+    clearInterval(tick);
+    for (const it of list) {
+      logEvent('autostart', it.name);
+      if (ok) bridge.enqueue(runSpec(it, 'start', process.env));
+      else openProgramDirect(resolveAction(it.action, { env: process.env }).value, it.args);
+    }
+  }, 500);
 }
 
 function hubCommand(id) {
@@ -356,6 +408,7 @@ function registerSettingsIpc() {
     shortcuts: store.readShortcuts(),
     models: MODELS,
     modelLabels: MODEL_LABELS,
+    images: icons.dataUrls(),
     iconNames: JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'fonts', 'material-symbols-names.json'), 'utf8')),
     externalHotkeys: JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'external_hotkeys.json'), 'utf8')),
     status: fullStatus(),
@@ -427,6 +480,40 @@ function registerSettingsIpc() {
       return { ok: true, set: JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8')), file: path.basename(r.filePaths[0]) };
     } catch (e) {
       return { ok: false, error: 'Could not read that file: ' + e.message };
+    }
+  });
+  // Ring icons: a picture of the user's, or a program's own icon.
+  ipcMain.handle('rgs:import-icon', async () => {
+    const r = await dialog.showOpenDialog(settingsWin, {
+      title: 'Choose a picture for the icon',
+      filters: [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'svg', 'ico', 'webp', 'gif'] }],
+      properties: ['openFile'],
+    });
+    if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+    const res = icons.importFile(r.filePaths[0]);
+    return res.ok ? { ok: true, icon: 'img:' + res.file, images: icons.dataUrls() } : res;
+  });
+  ipcMain.handle('rgs:pick-program', async () => {
+    const r = await dialog.showOpenDialog(settingsWin, {
+      title: 'Choose a program, shortcut or script',
+      filters: [{ name: 'Programs and scripts', extensions: ['exe', 'lnk', 'ahk', 'bat', 'cmd', 'url'] }, { name: 'Any file', extensions: ['*'] }],
+      properties: ['openFile'],
+    });
+    if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+    const file = r.filePaths[0];
+    let icon = null;
+    try {
+      const f = icons.saveProgramIcon(file, await app.getFileIcon(file, { size: 'large' }));
+      if (f) icon = 'img:' + f;
+    } catch (_) {}
+    return { ok: true, path: file, name: path.basename(file).replace(/\.[^.]+$/, ''), icon, images: icons.dataUrls() };
+  });
+  ipcMain.handle('rgs:program-icon', async (_e, file) => {
+    try {
+      const f = icons.saveProgramIcon(file, await app.getFileIcon(resolveAction('app:' + file, { env: process.env }).value, { size: 'large' }));
+      return f ? { icon: 'img:' + f, images: icons.dataUrls() } : null;
+    } catch (_) {
+      return null;
     }
   });
   ipcMain.handle('rgs:copy-text', (_e, text) => {
@@ -541,6 +628,7 @@ app.whenReady().then(async () => {
   setInterval(updateTray, 2000); // helper connected/disconnected shows in the tray
   if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: menu.startAtLogin !== false });
   if ((!menu.helper || menu.helper.autoStart !== false) && !process.env.RG_NO_HELPER) supervisor.start();
+  startPrograms();
   scanConflicts(true);
 
   // First run: show Settings so the API key and status are one glance away.

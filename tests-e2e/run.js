@@ -180,6 +180,45 @@ async function waitFor(fn, ms, step = 200) {
     await sleep(250);
     check('selecting a direction shows its editor', !!(await win.$('#itemName')));
 
+    // Icons: a Tabler icon, then a picture of your own.
+    const lastRing = () => menuNow().categories.find((c) => c.name === 'My new ring').items[0];
+    await win.click('#changeIcon');
+    await win.click('.packs button[data-pack="tabler"]');
+    await sleep(150);
+    await win.screenshot({ path: path.join(SHOTS, 'settings-icon-tabler.png') });
+    await win.fill('#iconSearch', 'lungs');
+    await sleep(150);
+    await win.click('.icongrid button[title="lungs"]');
+    await win.click('#saveAll');
+    await sleep(600);
+    check('a Tabler icon can be picked and is saved', lastRing().icon === 'ti:lungs', lastRing().icon);
+    const pic = path.join(ROOT, 'assets', 'icon.png');
+    await app.evaluate(({ dialog }, f) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [f] }); }, pic);
+    await win.click('#changeIcon');
+    await win.click('.packs button[data-pack="mine"]');
+    await win.click('#addPicture');
+    await sleep(500);
+    await win.screenshot({ path: path.join(SHOTS, 'settings-icon-picture.png') });
+    await win.click('#saveAll');
+    await sleep(600);
+    const picIcon = lastRing().icon || '';
+    check('a picture of your own becomes the icon (kept in the data folder)', picIcon.startsWith('img:') && fs.existsSync(path.join(userData, 'icons', picIcon.slice(4))), picIcon);
+
+    // "Open a program": choose one, its own icon comes along, start with RadGesture.
+    await win.click('.field .seg button:has-text("Open a program")');
+    await sleep(200);
+    const prog = process.env.RG_APP_EXE || require(path.join(ROOT, 'node_modules', 'electron'));
+    await app.evaluate(({ dialog }, f) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [f] }); }, prog);
+    await win.click('#pickProgram');
+    await sleep(700);
+    await win.click('button.switch[aria-label="Start it with RadGesture"]');
+    await win.screenshot({ path: path.join(SHOTS, 'settings-open-program.png') });
+    await win.click('#saveAll');
+    await sleep(600);
+    const appItem = lastRing();
+    check('Open a program saves the program, and starting with RadGesture', appItem.action === 'app:' + prog && appItem.startWithHub === true, JSON.stringify(appItem).slice(0, 200));
+    if (WIN) check('the program\'s own icon is taken', (appItem.icon || '').startsWith('img:app-'), appItem.icon);
+
     // ---------------- the ring
     await rg((r) => r.openRing('click'));
     const ringPage = await waitFor(async () => app.windows().find((w) => w.url().includes('renderer/index.html')), 10000);
@@ -204,6 +243,11 @@ async function waitFor(fn, ms, step = 200) {
     const c1 = await ringPage.evaluate(() => { const s = window.RGRing.state(); return s && { x: s.x, y: s.y, cat: s.cat }; });
     check('dragging the center moves the ring (and keeps it open)', c1 && Math.abs(c1.x - (c0.x - 200)) < 3 && c1.cat === 3, JSON.stringify(c1));
     await ringPage.screenshot({ path: path.join(SHOTS, 'ring-dragged.png') });
+    const lastCat = (await ringPage.$$('.dchip')).length - 1;
+    await (await ringPage.$(`.dchip[data-cat="${lastCat}"]`)).click();
+    await sleep(400);
+    check('the ring draws a picture icon', (await ringPage.$$('.node img.imgic')).length > 0);
+    await ringPage.screenshot({ path: path.join(SHOTS, 'ring-picture-icon.png') });
     await ringPage.evaluate(() => window.RGRing.clear());
     await app.evaluate(({}) => global.__rg && true);
 
@@ -220,6 +264,21 @@ async function waitFor(fn, ms, step = 200) {
       check('helper starts and checks in', connected, `mode=${hs.mode} err=${hs.lastError || '-'}`);
       const ev = async () => (await rg((r) => r.events())).map((e) => `${e.type} ${e.detail}`);
       check('saving settings made the helper reload', await waitFor(async () => (await ev()).some((e) => e === 'done reload'), 10000));
+
+      // "Open a program" through the helper: "front" must not start a second copy.
+      const notepads = () => { try { return (execFileSync('tasklist', ['/FI', 'IMAGENAME eq notepad.exe']).toString().match(/notepad\.exe/gi) || []).length; } catch (_) { return -1; } };
+      const runVia = (spec) => win.evaluate((x) => window.rgs.runHelperAction(x), spec);
+      await runVia('run:front|notepad.exe|');
+      await waitFor(async () => notepads() >= 1, 8000);
+      await sleep(800);
+      await runVia('run:front|notepad.exe|');
+      await waitFor(async () => (await ev()).filter((e) => e === 'done run:front|notepad.exe|').length >= 2, 8000);
+      await sleep(800);
+      check('Open a program starts it, and brings it up instead of a second copy', notepads() === 1, `notepad processes: ${notepads()}`);
+      await runVia('run:new|notepad.exe|');
+      await waitFor(async () => notepads() >= 2, 8000);
+      check('"Open another copy" does open another', notepads() === 2, `notepad processes: ${notepads()}`);
+      try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe']); } catch (_) {}
 
       const ahk = process.env.AHK_EXE;
       if (ahk && connected) {
