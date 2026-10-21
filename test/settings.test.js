@@ -99,6 +99,7 @@ test('API key: pasted junk is cleaned, wrong kinds of key are named', () => {
   assert.strictEqual(keyProblem('sk-ant-api03-abc'), '');
   assert.match(keyProblem('sk-ant-oat01-abc'), /login code/);
   assert.match(keyProblem('hello'), /does not look like/);
+  assert.match(keyProblem('sk-proj-xyz'), /OpenAI/, 'an OpenAI key is named as one');
   assert.match(errorText(401, 'invalid x-api-key'), /not valid/);
 });
 

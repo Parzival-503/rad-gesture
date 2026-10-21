@@ -13,6 +13,7 @@ function cleanKey(k) {
 function keyProblem(k) {
   if (!k) return 'Enter an API key first.';
   if (k.startsWith('sk-ant-oat')) return 'That is a Claude app login code, not an API key. Make an API key at console.anthropic.com > Settings > API keys (it starts with sk-ant-api) and paste that.';
+  if (/^sk-(proj|svcacct|admin)-/.test(k) || (/^sk-[A-Za-z0-9]/.test(k) && !k.startsWith('sk-ant-'))) return 'That is an OpenAI (ChatGPT) key, not a Claude key. Make a Claude key at console.anthropic.com > Settings > API keys (it starts with sk-ant-api) and paste that.';
   if (!k.startsWith('sk-ant-api')) return 'That does not look like an Anthropic API key (they start with sk-ant-api). Copy it again from console.anthropic.com > Settings > API keys.';
   return '';
 }
