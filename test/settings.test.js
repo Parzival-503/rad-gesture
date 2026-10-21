@@ -6,7 +6,7 @@ const path = require('path');
 const ini = require('../src/main/ini');
 const HK = require('../src/common/hotkeys');
 const { classify } = require('../src/main/conflicts');
-const { createStore } = require('../src/main/settings-store');
+const { createStore, MODELS } = require('../src/main/settings-store');
 const { createBridge } = require('../src/main/bridge');
 
 test('ini keeps sections, writes CRLF and plain ASCII', () => {
@@ -51,12 +51,12 @@ test('old tools that clash are recognised, our own processes are not', () => {
 test('settings store: AI and shortcut fields round-trip through RadGesture.ini', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-store-'));
   const store = createStore({ userDir: () => dir, defaultMenuPath: path.join(__dirname, '..', 'config', 'default-menu.json') });
-  assert.strictEqual(store.readAI().model, 'claude-sonnet-4-6', 'defaults before any file exists');
+  assert.strictEqual(store.readAI().model, 'claude-sonnet-5-5', 'defaults before any file exists');
   assert.strictEqual(store.readShortcuts().trigger, '^CapsLock');
-  store.writeAI({ apiKey: 'k1', model: 'claude-haiku-4-5' });
+  store.writeAI({ apiKey: 'k1', model: 'claude-haiku-5-5' });
   store.writeShortcuts({ proofread: '^!j' });
   const text = fs.readFileSync(path.join(dir, 'RadGesture.ini'), 'latin1');
-  assert.match(text, /\[API\]\r\nApiKey=k1\r\nModel=claude-haiku-4-5/);
+  assert.match(text, /\[API\]\r\nApiKey=k1\r\nModel=claude-haiku-5-5/);
   assert.match(text, /\[Behavior\]\r\nHotkey=\^!j/);
   assert.strictEqual(store.readAI().apiKey, 'k1');
   const m = store.readMenu();
@@ -80,4 +80,12 @@ test('bridge: paused show, done acks and the poll heartbeat', async () => {
   } finally {
     await b.close();
   }
+});
+
+test('a retired model saved in the INI reads back as Sonnet 5.5', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-models-'));
+  fs.writeFileSync(path.join(dir, 'RadGesture.ini'), '[API]\r\nApiKey=k\r\nModel=claude-sonnet-4-6\r\n');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: path.join(__dirname, '..', 'config', 'default-menu.json') });
+  assert.strictEqual(store.readAI().model, 'claude-sonnet-5-5');
+  assert.deepStrictEqual(MODELS, ['claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-opus-5-5']);
 });

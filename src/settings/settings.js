@@ -575,14 +575,14 @@
     const a = aiDraft;
     const keyInput = h('input', { type: ui.showKey ? 'text' : 'password', id: 'apiKey', class: 'wide', value: a.apiKey, placeholder: 'sk-ant-...', autocomplete: 'off', spellcheck: 'false',
       oninput: (e) => { a.apiKey = e.target.value.trim(); ui.testResult = null; markDirty('ai'); } });
-    const models = D.models.includes(a.model) ? D.models : D.models.concat([a.model]);
+    const models = D.models;
     const test = ui.testResult;
     $main.append(h('div', { class: 'card' },
       h('h2', {}, 'Claude'),
       row('API key', 'Stored only on this PC.', keyInput,
         h('button', { class: 'iconbtn', title: ui.showKey ? 'Hide' : 'Show', 'aria-label': 'Show or hide the key', onclick: () => { ui.showKey = !ui.showKey; render(); } }, msym(ui.showKey ? 'visibility_off' : 'visibility'))),
       row('Model', 'Sonnet catches subtle errors best; Haiku is cheaper.',
-        h('select', { id: 'model', onchange: (e) => { a.model = e.target.value; markDirty('ai'); } }, models.map((m) => h('option', { value: m, selected: m === a.model }, m)))),
+        h('select', { id: 'model', onchange: (e) => { a.model = e.target.value; markDirty('ai'); } }, models.map((m) => h('option', { value: m, selected: m === a.model }, (D.modelLabels && D.modelLabels[m]) || m)))),
       row('Check the key', null,
         h('button', { class: 'btn', id: 'testKey', onclick: async () => { ui.testResult = { pending: true }; render(); ui.testResult = await api.testKey(a.apiKey, a.model); render(); } }, msym('bolt'), 'Test now'),
         test ? (test.pending ? h('span', { class: 'chip' }, 'Checking...') : test.ok ? h('span', { class: 'chip good' }, msym('check_circle'), 'The key works') : h('span', { class: 'chip bad' }, msym('error'), test.error)) : null)));

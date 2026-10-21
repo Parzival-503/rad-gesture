@@ -14,7 +14,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { createBridge } = require('./bridge');
 const { resolveAction } = require('./actions');
-const { createStore, MODELS } = require('./settings-store');
+const { createStore, MODELS, MODEL_LABELS } = require('./settings-store');
 const { createSupervisor } = require('./helper-supervisor');
 const conflicts = require('./conflicts');
 const { categoryForApp } = require('../common/menu');
@@ -311,7 +311,8 @@ async function testApiKey(key, model) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: model || 'claude-sonnet-4-6', max_tokens: 8, messages: [{ role: 'user', content: 'ping' }] }),
+      // 5.5 models think first and reject temperature: room for that, low effort.
+      body: JSON.stringify({ model: model || MODELS[0], max_tokens: 64, output_config: { effort: 'low' }, messages: [{ role: 'user', content: 'ping' }] }),
     });
     if (r.ok) return { ok: true };
     const t = await r.text();
@@ -336,6 +337,7 @@ function registerSettingsIpc() {
     ai: store.readAI(),
     shortcuts: store.readShortcuts(),
     models: MODELS,
+    modelLabels: MODEL_LABELS,
     iconNames: JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'fonts', 'material-symbols-names.json'), 'utf8')),
     externalHotkeys: JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'external_hotkeys.json'), 'utf8')),
     status: fullStatus(),

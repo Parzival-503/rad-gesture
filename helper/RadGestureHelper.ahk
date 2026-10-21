@@ -45,9 +45,11 @@
 ; History stored in:    %APPDATA%\RadGesture\RadProofread_history.jsonl
 ; Tray menu: Settings, Test API Key, View History, Open Settings, Reload, Exit.
 ;
-; Default model: claude-sonnet-4-6 (better at contextual reasoning than Haiku
-; for the section-mismatch category). Switch to claude-haiku-4-5 in settings
-; if you want the cheapest option (~3x cheaper, may miss subtler context errors).
+; Models: claude-sonnet-5-5 (default), claude-haiku-5-5 (cheapest, fastest),
+; claude-opus-5-5 (most careful). These models think before answering by
+; default and reject "temperature", so requests send an effort level instead,
+; and max_tokens leaves room for the thinking (see ApiExtras()). A saved older
+; model is moved to Sonnet 5.5 on load (NormalizeModel()).
 ;
 ; Dependencies: AHK v1.1 + WinHttp.WinHttpRequest.5.1 (built into Windows).
 ; No external libraries.
@@ -74,7 +76,7 @@ global API_URL  := "https://api.anthropic.com/v1/messages"
 global API_VERSION := "2023-06-01"
 
 global g_ApiKey      := ""
-global g_Model       := "claude-sonnet-4-6"
+global g_Model       := "claude-sonnet-5-5"
 global g_Sensitivity := "moderate"     ; conservative | moderate | aggressive
 global g_MaxTokens   := 1500
 global g_Hotkey      := "^!q"          ; Ctrl+Alt+Q (chosen to avoid Rad_Optimizer)
@@ -155,8 +157,8 @@ LoadSettings() {
     }
     IniRead, v, %INI_PATH%, API, ApiKey, %A_Space%
     g_ApiKey := v
-    IniRead, v, %INI_PATH%, API, Model, claude-sonnet-4-6
-    g_Model := v
+    IniRead, v, %INI_PATH%, API, Model, claude-sonnet-5-5
+    g_Model := NormalizeModel(v)
     IniRead, v, %INI_PATH%, API, MaxTokens, 1500
     g_MaxTokens := v + 0
     IniRead, v, %INI_PATH%, Behavior, Sensitivity, moderate
@@ -345,7 +347,7 @@ ShowSettingsGui() {
 
     Gui, SetGui:Add, Text, x16 y110 w110, Model:
     Gui, SetGui:Add, DropDownList, x130 y107 w200 vSetGui_Model
-        , % BuildDdl(["claude-sonnet-4-6","claude-haiku-4-5","claude-opus-4-7"], g_Model)
+        , % BuildDdl(["claude-sonnet-5-5","claude-haiku-5-5","claude-opus-5-5"], g_Model)
 
     Gui, SetGui:Add, Text, x16 y140 w110, Max tokens:
     Gui, SetGui:Add, Edit, x130 y137 w80 vSetGui_MaxTok Number, %g_MaxTokens%
@@ -773,8 +775,8 @@ ExtractJsonNumber(line, key) {
 PingClaude(apiKey, model) {
     out := { ok: false, error: "" }
     body := "{""model"":" . JsonStr(model)
-        . ",""max_tokens"":16"
-        . ",""messages"":[{""role"":""user"",""content"":""ping""}]}"
+        . ",""max_tokens"":64," . ApiExtras("low")
+        . """messages"":[{""role"":""user"",""content"":""ping""}]}"
     try {
         http := ComObjCreate("WinHttp.WinHttpRequest.5.1")
         http.Open("POST", API_URL, false)
@@ -904,7 +906,8 @@ CallClaudeAPI(reportText) {
 
     body := "{"
         . """model"":"      . JsonStr(g_Model) . ","
-        . """max_tokens"":" . g_MaxTokens . ","
+        . """max_tokens"":" . ApiMaxTokens(g_MaxTokens) . ","
+        . ApiExtras("medium")
         . """system"":"     . JsonStr(systemPrompt) . ","
         . """messages"":[{""role"":""user"",""content"":" . JsonStr(userMsg) . "}]"
         . "}"
@@ -922,7 +925,7 @@ CallClaudeAPI(reportText) {
         http.SetRequestHeader("Content-Type", "application/json")
         http.SetRequestHeader("x-api-key", g_ApiKey)
         http.SetRequestHeader("anthropic-version", API_VERSION)
-        http.SetTimeouts(10000, 10000, 30000, 60000)
+        http.SetTimeouts(10000, 10000, 30000, 120000)
         http.Send(body)
         status := http.Status
         respText := http.ResponseText
@@ -1002,6 +1005,37 @@ JsonStr(s) {
     cleaned := StrReplace(cleaned, Chr(0x2028), " ")
     cleaned := StrReplace(cleaned, Chr(0x2029), " ")
     return """" . cleaned . """"
+}
+
+; The models offered in Settings. Anything else saved (an older model that has
+; been retired) becomes Sonnet 5.5, so an old INI keeps working.
+NormalizeModel(m) {
+    for _, ok in ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"]
+        if (m = ok)
+            return ok
+    return "claude-sonnet-5-5"
+}
+
+; Extra request fields for the 5.5 models: how hard to think. "low" for the
+; short tools, "medium" for proofreading. No temperature (rejected).
+ApiExtras(effort) {
+    return """output_config"":{""effort"":" . JsonStr(effort) . "},"
+}
+
+; The model thinks before it writes and the thinking counts toward
+; max_tokens, so a small limit (the one-liner's 400) would end the reply
+; before any text. Only what is used is billed.
+ApiMaxTokens(n) {
+    return (n + 0 < 8000) ? 8000 : n + 0
+}
+
+; Why a 200 reply had no text, in words.
+EmptyReplyReason(respText) {
+    if InStr(respText, """stop_reason"":""refusal""")
+        return "Claude declined this one (a safety filter). Try rewording, or another model in Settings > AI tools."
+    if InStr(respText, """stop_reason"":""max_tokens""")
+        return "The reply was cut off before any text (token limit). Raise Max tokens in the AI settings."
+    return "Empty reply. Tray -> Show Last API Call (debug) has the raw response."
 }
 
 ExtractAssistantText(json) {
@@ -2022,7 +2056,7 @@ PriorChecklist() {
     }
 
     Notify("RadProofread: making checklist from " . n . " prior" . (n = 1 ? "" : "s") . "...", 0)
-    res := PostClaude(systemPrompt, userMsg, g_PriorMaxTokens)
+    res := PostClaude(systemPrompt, userMsg, g_PriorMaxTokens, "low")
     Notify("", 0, true)
 
     ShowPriorList(examTitle, n, res.text, res.error)
@@ -2030,14 +2064,14 @@ PriorChecklist() {
 
 ; Shared API call: returns {text, error}. Writes the same debug files as the
 ; proofread call, so Tray -> Show Last API Call works for both modes.
-PostClaude(systemPrompt, userMsg, maxTokens, temperature := "") {
+PostClaude(systemPrompt, userMsg, maxTokens, effort := "low") {
     global g_ApiKey, g_Model
     out := { text: "", error: "" }
 
     body := "{"
         . """model"":"      . JsonStr(g_Model) . ","
-        . """max_tokens"":" . maxTokens . ","
-        . (temperature != "" ? """temperature"":" . temperature . "," : "")
+        . """max_tokens"":" . ApiMaxTokens(maxTokens) . ","
+        . ApiExtras(effort)
         . """system"":"     . JsonStr(systemPrompt) . ","
         . """messages"":[{""role"":""user"",""content"":" . JsonStr(userMsg) . "}]"
         . "}"
@@ -2052,7 +2086,7 @@ PostClaude(systemPrompt, userMsg, maxTokens, temperature := "") {
         http.SetRequestHeader("Content-Type", "application/json")
         http.SetRequestHeader("x-api-key", g_ApiKey)
         http.SetRequestHeader("anthropic-version", API_VERSION)
-        http.SetTimeouts(10000, 10000, 30000, 60000)
+        http.SetTimeouts(10000, 10000, 30000, 120000)
         http.Send(body)
         status := http.Status
         respText := http.ResponseText
@@ -2072,7 +2106,7 @@ PostClaude(systemPrompt, userMsg, maxTokens, temperature := "") {
     }
     out.text := Trim(ExtractAssistantText(respText), " `t`r`n")
     if (out.text = "")
-        out.error := "Empty reply. Tray -> Show Last API Call (debug) has the raw response."
+        out.error := EmptyReplyReason(respText)
     return out
 }
 
@@ -2553,10 +2587,10 @@ RunFlavor(flavor) {
     global g_PendingText, g_SavedClip, g_Busy
     Toast("Generating " . flavor . " one-liner...", "info", 0)  ; persistent toast
 
-    ; Same wrapper and temperature 0 as RadOneLiner: deterministic extraction,
-    ; no creative gap-filling with dates.
+    ; Same wrapper as RadOneLiner: extraction only, no creative gap-filling
+    ; with dates. (RadOneLiner sent temperature 0; the 5.5 models reject it.)
     wrappedUser := "Generate the one-liner from this patient text. Output the one-liner only:`n`n---`n" . g_PendingText . "`n---"
-    result := PostClaude(GetSystemPrompt(flavor), wrappedUser, 400, 0)
+    result := PostClaude(GetSystemPrompt(flavor), wrappedUser, 400, "low")
 
     KillToast()
 
@@ -2645,7 +2679,7 @@ ImpressionRun() {
     g_ImpLastText := ""
 
     Toast("Writing impression...", "info", 0)
-    res := PostClaude(ImpressionPrompt(), "FINDINGS:`n" . findings, g_ImpMaxTokens, 0)
+    res := PostClaude(ImpressionPrompt(), "FINDINGS:`n" . findings, g_ImpMaxTokens, "low")
     KillToast()
 
     if (res.error != "") {

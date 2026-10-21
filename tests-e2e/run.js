@@ -100,12 +100,12 @@ async function waitFor(fn, ms, step = 200) {
 
     // AI settings save into RadGesture.ini.
     await win.fill('#apiKey', 'sk-ant-e2e-test-key');
-    await win.selectOption('#model', 'claude-haiku-4-5');
+    await win.selectOption('#model', 'claude-haiku-5-5');
     await win.fill('#rules', 'Keep it short. No numbers.');
     await win.click('#saveAll');
     await sleep(600);
     const iniText = fs.existsSync(path.join(userData, 'RadGesture.ini')) ? fs.readFileSync(path.join(userData, 'RadGesture.ini'), 'latin1') : '';
-    check('AI settings saved to RadGesture.ini', /ApiKey=sk-ant-e2e-test-key/.test(iniText) && /Model=claude-haiku-4-5/.test(iniText) && /ExtraRules=Keep it short\. No numbers\./.test(iniText));
+    check('AI settings saved to RadGesture.ini', /ApiKey=sk-ant-e2e-test-key/.test(iniText) && /Model=claude-haiku-5-5/.test(iniText) && /ExtraRules=Keep it short\. No numbers\./.test(iniText));
 
     // Shortcut recorder: record Ctrl+Alt+J for Proofread.
     await win.click('#nav button[data-tab="shortcuts"]');

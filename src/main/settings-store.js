@@ -11,12 +11,19 @@ const path = require('path');
 const ini = require('./ini');
 const { validateMenu } = require('../common/menu');
 
-const MODELS = ['claude-sonnet-4-6', 'claude-haiku-4-5', 'claude-opus-4-7'];
+// Offered in Settings > AI tools. A saved model not in this list (a retired
+// one) reads back as Sonnet 5.5; the helper does the same (NormalizeModel).
+const MODELS = ['claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-opus-5-5'];
+const MODEL_LABELS = {
+  'claude-sonnet-5-5': 'Sonnet 5.5 (recommended)',
+  'claude-haiku-5-5': 'Haiku 5.5 (fastest, cheapest)',
+  'claude-opus-5-5': 'Opus 5.5 (most careful, slower)',
+};
 
 // INI field <-> settings field, with the helper's own defaults.
 const AI_FIELDS = {
   apiKey: ['API', 'ApiKey', ''],
-  model: ['API', 'Model', 'claude-sonnet-4-6'],
+  model: ['API', 'Model', 'claude-sonnet-5-5'],
   sensitivity: ['Behavior', 'Sensitivity', 'moderate'],
   impressionRules: ['Impression', 'ExtraRules', 'Keep it very short. No measurements or other numbers.'],
   priorExpireMinutes: ['Priors', 'ExpireMinutes', '30'],
@@ -85,11 +92,15 @@ function createStore({ userDir, defaultMenuPath }) {
     defaultMenu,
     readMenu,
     writeMenu,
-    readAI: () => readFields(AI_FIELDS),
+    readAI: () => {
+      const v = readFields(AI_FIELDS);
+      if (!MODELS.includes(v.model)) v.model = MODELS[0];
+      return v;
+    },
     writeAI: (v) => writeFields(AI_FIELDS, v),
     readShortcuts: () => readFields(SHORTCUT_FIELDS),
     writeShortcuts: (v) => writeFields(SHORTCUT_FIELDS, v),
   };
 }
 
-module.exports = { createStore, MODELS, AI_FIELDS, SHORTCUT_FIELDS };
+module.exports = { createStore, MODELS, MODEL_LABELS, AI_FIELDS, SHORTCUT_FIELDS };
