@@ -196,9 +196,12 @@ with real keys, then publish `RadGesture-Setup.exe` to the
 `.../releases/download/radgesture-latest/RadGesture-Setup.exe`).
 
 **Closing the running app on install/uninstall** is ours, not
-electron-builder's (`build/installer.nsh`, `customCheckAppRunning`): ask it
-to quit over the bridge (`POST /quit`), then force-close only `RadGesture.exe`
-and the helper, then a message naming the tray Quit. The stock step showed
+electron-builder's (`build/installer.nsh` calls `build/rg-close.ps1`; keep it
+a file, an inline command passed NSIS's 1024-char string limit): ask it to
+quit over the bridge (`POST /quit`), then force-close everything running
+from the install folder (the rule an older version's uninstaller checks, so
+it has nothing to trip on), wait until files can be opened, then a message
+naming the tray Quit. Log: `%TEMP%\RadGesture-Setup.log`. The stock step showed
 "RadGesture cannot be closed. Please close it manually" on Sina's PC, which
 is what Windows does when the app runs as administrator and Setup does not;
 the bridge request crosses that line, a kill does not. Settings > Status
@@ -210,6 +213,14 @@ model in the INI reads back as Sonnet 5.5 (hub `readAI`, helper
 `NormalizeModel`). They reject `temperature` and think before writing, so
 the helper sends an effort level (`ApiExtras`) and at least 8000 max_tokens
 (`ApiMaxTokens`).
+
+**The API key** is typed only in Settings > AI tools (the helper's old
+built-in box is a fallback when the hub is down; its "settings" opens the
+hub over `/open-settings`). The helper re-reads it from the INI before every
+call (`HaveKey`) - a copy held since startup went stale. Both sides clean
+what was pasted (`src/common/apikey.js`, `CleanApiKey`) and say errors in
+words. Helper windows say "RadGesture": a "RadProofread" title means the old
+standalone script is running.
 
 ### Not here, on purpose
 
