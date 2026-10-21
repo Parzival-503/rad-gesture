@@ -239,7 +239,7 @@
   function renderRings() {
     $main.append(
       h('h1', {}, 'Rings'),
-      h('p', { class: 'lede' }, 'Each ring is one set of directions; scroll or click the center of the ring to switch between them. Pick a ring, then a direction, and change it on the right.')
+      h('p', { class: 'lede' }, 'Each ring is one set of directions; the buttons under the ring (or scrolling) switch between them. Pick a ring, then a direction, and change it on the right.')
     );
     const grid = h('div', { class: 'rings' });
     grid.append(ringList(), levelPanel(), editorPanel());
@@ -630,6 +630,8 @@
       h('h2', {}, 'The ring'),
       row('Names around the ring', 'The center always shows the name of what you aim at.',
         seg([['always', 'Always'], ['pause', 'When I pause'], ['never', 'Never']], labels, (v) => { m.labels = v; delete m.showLabels; markDirty('menu'); render(); })),
+      row('Ring buttons under the ring', 'One click jumps to any ring. Off: scroll or click the center instead.',
+        sw(m.dock !== false, (v) => { m.dock = v; markDirty('menu'); render(); }, 'Ring buttons under the ring')),
       row('Size', null,
         h('input', { type: 'range', min: '0.8', max: '1.3', step: '0.05', value: String(m.ringScale || 1), style: 'width:220px',
           oninput: (e) => { m.ringScale = parseFloat(e.target.value); markDirty('menu'); e.target.nextSibling.textContent = Math.round(m.ringScale * 100) + '%'; } }),
@@ -682,7 +684,7 @@
       h('ol', { class: 'steps' },
         h('li', {}, 'Hold Ctrl+CapsLock: the ring opens at the mouse.'),
         h('li', {}, 'Move toward a direction and let go to run it. Moving past a direction with dots opens its smaller ring.'),
-        h('li', {}, 'Or tap Ctrl+CapsLock and click. Scroll, or click the center, to switch rings. Esc closes.'),
+        h('li', {}, 'Or tap Ctrl+CapsLock and click. The buttons under the ring switch rings (or scroll). Drag the center to move the ring. Esc closes.'),
         h('li', {}, 'Right-click the tray icon for everything else.'))));
 
     $main.append(h('div', { class: 'card' },

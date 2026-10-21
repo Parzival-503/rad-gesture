@@ -64,7 +64,8 @@ body.ring-open .card { opacity: .25; }
     <li><b>Hold</b> the mouse button (or <kbd>Space</kbd>, or a finger) anywhere, <b>flick</b> toward a tool, let go.</li>
     <li><b>Tap</b> instead and the ring stays open: click a tool.</li>
     <li>Flick past <b>One-liner</b>, <b>Priors</b> or a Gallery section to open its smaller ring.</li>
-    <li><b>Scroll</b> or <b>click the center</b> to switch rings: AI Tools, PACS, Gallery, Apps, Stopwatch.</li>
+    <li>Switch rings with the <b>buttons under the ring</b> (one click), or <b>scroll</b>, or click the center (right-click: back one).</li>
+    <li><b>Drag the center</b> to move the ring out of the way.</li>
   </ul>
 </div>
 <div id="stage"></div>

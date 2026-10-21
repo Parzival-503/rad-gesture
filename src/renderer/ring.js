@@ -7,7 +7,9 @@
 //    past one with a smaller ring opens that ring right there;
 //  - smaller rings grow out of the direction you chose, the way back is the
 //    small node pointing at where you came from;
-//  - the center switches rings (click or scroll) with a spin.
+//  - the center switches rings (click or scroll) with a spin, and the dock of
+//    ring icons under it jumps straight to any ring in one click;
+//  - dragging the center moves the whole ring out of the way.
 //
 // Two ways to use it: flick (hold the trigger, move, let go) or tap the
 // trigger and click. Public API (used by the hub, the preview and the tests):
@@ -25,6 +27,8 @@
   const TAP_MS = 320; // released sooner = a tap: stay open for clicking
   const EDGE = 190; // keep the ring this far from the screen edge
   const LABEL_PAUSE_MS = 650; // labels fade in after this long without a choice
+  const DRAG_PX = 6; // the center moves this far under a pressed button = a drag, not a click
+  const DOCK_GAP = 104; // dock sits this far past the directions (unscaled)
 
   const stage = document.getElementById('stage');
   const hooks = { select() {}, dismiss() {} };
@@ -105,7 +109,7 @@
     L.cTitle = L.cText.firstChild;
     if (!L.sub) {
       L.cName = el('cname', escapeHtml(category().name), L.center);
-      if (st.menu.categories.length > 1) {
+      if (st.menu.categories.length > 1 && st.menu.dock === false) {
         L.cDots = el('ccat', st.menu.categories.map((_, i) => `<i class="${i === st.cat ? 'on' : ''}"></i>`).join(''), L.center);
       }
     } else {
@@ -132,6 +136,8 @@
     L.spin = spring(0, 220, 22);
 
     buildNodes(L);
+    // Placed now, not on the next frame, so it is never hit-tested at 0,0.
+    layer.style.transform = `translate(${L.cx + L.ox.x}px, ${L.cy + L.oy.x}px) scale(${st.s})`;
     stage.appendChild(layer);
   }
 
@@ -225,12 +231,91 @@
       s: scale,
       fade: spring(1, 500, 34),
       closing: null,
+      press: null, // pointer down on a center: becomes a click or a drag
+      dragging: false,
+      kept: false, // dragged or docked: the trigger coming up no longer closes it
     };
     st.links = svgEl('svg', { class: 'links', width: 1, height: 1 });
     stage.appendChild(st.links);
     stage.style.setProperty('--accent', category().color || '#8fb0ff');
     pushLevel(category().items, x, y, null, null, null, category().icon);
+    buildDock();
     startLoop();
+  }
+
+  // ------------------------------------------------------------ the dock
+  // One small button per ring under the ring itself: any ring is one click
+  // away, and you can see which rings there are without cycling through them.
+
+  function buildDock() {
+    if (st.dock) st.dock.remove();
+    st.dock = null;
+    const cats = st.menu.categories;
+    if (cats.length < 2 || st.menu.dock === false) return;
+    const d = el('dock');
+    d.innerHTML =
+      '<div class="dchips">' +
+      cats.map((c, i) => `<button class="dchip" data-cat="${i}" style="--c:${escapeHtml(c.color || '#8fb0ff')}" title="${escapeHtml(c.name)}">${I.icon(c.icon || 'circle')}</button>`).join('') +
+      '</div><div class="dname"></div><div class="dhint">drag the middle to move</div>';
+    st.dock = d;
+    st.dockName = d.querySelector('.dname');
+    st.dockHover = -1;
+    stage.appendChild(d);
+    paintDock();
+  }
+
+  function paintDock() {
+    if (!st.dock) return;
+    st.dock.querySelectorAll('.dchip').forEach((b, i) => b.classList.toggle('on', i === st.cat));
+    const i = st.dockHover >= 0 ? st.dockHover : st.cat;
+    st.dockName.textContent = st.menu.categories[i].name;
+    st.dockName.classList.toggle('hot', st.dockHover >= 0 && st.dockHover !== st.cat);
+  }
+
+  function placeDock() {
+    if (!st.dock) return;
+    const root = st.levels[0];
+    const off = (R_ROOT + DOCK_GAP) * st.s;
+    const below = root.cy + off + 60 < innerHeight;
+    const x = root.cx + root.ox.x;
+    const y = root.cy + root.oy.x + (below ? off : -off);
+    st.dock.style.transform = `translate(${x}px, ${y}px) scale(${st.s})`;
+    st.dock.classList.toggle('above', !below);
+    st.dock.style.opacity = String(clamp01(root.op.x));
+  }
+
+  function jumpTo(index) {
+    if (index === st.cat) {
+      while (st.levels.length > 1) popLevel();
+      return;
+    }
+    const n = st.menu.categories.length;
+    const fwd = (index - st.cat + n) % n;
+    switchCategory(fwd <= n / 2 ? fwd : fwd - n);
+  }
+
+  // Which center is under the point (by position, not by DOM target: just
+  // after a switch the new directions are still springing out of the middle
+  // and would swallow the click). Returns a level index or -1.
+  function centerAt(x, y) {
+    for (let i = st.levels.length - 1; i >= 0; i--) {
+      const L = st.levels[i];
+      const r = 56 * st.s * Math.max(0.46, L.cScale.t);
+      if (Math.hypot(x - (L.cx + L.ox.x), y - (L.cy + L.oy.x)) <= r) return i;
+    }
+    return -1;
+  }
+
+  // Move the whole ring (every open level) by dx, dy, kept on screen.
+  function moveBy(dx, dy) {
+    const root = st.levels[0];
+    const m = 70 * st.s;
+    dx = Math.max(m - root.cx, Math.min(innerWidth - m - root.cx, dx));
+    dy = Math.max(m - root.cy, Math.min(innerHeight - m - root.cy, dy));
+    st.levels.forEach((L) => {
+      L.cx += dx;
+      L.cy += dy;
+    });
   }
 
   function pushLevel(items, x, y, backAngle, name, fromNode, iconName) {
@@ -292,6 +377,7 @@
     const L = cur();
     L.spin.x = stepBy > 0 ? -38 : 38; // spin in from the side you scrolled toward
     L.cScale.x = 0.92;
+    paintDock();
   }
 
   function hardClear() {
@@ -337,6 +423,10 @@
   function release() {
     if (!st || st.closing) return { type: 'none' };
     const L = cur();
+    if (st.kept || st.press) {
+      st.mode = 'click';
+      return { type: 'stay' };
+    }
     if (st.hover === 'back') {
       popLevel();
       st.mode = 'click';
@@ -370,7 +460,7 @@
   }
 
   function aim() {
-    if (!st || st.closing) return;
+    if (!st || st.closing || st.dragging) return;
     const L = cur();
     const dx = (st.px - L.cx) / st.s;
     const dy = (st.py - L.cy) / st.s;
@@ -510,6 +600,9 @@
       }
     });
 
+    placeDock();
+    if (st.dock) st.dock.classList.toggle('hint', paused && lm !== 'never' && st.mode === 'click');
+
     L.nodes.forEach((N, i) => {
       const a = N.angle + L.spin.x;
       const p = G.polar(0, 0, a, N.r.x);
@@ -553,9 +646,52 @@
 
   window.addEventListener('pointermove', (e) => {
     if (!st) return;
+    const P = st.press;
+    if (P && !st.dragging && Math.hypot(e.clientX - P.x, e.clientY - P.y) > DRAG_PX) {
+      st.dragging = true;
+      st.kept = true;
+      st.mode = 'click';
+      st.hover = -1;
+      paintHover();
+      document.body.classList.add('dragging');
+    }
+    if (st.dragging) {
+      moveBy(e.clientX - P.lx, e.clientY - P.ly);
+      P.lx = e.clientX;
+      P.ly = e.clientY;
+    }
     st.px = e.clientX;
     st.py = e.clientY;
-    aim();
+    const chip = e.target.closest && e.target.closest('[data-cat]');
+    const dh = chip ? Number(chip.dataset.cat) : -1;
+    if (st.dock && dh !== st.dockHover) {
+      st.dockHover = dh;
+      paintDock();
+    }
+    if (dh >= 0) {
+      if (st.hover !== -1) {
+        st.hover = -1;
+        paintHover();
+      }
+    } else {
+      aim();
+    }
+    startLoop();
+  });
+
+  window.addEventListener('pointerup', (e) => {
+    if (!st || e.button !== 0 || !st.press) return;
+    const P = st.press;
+    const dragged = st.dragging;
+    st.press = null;
+    st.dragging = false;
+    document.body.classList.remove('dragging');
+    if (dragged || st.closing) return startLoop();
+    // A click on a center, not a drag.
+    if (P.parent !== null) {
+      while (st.levels.length - 1 > P.parent) popLevel();
+    } else if (st.levels.length > 1) popLevel();
+    else switchCategory(1);
     startLoop();
   });
 
@@ -563,18 +699,21 @@
     if (!st || st.closing || e.button !== 0) return;
     st.px = e.clientX;
     st.py = e.clientY;
-    const parent = e.target.closest && e.target.closest('[data-parent]');
-    if (parent) {
-      while (st.levels.length - 1 > Number(parent.dataset.parent)) popLevel();
-      return;
-    }
-    const centerEl = e.target.closest && e.target.closest('[data-center]');
-    if (centerEl && !centerEl.dataset.parent) {
-      if (st.levels.length > 1) popLevel();
-      else switchCategory(1);
+    const chip = e.target.closest && e.target.closest('[data-cat]');
+    if (chip) {
+      st.kept = true;
+      st.mode = 'click';
+      jumpTo(Number(chip.dataset.cat));
       startLoop();
       return;
     }
+    // A center: decided on release - a click (switch / go back) or a drag.
+    const ci = centerAt(e.clientX, e.clientY);
+    if (ci >= 0) {
+      st.press = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, parent: ci < st.levels.length - 1 ? ci : null };
+      return;
+    }
+    if (e.target.closest && e.target.closest('.dock')) return;
     const L = cur();
     const dist = Math.hypot(st.px - L.cx, st.py - L.cy) / st.s;
     if (dist > L.r + 80) return dismiss();
@@ -587,6 +726,7 @@
     e.preventDefault();
     if (!st || st.closing) return;
     if (st.levels.length > 1) popLevel();
+    else if (centerAt(e.clientX, e.clientY) === 0) switchCategory(-1); // right-click the middle: previous ring
     else dismiss();
     startLoop();
   });
@@ -606,7 +746,7 @@
     release,
     clear,
     hooks,
-    state: () => (st && !st.closing ? { levels: st.levels, hover: st.hover, cat: st.cat, mode: st.mode } : null),
+    state: () => (st && !st.closing ? { levels: st.levels, hover: st.hover, cat: st.cat, mode: st.mode, x: st.levels[0].cx, y: st.levels[0].cy } : null),
   };
 
   if (window.radgesture) {

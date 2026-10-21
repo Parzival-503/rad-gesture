@@ -76,13 +76,40 @@ const shots = path.join(__dirname, 'shots');
   assert.strictEqual((await state()).cat, 4, 'scrolling back from the first ring wraps to Stopwatch');
   await page.mouse.move(cx + 2, cy - 90);
   await shot('5-stopwatch');
+
+  // 6. The dock: one click jumps straight to a ring (Gallery is the 3rd).
+  const chip = await page.$('.dchip[data-cat="2"]');
+  assert.ok(chip, 'the dock shows a button per ring');
+  const cb = await chip.boundingBox();
+  await page.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2);
+  await page.mouse.down(); await page.mouse.up();
+  assert.strictEqual((await state()).cat, 2, 'clicking a dock button jumps straight to that ring');
+  await shot('6-dock-jump');
+
+  // 7. Drag the middle: the ring moves and stays open on the same ring.
+  const before = await page.evaluate(() => ({ x: window.RGRing.state().x, y: window.RGRing.state().y }));
+  await page.mouse.move(before.x, before.y);
+  await page.mouse.down();
+  await page.mouse.move(before.x - 260, before.y - 120, { steps: 12 });
+  await page.mouse.up();
+  const after = await page.evaluate(() => { const s = window.RGRing.state(); return s && { x: s.x, y: s.y, cat: s.cat }; });
+  assert.ok(after && Math.abs(after.x - (before.x - 260)) < 2 && Math.abs(after.y - (before.y - 120)) < 2, 'dragging the middle moves the ring');
+  assert.strictEqual(after.cat, 2, 'a drag does not switch rings');
+  await page.mouse.move(after.x + 60, after.y - 90);
+  await shot('7-dragged');
+  // A plain click on the middle still switches; right-click goes back.
+  await page.mouse.move(after.x, after.y); await page.mouse.down();
+  await page.mouse.up();
+  assert.strictEqual((await state()).cat, 3, 'clicking the middle still goes to the next ring');
+  await page.mouse.click(after.x, after.y, { button: 'right' });
+  assert.strictEqual((await state()).cat, 2, 'right-clicking the middle goes to the previous ring');
   await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.mouse.move(195, 470); await page.mouse.down(); await page.mouse.up();
   await page.mouse.move(150, 380);
-  await shot('6-phone');
+  await shot('8-phone');
 
   assert.deepStrictEqual(errors, [], 'no page errors');
   await browser.close();
   console.log('PASS preview flows; screenshots in scripts/shots/');
-})().catch((e) => { console.error('FAIL', e.message); process.exit(1); });
+})().catch((e) => { console.error("FAIL", e.stack); process.exit(1); });

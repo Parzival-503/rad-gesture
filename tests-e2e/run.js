@@ -143,10 +143,23 @@ async function waitFor(fn, ms, step = 200) {
     check('tray > Open the ring shows the ring', st && st.levels === 1);
     await sleep(500);
     await ringPage.screenshot({ path: path.join(SHOTS, 'ring-open.png') });
-    await ringPage.evaluate(() => document.querySelector('.center').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 })));
+    const c0 = await ringPage.evaluate(() => ({ x: window.RGRing.state().x, y: window.RGRing.state().y }));
+    await ringPage.mouse.click(c0.x, c0.y);
     await sleep(300);
     check('clicking the center switches to the next ring', (await ringPage.evaluate(() => window.RGRing.state().cat)) === 1);
     await ringPage.screenshot({ path: path.join(SHOTS, 'ring-second.png') });
+    const chip = await ringPage.$('.dchip[data-cat="3"]');
+    if (chip) await chip.click();
+    await sleep(300);
+    check('a button under the ring jumps straight to that ring', (await ringPage.evaluate(() => window.RGRing.state().cat)) === 3);
+    await ringPage.mouse.move(c0.x, c0.y);
+    await ringPage.mouse.down();
+    await ringPage.mouse.move(c0.x - 200, c0.y - 80, { steps: 10 });
+    await ringPage.mouse.up();
+    await sleep(300);
+    const c1 = await ringPage.evaluate(() => { const s = window.RGRing.state(); return s && { x: s.x, y: s.y, cat: s.cat }; });
+    check('dragging the center moves the ring (and keeps it open)', c1 && Math.abs(c1.x - (c0.x - 200)) < 3 && c1.cat === 3, JSON.stringify(c1));
+    await ringPage.screenshot({ path: path.join(SHOTS, 'ring-dragged.png') });
     await ringPage.evaluate(() => window.RGRing.clear());
     await app.evaluate(({}) => global.__rg && true);
 
@@ -173,6 +186,16 @@ async function waitFor(fn, ms, step = 200) {
         inject('tap');
         const tap = await waitFor(async () => (await ev()).some((e) => e.startsWith('done keys:{F14}')), 10000);
         check('real Ctrl+CapsLock tap + click runs the clicked direction', tap, (await ev()).slice(-8).join(' | '));
+        await sleep(600);
+        const page = app.windows().find((w) => w.url().includes('renderer/index.html'));
+        const geo = await page.evaluate(() => ({ s: Math.max(0.62, Math.min(1, Math.min(innerWidth, innerHeight) / 640)) }));
+        spawnSync(ahk, [path.join(__dirname, 'inject.ahk'), 'move', String(menu.categories.length), String(geo.s)], { timeout: 20000 });
+        await sleep(500);
+        const mv = await page.evaluate(() => { const s = window.RGRing.state(); return s && { cat: s.cat, x: s.x, y: s.y, w: innerWidth, h: innerHeight }; });
+        await page.screenshot({ path: path.join(SHOTS, 'win-ring-moved.png') }).catch(() => {});
+        check('real mouse: a button under the ring switches rings', mv && mv.cat === 2, JSON.stringify(mv));
+        check('real mouse: dragging the center moves the ring', mv && Math.abs(mv.x - (mv.w / 2 - 200)) < 12 && Math.abs(mv.y - (mv.h / 2 - 80)) < 12, JSON.stringify(mv));
+        await page.evaluate(() => window.RGRing.clear()).catch(() => {});
       } else {
         check('AutoHotkey available for key injection', false, 'AHK_EXE not set or helper not connected');
       }
