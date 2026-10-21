@@ -1076,16 +1076,18 @@ CleanApiKey(k) {
     return k
 }
 
-; "" when the key looks like an Anthropic API key, else why not, in words.
+; "" unless the key is clearly not a Claude API key; any other sk-ant-... key
+; goes to Anthropic, which has the final word (an sk-ant-api-only check
+; rejected a real sk-ant-usr- key). Same rules as src/common/apikey.js.
 KeyProblem(k) {
     if (k = "")
         return "No API key yet. Paste it in Settings > AI tools."
     if (SubStr(k, 1, 10) = "sk-ant-oat")
-        return "That is a Claude app login code, not an API key. Make an API key at console.anthropic.com > Settings > API keys (it starts with sk-ant-api) and paste that."
+        return "That is a Claude app login code, not an API key. Make an API key at console.anthropic.com > Settings > API keys (it starts with sk-ant-) and paste that."
     if (SubStr(k, 1, 3) = "sk-" && SubStr(k, 1, 7) != "sk-ant-")
-        return "That is an OpenAI (ChatGPT) key, not a Claude key. Make a Claude key at console.anthropic.com > Settings > API keys (it starts with sk-ant-api) and paste that."
-    if (SubStr(k, 1, 10) != "sk-ant-api")
-        return "That does not look like an Anthropic API key (they start with sk-ant-api). Copy it again from console.anthropic.com > Settings > API keys."
+        return "That is an OpenAI (ChatGPT) key, not a Claude key. Make a Claude key at console.anthropic.com > Settings > API keys (it starts with sk-ant-) and paste that."
+    if (SubStr(k, 1, 7) != "sk-ant-")
+        return "That does not look like an Anthropic API key (they start with sk-ant-). Copy it again from console.anthropic.com > Settings > API keys."
     return ""
 }
 

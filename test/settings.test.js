@@ -97,6 +97,7 @@ test('API key: pasted junk is cleaned, wrong kinds of key are named', () => {
   assert.strictEqual(cleanKey('x-api-key: sk-ant-api03-abc'), 'sk-ant-api03-abc');
   assert.strictEqual(cleanKey('sk-ant-api03-OLDsk-ant-api03-NEW'), 'sk-ant-api03-NEW', 'new key pasted after an old one');
   assert.strictEqual(keyProblem('sk-ant-api03-abc'), '');
+  assert.strictEqual(keyProblem('sk-ant-usr-abc'), '', 'other Anthropic key kinds are let through to the API');
   assert.match(keyProblem('sk-ant-oat01-abc'), /login code/);
   assert.match(keyProblem('hello'), /does not look like/);
   assert.match(keyProblem('sk-proj-xyz'), /OpenAI/, 'an OpenAI key is named as one');
