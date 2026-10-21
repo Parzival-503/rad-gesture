@@ -143,11 +143,28 @@ screenshots before handing over any visual change.
 Rings (visual editor: rings list, mini ring preview, directions list,
 editor with icon picker / action type / key recorder with clash warnings,
 Try it), AI tools (key + live test, model, proofread pickiness, impression
-rules, priors), Shortcuts (recorder; the helper is suspended while
-recording so it doesn't fire), General (labels, size, start with Windows,
+rules, priors), Shortcuts (below), General (labels, size, start with Windows,
 pause), Status (helper state + restart, old tools that clash + close them,
 how to use, recent activity). `src/main/settings-store.js` maps it onto
 `menu.json` and `RadGesture.ini`; a save tells the helper to `reload`.
+
+### Shortcuts page (made so colleagues can use RadGesture)
+
+Sina's PACS/Apps rings press Rad Optimizer's keys; a colleague's Sectra has
+its own. So Settings > Shortcuts holds every key in one place: a 3-step
+setup card (give tools keys in Sectra + **Copy the list**, match them here,
+**Export / Import** a `.rgkeys` set), RadGesture's own shortcuts, and **every
+`helper:keys:` direction** grouped by ring with its own recorder, search,
+Defaults / Clear all, and warnings (two directions on one key, a key that is
+also a RadGesture shortcut - the helper presses with SendLevel 1 so it would
+fire it). Logic is `src/common/keyset.js` (tested): directions are matched
+by their path of names on import, so a set survives a re-arranged ring.
+
+The recorder (`recorder(spec, onSet, { plain })`) shows held modifiers live,
+Esc cancels, Backspace clears. `plain: true` (keys the ring presses) takes a
+single key, as Sectra's often are; RadGesture's own shortcuts need a modifier
+or an F-key so they can't fire while typing. Recorded keys are stored in
+Send syntax (`{F4}`, `^{Space}`, `{;}`) by `KS.hotkeyToSend`.
 
 ### Tray
 

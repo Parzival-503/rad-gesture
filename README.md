@@ -22,6 +22,18 @@ Scroll or click the center to switch rings.
 Everything after that is in Settings (left-click the tray icon) or the tray
 icon's right-click menu: edit rings, change shortcuts, pause, start with Windows.
 
+## Giving it to a colleague
+
+Their PACS has its own keys, so after installing:
+
+1. Settings > **Shortcuts** > **Copy the list**: what each ring button presses.
+2. In Sectra, give those tools keys (or keep Sectra's own), then click each
+   key in that list and press the same key. Single keys are fine.
+3. Or skip both: **Import** a `.rgkeys` file someone already made with
+   **Export** (one per department is enough).
+
+Rings they don't need can be deleted in Settings > Rings.
+
 ## For developers
 
 See `CLAUDE.md`. Every shortcut on the workstation, and which are free:

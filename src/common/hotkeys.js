@@ -50,8 +50,10 @@
   }
 
   // A browser keydown -> AutoHotkey hotkey string, or '' while only modifiers
-  // are held. Needs at least one modifier unless it is an F-key.
-  function fromEvent(e) {
+  // are held. A shortcut RadGesture listens for needs a modifier unless it is
+  // an F-key (a bare letter would fire while typing); a key the ring PRESSES
+  // into Sectra may be a single key ({ plain: true }), as Sectra's often are.
+  function fromEvent(e, opts = {}) {
     const code = e.code || '';
     if (/^(Control|Alt|Shift|Meta)(Left|Right)?$/.test(code) || ['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return '';
     let key = '';
@@ -68,7 +70,7 @@
     }
     if (!key) return '';
     const mods = (e.ctrlKey ? '^' : '') + (e.altKey ? '!' : '') + (e.shiftKey ? '+' : '') + (e.metaKey ? '#' : '');
-    if (!mods && !/^F\d+$/.test(key)) return '';
+    if (!mods && !/^F\d+$/.test(key) && !opts.plain) return '';
     return mods + (key.length > 1 ? key : key);
   }
 
@@ -78,5 +80,10 @@
     return known.filter((h) => h.script !== ignoreScript && same(h.key, spec));
   }
 
-  return { parse, same, pretty, fromEvent, clashes };
+  // The modifiers held right now, for showing "Ctrl + Alt + ..." while recording.
+  function heldMods(e) {
+    return [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Win'].filter(Boolean);
+  }
+
+  return { parse, same, pretty, fromEvent, heldMods, clashes };
 });

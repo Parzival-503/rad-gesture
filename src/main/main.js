@@ -404,6 +404,35 @@ function registerSettingsIpc() {
     const r = await dialog.showOpenDialog(settingsWin, { properties: [kind === 'folder' ? 'openDirectory' : 'openFile'] });
     return r.canceled ? '' : r.filePaths[0];
   });
+  // Shortcut sets: a small file a colleague can import (Settings > Shortcuts).
+  ipcMain.handle('rgs:export-keys', async (_e, set) => {
+    const r = await dialog.showSaveDialog(settingsWin, {
+      title: 'Save your RadGesture shortcuts',
+      defaultPath: path.join(app.getPath('documents'), 'RadGesture shortcuts.rgkeys'),
+      filters: [{ name: 'RadGesture shortcuts', extensions: ['rgkeys'] }],
+    });
+    if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+    fs.writeFileSync(r.filePath, JSON.stringify(set, null, 2));
+    logEvent('keys-exported', path.basename(r.filePath));
+    return { ok: true, file: r.filePath };
+  });
+  ipcMain.handle('rgs:import-keys', async () => {
+    const r = await dialog.showOpenDialog(settingsWin, {
+      title: 'Import RadGesture shortcuts',
+      filters: [{ name: 'RadGesture shortcuts', extensions: ['rgkeys', 'json'] }],
+      properties: ['openFile'],
+    });
+    if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+    try {
+      return { ok: true, set: JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8')), file: path.basename(r.filePaths[0]) };
+    } catch (e) {
+      return { ok: false, error: 'Could not read that file: ' + e.message };
+    }
+  });
+  ipcMain.handle('rgs:copy-text', (_e, text) => {
+    clipboard.writeText(String(text || ''));
+    return true;
+  });
   ipcMain.handle('rgs:try-ring', (_e, m) => {
     openRing('', 'click', m || null);
     return true;

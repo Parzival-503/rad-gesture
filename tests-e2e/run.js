@@ -118,6 +118,50 @@ async function waitFor(fn, ms, step = 200) {
     await sleep(600);
     const ini2 = fs.readFileSync(path.join(userData, 'RadGesture.ini'), 'latin1');
     check('shortcut recorder saves Ctrl+Alt+J to RadGesture.ini', /\[Behavior\][^[]*Hotkey=\^!j/.test(ini2));
+    await win.screenshot({ path: path.join(SHOTS, 'settings-shortcuts-full.png'), fullPage: true });
+
+    // Keys the ring presses: record a single key (as Sectra's often are) for
+    // the first one, save, export, clear all, import, save: it comes back.
+    const menuNow = () => JSON.parse(fs.readFileSync(path.join(userData, 'menu.json'), 'utf8'));
+    const firstKeys = (m) => m.categories.find((c) => c.name === 'PACS').items.find((i) => i.name === 'Window / level').items.find((i) => i.name === 'Soft tissue');
+    const krec = await win.$('.krow:has(.kname:text-is("Soft tissue")) .recorder');
+    check('Shortcuts lists the keys the ring presses', !!krec && (await win.$$('.krow')).length >= 30, `${(await win.$$('.krow')).length} rows`);
+    await krec.click();
+    await win.keyboard.press('KeyW');
+    await sleep(200);
+    await win.click('#saveAll');
+    await sleep(600);
+    check('a single key recorded for a ring direction is saved', firstKeys(menuNow()).action === 'helper:keys:w', firstKeys(menuNow()).action);
+    const setFile = path.join(userData, 'exported.rgkeys');
+    await app.evaluate(({ dialog }, f) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: f }); dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [f] }); }, setFile);
+    await win.click('#exportKeys');
+    await sleep(500);
+    const exported = fs.existsSync(setFile) ? JSON.parse(fs.readFileSync(setFile, 'utf8')) : {};
+    check('Export writes a shortcut set file', exported.format === 'radgesture-shortcuts' && exported.keys.length >= 30);
+    await win.click('#clearKeys');
+    await win.click('#clearKeysYes');
+    await win.click('#saveAll');
+    await sleep(600);
+    check('Clear all empties every ring key', firstKeys(menuNow()).action === 'helper:keys:' && !JSON.stringify(menuNow()).includes('helper:keys:{F13}'));
+    await win.click('#importKeys');
+    await sleep(500);
+    await win.click('#saveAll');
+    await sleep(600);
+    check('Import puts the exported keys back', firstKeys(menuNow()).action === 'helper:keys:w' && JSON.stringify(menuNow()).includes('helper:keys:{F13}'));
+    await win.$eval('.ktools', (el) => el.scrollIntoView());
+    await sleep(200);
+    await win.screenshot({ path: path.join(SHOTS, 'settings-shortcuts-list.png') });
+    const lrec = await win.$('.krow:has(.kname:text-is("Lung")) .recorder');
+    await lrec.click();
+    await win.keyboard.down('Control');
+    await win.keyboard.down('Alt');
+    await sleep(150);
+    check('the recorder shows held keys live', (await lrec.textContent()).includes('Ctrl') && (await lrec.textContent()).includes('Alt'), await lrec.textContent());
+    await win.screenshot({ path: path.join(SHOTS, 'settings-shortcuts-recording.png') });
+    await win.keyboard.up('Alt');
+    await win.keyboard.up('Control');
+    await win.keyboard.press('Escape');
+    await sleep(150);
 
     // Rings editor: add a ring, rename it, save.
     await win.click('#nav button[data-tab="rings"]');

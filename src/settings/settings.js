@@ -5,6 +5,7 @@
   const api = window.rgs;
   const I = window.RGIcons;
   const HK = window.RGHotkeys;
+  const KS = window.RGKeyset;
   const G = window.RGGeometry;
   const M = window.RGMenu;
   const $main = document.getElementById('main');
@@ -14,7 +15,7 @@
   let aiDraft = { ...D.ai };
   let scDraft = { ...D.shortcuts };
   const dirty = { menu: false, ai: false, shortcuts: false };
-  const ui = { tab: new URLSearchParams(location.search).get('tab') || 'rings', ring: 0, path: [], sel: null, iconQuery: '', iconOpen: false, showKey: false, testResult: null, confirmConvert: false };
+  const ui = { tab: new URLSearchParams(location.search).get('tab') || 'rings', ring: 0, path: [], sel: null, iconQuery: '', iconOpen: false, showKey: false, testResult: null, confirmConvert: false, keyQuery: '', confirmClear: false };
 
   const ACCENTS = ['#8fb0ff', '#c79bff', '#f2b84b', '#5cc8d6', '#5fd38d', '#ff8f8f', '#ff9ec7', '#e6e9f0'];
   const HELPER_ACTIONS = [
@@ -132,15 +133,8 @@
     return a.value;
   }
   // "^!2" / "{F4}" (Send syntax) <-> "^!2" / "F4" (hotkey syntax)
-  function sendToHotkey(s) {
-    const m = String(s).match(/^([\^!+#]*)\{?([^}]+)\}?$/);
-    return m ? m[1] + m[2] : s;
-  }
-  function hotkeyToSend(spec) {
-    const k = HK.parse(spec);
-    const named = HK.pretty(spec).split('+').pop();
-    return k.mods + (k.key.length > 1 ? `{${named}}` : k.key);
-  }
+  const sendToHotkey = KS.sendToHotkey;
+  const hotkeyToSend = KS.hotkeyToSend;
   function knownHotkeys() {
     const out = [];
     for (const s of D.externalHotkeys.running || []) for (const hk of s.hotkeys) out.push({ key: hk.key, script: s.script, does: hk.does });
@@ -464,7 +458,7 @@
     } else if (type === 'keys') {
       const spec = sendToHotkey(a.value.replace(/^keys:/, ''));
       const handlers = HK.clashes(spec, knownHotkeys());
-      box.append(field('Keys to press', recorder(spec, (v) => { set('helper:keys:' + hotkeyToSend(v)); render(); }),
+      box.append(field('Keys to press', recorder(spec, (v) => { set('helper:keys:' + hotkeyToSend(v)); render(); }, { plain: true }),
         handlers.length ? `Handled by ${handlers.map((x) => `${x.script}: ${x.does}`).join('; ')}.` : 'No script of yours handles this; it goes straight to the active window.'));
     } else if (type === 'ring') {
       box.append(h('div', { class: 'addrow' }, h('button', { class: 'btn', onclick: () => { ui.path.push(ui.sel); ui.sel = null; render(); } }, msym('subdirectory_arrow_right'), `Open it (${it.items.length} inside)`)));
@@ -529,41 +523,80 @@
   }
 
   // ---------------------------------------------------------------- key recorder
+  //
+  // Click, then press the keys. While modifiers are held they show live
+  // ("Ctrl + Alt + ..."); the first real key completes it. Esc cancels,
+  // Backspace on its own clears. { plain: true } (keys the ring presses into
+  // Sectra) also takes a single key; a RadGesture shortcut needs Ctrl, Alt,
+  // Shift or Win (or an F-key) so it can't fire while typing. The helper is
+  // paused while recording so the keys don't trigger anything.
 
   let listening = null;
-  function recorder(spec, onSet) {
+  function kbds(spec) {
     const keys = spec ? HK.pretty(spec).split('+') : [];
-    const el = h('button', { class: 'recorder' + (listening ? '' : ''), type: 'button' },
-      keys.length ? h('span', {}, keys.map((k) => h('kbd', {}, k))) : h('span', { class: 'ph' }, 'Not set'),
-      h('span', { class: 'hint' }, 'Record'));
-    el.addEventListener('click', () => startListening(el, onSet));
+    return keys.length ? h('span', { class: 'keys' }, keys.map((k) => h('kbd', {}, k))) : h('span', { class: 'ph' }, 'Not set');
+  }
+  function recorder(spec, onSet, opts = {}) {
+    const el = h('button', { class: 'recorder', type: 'button', title: 'Click, then press the keys' },
+      kbds(spec), h('span', { class: 'rec' }, msym('keyboard'), 'Record'));
+    el.addEventListener('click', () => startListening(el, onSet, opts));
     return el;
   }
-  function startListening(el, onSet) {
-    stopListening();
-    listening = { el, onSet };
+  function paintListening(mods) {
+    const el = listening.el;
+    el.innerHTML = '';
+    el.append(
+      mods.length ? h('span', { class: 'keys' }, mods.map((m) => h('kbd', {}, m)), h('span', { class: 'ph' }, '+ ...'))
+        : h('span', { class: 'ph' }, listening.opts.plain ? 'Press a key or combination...' : 'Press Ctrl/Alt/Shift + a key...'),
+      h('span', { class: 'rec live' }, h('i', { class: 'pulse' }), 'Esc cancels'));
+  }
+  function startListening(el, onSet, opts) {
+    stopListening(true);
+    listening = { el, onSet, opts };
     el.classList.add('listening');
-    el.innerHTML = '<span class="ph">Press the keys now... (Esc cancels)</span>';
+    paintListening([]);
     api.runHelperAction('suspend'); // so the helper doesn't act on the keys being recorded
     window.addEventListener('keydown', onKey, true);
+    window.addEventListener('keyup', onKeyUp, true);
+    window.addEventListener('blur', onBlur);
   }
-  function stopListening() {
+  function stopListening(quiet) {
     if (!listening) return;
     window.removeEventListener('keydown', onKey, true);
+    window.removeEventListener('keyup', onKeyUp, true);
+    window.removeEventListener('blur', onBlur);
     api.runHelperAction('resume');
     listening = null;
+  }
+  function onBlur() {
+    stopListening();
+    render();
+  }
+  function onKeyUp(e) {
+    if (!listening) return;
+    e.preventDefault();
+    paintListening(HK.heldMods(e));
   }
   function onKey(e) {
     e.preventDefault();
     e.stopPropagation();
-    if (e.key === 'Escape' && !e.ctrlKey && !e.altKey) {
+    const plainKey = !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey;
+    if (e.key === 'Escape' && plainKey) {
       stopListening();
       render();
       return;
     }
-    const spec = HK.fromEvent(e);
-    if (!spec) return; // only modifiers so far
     const cb = listening.onSet;
+    if (e.key === 'Backspace' && plainKey) {
+      stopListening();
+      cb('');
+      return;
+    }
+    const spec = HK.fromEvent(e, { plain: listening.opts.plain });
+    if (!spec) {
+      paintListening(HK.heldMods(e)); // only modifiers so far
+      return;
+    }
     stopListening();
     cb(spec);
   }
@@ -605,19 +638,135 @@
   }
 
   // ---------------------------------------------------------------- Shortcuts
+  //
+  // Everything a key does, in one place: RadGesture's own shortcuts, and every
+  // key a ring direction presses (into Sectra, PowerScribe, Rad Optimizer...).
+  // A colleague sets the keys up in Sectra, matches them here, or imports a
+  // set someone exported.
 
   function renderShortcuts() {
-    $main.append(h('h1', {}, 'Shortcuts'), h('p', { class: 'lede' }, 'Click a shortcut, then press the new keys. Each one is checked against Rad Optimizer, RadStopwatch and the other shortcuts here.'));
+    $main.append(h('h1', {}, 'Shortcuts'),
+      h('p', { class: 'lede' }, 'Every key RadGesture listens for or presses, in one place. Click a key, then press the new one.'));
+    $main.append(setupCard(), ownShortcutsCard(), ringKeysCard());
+  }
+
+  function setupCard() {
+    const step = (n, icon, title, text, ...btns) => h('div', { class: 'step' },
+      h('div', { class: 'stepn' }, String(n)),
+      h('div', { class: 'stepb' }, h('b', {}, msym(icon), title), h('p', {}, text), btns.length ? h('div', { class: 'addrow' }, ...btns) : null));
+    return h('div', { class: 'card setup' },
+      h('h2', {}, 'Setting up on a new workstation'),
+      h('div', { class: 'steps3' },
+        step(1, 'settings_applications', 'Give the tools keys in Sectra',
+          'In Sectra\'s keyboard shortcut settings, give each tool you want on the ring a key (Sectra\'s own keys work too). The list shows what the ring presses now.',
+          h('button', { class: 'btn small', id: 'copyKeyList', onclick: copyKeyList }, msym('content_copy'), 'Copy the list')),
+        step(2, 'keyboard', 'Match them here',
+          'Under "Keys the ring presses", click each one and press the key you gave it in Sectra. Single keys are fine.'),
+        step(3, 'ios_share', 'Share your setup',
+          'Export a file colleagues can import, so they only do steps 1-2 once per department.',
+          h('button', { class: 'btn small', id: 'exportKeys', onclick: exportKeys }, msym('upload'), 'Export...'),
+          h('button', { class: 'btn small', id: 'importKeys', onclick: importKeys }, msym('download'), 'Import...'))));
+  }
+
+  async function copyKeyList() {
+    await api.copyText(KS.cheatSheet(menuDraft));
+    toast('Copied. Paste it anywhere to keep it next to Sectra.');
+  }
+  async function exportKeys() {
+    const r = await api.exportKeys(KS.exportSet(menuDraft, scDraft));
+    if (r.ok) toast('Saved ' + r.file.split(/[\\/]/).pop());
+    else if (!r.canceled) toast('Not saved: ' + (r.error || 'unknown error'));
+  }
+  async function importKeys() {
+    const r = await api.importKeys();
+    if (!r.ok) {
+      if (!r.canceled) toast(r.error);
+      return;
+    }
+    const res = KS.importSet(menuDraft, r.set);
+    if (!res.ok) return toast(res.error);
+    if (res.shortcuts) {
+      for (const [k] of SHORTCUTS) if (typeof res.shortcuts[k] === 'string') scDraft[k] = res.shortcuts[k];
+      markDirty('shortcuts');
+    }
+    markDirty('menu');
+    render();
+    toast(`Imported ${res.matched} key${res.matched === 1 ? '' : 's'}` + (res.unmatched.length ? `; ${res.unmatched.length} not in your rings` : '') + '. Save to keep them.');
+  }
+
+  function ownShortcutsCard() {
     const known = knownHotkeys();
-    const card = h('div', { class: 'card' });
+    const card = h('div', { class: 'card' }, h('h2', {}, 'RadGesture\'s shortcuts'),
+      h('p', { class: 'hint', style: 'margin:-6px 0 6px' }, 'These work anywhere. Each needs Ctrl, Alt, Shift or Win (or an F-key) so it never fires while you type.'));
     SHORTCUTS.forEach(([k, label, sub]) => {
       const clash = HK.clashes(scDraft[k], known.filter((x) => x.field !== k));
       card.append(row(label, sub,
-        recorder(scDraft[k], (v) => { scDraft[k] = v; markDirty('shortcuts'); render(); }),
+        recorder(scDraft[k], (v) => { scDraft[k] = v || (k === 'trigger' ? '^CapsLock' : ''); markDirty('shortcuts'); render(); }),
         scDraft[k] ? h('button', { class: 'btn ghost small', onclick: () => { scDraft[k] = k === 'trigger' ? '^CapsLock' : ''; markDirty('shortcuts'); render(); } }, k === 'trigger' ? 'Reset' : 'Clear') : null,
         clash.length ? h('div', { class: 'warnline', style: 'flex-basis:100%' }, msym('warning'), `Also used by ${clash.map((c) => `${c.script} (${c.does})`).join(', ')}.`) : null));
     });
-    $main.append(card);
+    return card;
+  }
+
+  function ringKeysCard() {
+    const all = KS.keyItems(menuDraft);
+    const dups = new Map();
+    for (const group of KS.duplicates(menuDraft)) for (const k of group) dups.set(k.item, group.filter((x) => x !== k));
+    const ours = SHORTCUTS.filter(([k]) => scDraft[k]).map(([k, label]) => ({ key: scDraft[k], does: label }));
+    const external = knownHotkeys().filter((x) => x.script !== 'RadGesture');
+    const q = ui.keyQuery.trim().toLowerCase();
+    const shown = all.filter((k) => !q || k.path.join(' ').toLowerCase().includes(q) || HK.pretty(k.keys).toLowerCase().includes(q));
+    const unset = all.filter((k) => !k.keys).length;
+
+    const card = h('div', { class: 'card' }, h('h2', {}, 'Keys the ring presses'));
+    const search = h('input', { type: 'text', id: 'keySearch', class: 'search', placeholder: 'Search by name or key', value: ui.keyQuery,
+      oninput: (e) => { ui.keyQuery = e.target.value; const pos = e.target.selectionStart; render(); const s2 = document.getElementById('keySearch'); s2.focus(); s2.setSelectionRange(pos, pos); } });
+    card.append(h('div', { class: 'ktools' },
+      h('div', { class: 'searchbox' }, msym('search'), search),
+      h('span', { class: 'chip' }, `${all.length} keys`),
+      dups.size ? h('span', { class: 'chip warn' }, msym('warning'), `${dups.size} share a key`) : null,
+      unset ? h('span', { class: 'chip' }, `${unset} not set`) : null,
+      h('span', { class: 'grow' }),
+      h('button', { class: 'btn ghost small', id: 'resetKeys', title: 'The keys RadGesture comes with', onclick: () => { const n = KS.resetToDefaults(menuDraft, D.defaultMenu); markDirty('menu'); render(); toast(`${n} keys back to the defaults. Save to keep them.`); } }, msym('restart_alt'), 'Defaults'),
+      ui.confirmClear
+        ? h('span', { class: 'confirm' }, 'Clear every key?',
+          h('button', { class: 'btn small danger', id: 'clearKeysYes', onclick: () => { KS.clearAll(menuDraft); ui.confirmClear = false; markDirty('menu'); render(); toast('All cleared. Record your own, then Save.'); } }, 'Clear all'),
+          h('button', { class: 'btn ghost small', onclick: () => { ui.confirmClear = false; render(); } }, 'Keep'))
+        : h('button', { class: 'btn ghost small', id: 'clearKeys', title: 'Start from nothing', onclick: () => { ui.confirmClear = true; render(); } }, msym('backspace'), 'Clear all')));
+
+    if (!all.length) {
+      card.append(h('div', { class: 'empty' }, 'No direction presses keys yet. In Rings, set a direction\'s action to "Press keys".'));
+      return card;
+    }
+    if (!shown.length) {
+      card.append(h('div', { class: 'empty' }, 'Nothing matches.'));
+      return card;
+    }
+    let lastGroup = null;
+    const list = h('div', { class: 'klist' });
+    for (const k of shown) {
+      const group = k.path.slice(0, -1).join(' › ');
+      if (group !== lastGroup) {
+        const cat = menuDraft.categories[k.ring];
+        list.append(h('div', { class: 'kgroup' }, h('span', { class: 'swatch', style: `background:${cat.color || '#8fb0ff'}` }), group));
+        lastGroup = group;
+      }
+      const notes = [];
+      const d = dups.get(k.item);
+      if (d) notes.push(h('span', { class: 'chip warn' }, msym('warning'), 'Same as ' + d.map((x) => x.path[x.path.length - 1]).join(', ')));
+      const own = k.keys && ours.find((o) => HK.same(o.key, k.keys));
+      if (own) notes.push(h('span', { class: 'chip warn' }, msym('warning'), `RadGesture's ${own.does} shortcut`));
+      const ext = k.keys && external.filter((x) => HK.same(x.key, k.keys));
+      if (ext && ext.length) notes.push(h('span', { class: 'note', title: ext.map((x) => `${x.script}: ${x.does}`).join('\n') }, msym('link'), `${ext[0].script}: ${ext[0].does}`));
+      list.append(h('div', { class: 'krow' + (k.keys ? '' : ' unset') },
+        h('span', { class: 'kic' }, icon(k.item.icon || 'keyboard')),
+        h('span', { class: 'kname' }, k.path[k.path.length - 1]),
+        recorder(k.keys, (v) => { KS.setKeys(k.item, v); markDirty('menu'); render(); }, { plain: true }),
+        h('span', { class: 'knotes' }, ...notes),
+        k.keys ? h('button', { class: 'iconbtn', title: 'Clear this key', 'aria-label': 'Clear ' + k.path[k.path.length - 1], onclick: () => { KS.setKeys(k.item, ''); markDirty('menu'); render(); } }, msym('close')) : h('span', { style: 'width:28px' })));
+    }
+    card.append(list);
+    return card;
   }
 
   // ---------------------------------------------------------------- General
