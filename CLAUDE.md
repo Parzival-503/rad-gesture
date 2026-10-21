@@ -243,6 +243,10 @@ first one removes v3.0's Stopwatch ring while it is still the shipped one.
   It sends the text before FINDINGS: (history) too (`ImpressionContext`),
   at effort medium. Settings > AI tools can switch Impression alone to Opus
   5.5 (`[Impression] Model`); default is the shared model (Sonnet 5.5).
+  A negative study is ONE line ("No acute findings in the chest."), never a
+  list of answered negatives, and gets no closing line; the prompt carries
+  that case as a wrong/right example because the first synthesis prompt
+  still listed negatives, atelectasis and coronary calcification.
 - `WinHttp.SetProxy(1)`: a hospital WinHTTP proxy must not swallow localhost.
 - **Lung-RADS** (Alt+Shift+L, ring: PACS > PowerScribe) is Sina's standalone
   script merged unchanged. It CHANGES PowerScribe only by PostMessage, and asks
