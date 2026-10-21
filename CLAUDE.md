@@ -120,8 +120,16 @@ screenshots before handing over any visual change.
 - **Flick**: hold, move, release. The aimed direction stretches after the
   hand; moving past a direction with `items` opens its smaller ring there.
 - **Tap** (<320 ms, nothing aimed) keeps it open for clicking.
-- **Center** switches rings (click or wheel) with a spin; in a smaller ring
-  the parent's shrunken center is the way back (aim at it or click it).
+- **Switching rings**: the dock (one button per ring, under the ring, above
+  it near the bottom edge) jumps straight to any ring in one click; the wheel
+  and a center click step one ring (right-click the center: back one). Sina
+  asked for the dock: cycling with the center took four clicks. Settings >
+  General can hide it (`dock: false`), which brings back the center dots.
+- **Drag the center** to move the ring; a press is a click until it moves 6 px.
+  Centers are hit-tested by position (`centerAt`), not DOM target: right
+  after a switch the new directions spring out of the middle and would
+  swallow the click. In a smaller ring the parent's shrunken center is the
+  way back (aim at it or click it).
 - Small dots around a direction preview its smaller ring's contents.
 - Names: `labels` = `always` | `pause` (fade in after 650 ms still) | `never`;
   the center always shows the aimed name.
