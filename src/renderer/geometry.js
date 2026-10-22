@@ -18,6 +18,12 @@
     return d > 180 ? 360 - d : d;
   }
 
+  // Signed turn from a to b the short way round, in (-180, 180].
+  function angDiffSigned(a, b) {
+    const d = norm(b - a);
+    return d > 180 ? d - 360 : d;
+  }
+
   // Directions for n items. At the root ring the first item points up. In a
   // sub-ring one slot is reserved for "back" (pointing at the parent) and the
   // items take the remaining slots, so the way back is always where you came
@@ -66,5 +72,5 @@
     };
   }
 
-  return { norm, angleOf, angDiff, slotAngles, aimAt, polar, clampCenter };
+  return { norm, angleOf, angDiff, angDiffSigned, slotAngles, aimAt, polar, clampCenter };
 });

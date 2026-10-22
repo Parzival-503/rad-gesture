@@ -76,8 +76,9 @@ svg.links .wire { stroke: color-mix(in srgb, var(--accent) 70%, white); stroke-w
 
 /* ---- wedges: thin separators + a soft highlight for the aimed direction ---- */
 svg.wedges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-svg.wedges .sep { stroke: var(--sep); stroke-width: 1.2; }
-svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
+svg.wedges .sep { stroke-width: 1.4; stroke-linecap: round; } /* stroke: a gradient that fades at both ends (ring.js) */
+svg.wedges .sepstop { stop-color: var(--sep); }
+svg.wedges .hl { opacity: 0; } /* fill + soft edge set per level in ring.js */
 
 /* ---- halo: keeps everything readable over a bright CT ---- */
 .halo {
@@ -99,6 +100,7 @@ svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
   border: 1px solid var(--edge);
   box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   cursor: pointer;
+  transition: box-shadow 200ms ease, border-color 200ms ease;
 }
 .center .cicon {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -156,17 +158,27 @@ svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
   color: var(--node-ink);
   font-size: 28px;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, box-shadow 160ms ease;
+  transition: color 180ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  /* The lit look is a layer that fades in: gradients themselves can't
+     transition, so swapping the background made the fill snap on and off. */
+  --lit-bg: linear-gradient(170deg, color-mix(in srgb, var(--accent) 88%, white), var(--accent));
+  isolation: isolate;
 }
+.node::before {
+  content: ""; position: absolute; inset: -1px; border-radius: 50%; z-index: -1;
+  background: var(--lit-bg); opacity: 0; transition: opacity 180ms ease;
+  pointer-events: none;
+}
+.node.on::before { opacity: 1; }
 .node.on {
-  background: linear-gradient(170deg, color-mix(in srgb, var(--accent) 88%, white), var(--accent));
   color: #0b0e14;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55), 0 0 0 7px color-mix(in srgb, var(--accent) 20%, transparent),
     0 0 26px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 .node.on .msym { font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24; }
 .node.back { width: 40px; height: 40px; margin: -20px 0 0 -20px; font-size: 20px; color: var(--ink-dim); }
-.node.back.on { background: var(--node-hi); color: var(--ink); box-shadow: var(--shadow); }
+.node.back { --lit-bg: linear-gradient(170deg, var(--node-hi), var(--node-hi)); }
+.node.back.on { color: var(--ink); box-shadow: var(--shadow); }
 
 /* Tiny dots that preview what a direction holds (its smaller ring). */
 .gdot {
@@ -228,10 +240,10 @@ svg.wedges .hl { fill: url(#hlgrad); opacity: 0; }
 /* ---- neon looks (data-lit="outline"): the aimed direction stays dark and
    its rim and icon glow in the ring colour instead of filling. ---- */
 #stage[data-lit="outline"] .node { border-color: color-mix(in srgb, var(--accent) 30%, var(--edge)); }
+#stage[data-lit="outline"] .node { --lit-bg: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--accent) 30%, var(--node)), var(--node) 75%); }
 #stage[data-lit="outline"] .node.on {
-  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--accent) 30%, var(--node)), var(--node) 75%);
   color: var(--accent);
-  border: 1.5px solid var(--accent);
+  border-color: var(--accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent),
     0 0 calc(18px * var(--glow)) color-mix(in srgb, var(--accent) 70%, transparent),
     0 0 calc(42px * var(--glow)) color-mix(in srgb, var(--accent) 35%, transparent),
@@ -293,6 +305,6 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
 @media (prefers-reduced-motion: reduce) {
   .dock .dchip { transition: none; }
 
-  .msym, .node, .center .ccat i { transition: none; }
+  .msym, .node, .node::before, .center, .center .ccat i { transition: none; }
   #stage[data-fx~="pulse"] .node.on { animation: none; }
 }

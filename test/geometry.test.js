@@ -32,3 +32,9 @@ test('aim follows direction, not distance; dead zone aims at nothing', () => {
 test('the ring is kept on screen', () => {
   assert.deepStrictEqual(G.clampCenter(5, 900, 1000, 1000, 170), { x: 170, y: 830 });
 });
+
+test('signed short-way turn between angles', () => {
+  assert.strictEqual(G.angDiffSigned(350, 10), 20);
+  assert.strictEqual(G.angDiffSigned(10, 350), -20);
+  assert.strictEqual(G.angDiffSigned(720 + 90, 0), -90);
+});

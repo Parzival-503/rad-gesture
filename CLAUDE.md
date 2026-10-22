@@ -165,6 +165,13 @@ screenshots before handing over any visual change.
   Neon themes colour rings from their palette unless `ringColors: "mine"`;
   use `T.ringColor(menu, i)` everywhere, never `category.color` directly.
   `scripts/preview.js` screenshots every theme (`9-theme-*.png`).
+- **Smoothness rules**: never swap a gradient background on a state change
+  (gradients can't transition, it snaps): the lit look is a `.node::before`
+  layer (`--lit-bg`) that fades. The aimed-direction highlight glides between
+  directions (`hlA` spring) with blurred edges, separators fade at both ends,
+  and SVG ids are per level (`svgSeq`) since a shared `url(#id)` resolves to
+  the first level's gradient. Settings colours derive from theme variables
+  (`--well`, `--raise`); no hard-coded greys.
 - The overlay is `focusable: false` + `showInactive()`; the hub delays hiding
   170 ms after a pick so the pick animation plays (the action already runs).
 

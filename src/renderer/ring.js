@@ -37,6 +37,7 @@
   let st = null;
   let raf = 0;
   let lastT = 0;
+  let svgSeq = 0;
 
   // ------------------------------------------------------------ springs
 
@@ -97,12 +98,23 @@
 
     L.wedgeSvg = svgEl('svg', { class: 'wedges', width: 1, height: 1 }, layer);
     const defs = svgEl('defs', {}, L.wedgeSvg);
-    const grad = svgEl('radialGradient', { id: 'hlgrad', cx: 0, cy: 0, r: L.r + 60, gradientUnits: 'userSpaceOnUse' }, defs);
+    // Ids are per level: a url(#id) shared by two levels would resolve to the
+    // first one's gradient, sized for the other ring.
+    const uid = 'L' + (++svgSeq);
+    const grad = svgEl('radialGradient', { id: uid + 'hl', cx: 0, cy: 0, r: L.r + 60, gradientUnits: 'userSpaceOnUse' }, defs);
     svgEl('stop', { offset: '0.35', 'stop-color': catColor(st.cat), 'stop-opacity': '0.0' }, grad);
     svgEl('stop', { offset: '0.75', 'stop-color': catColor(st.cat), 'stop-opacity': '0.28' }, grad);
     svgEl('stop', { offset: '1', 'stop-color': catColor(st.cat), 'stop-opacity': '0.0' }, grad);
-    L.seps = svgEl('g', {}, L.wedgeSvg);
-    L.hlPath = svgEl('path', { class: 'hl', d: '' }, L.wedgeSvg);
+    // Soft edges on the highlight, and separators that fade out at both ends
+    // instead of stopping dead.
+    const soft = svgEl('filter', { id: uid + 'soft', x: '-30%', y: '-30%', width: '160%', height: '160%' }, defs);
+    svgEl('feGaussianBlur', { stdDeviation: '5' }, soft);
+    const end = L.r + 42;
+    const sg = svgEl('radialGradient', { id: uid + 'sep', cx: 0, cy: 0, r: end, gradientUnits: 'userSpaceOnUse' }, defs);
+    [[66 / end, 0], [(66 / end + 1) / 2, 1], [1, 0]].forEach(([o, a]) =>
+      svgEl('stop', { offset: String(o), class: 'sepstop', 'stop-opacity': String(a) }, sg));
+    L.seps = svgEl('g', { stroke: `url(#${uid}sep)` }, L.wedgeSvg);
+    L.hlPath = svgEl('path', { class: 'hl', d: '', fill: `url(#${uid}hl)`, filter: `url(#${uid}soft)` }, L.wedgeSvg);
 
     L.center = el('center', undefined, layer);
     L.center.dataset.center = '1';
@@ -135,6 +147,9 @@
     L.rimOp = spring(0, 500, 34);
     L.rimA = spring(0, 300, 26);
     L.hlOp = spring(0, 500, 34);
+    L.hlA = spring(0, 420, 30); // the highlight glides to the aimed direction
+    L.hlHalf = 0;
+    L.hlDrawn = null;
     L.spin = spring(0, 220, 22);
 
     buildNodes(L);
@@ -543,7 +558,11 @@
     if (on >= 0) {
       const N = L.nodes[on];
       const n = L.slots.items.length + (L.slots.back === null ? 0 : 1);
-      L.hlPath.setAttribute('d', sector(N.angle, 180 / n - 1.5, 62, L.r + 46));
+      L.hlHalf = 180 / n - 1.5;
+      // Glide the short way round; appearing from nothing starts in place.
+      const target = L.hlA.x + G.angDiffSigned(L.hlA.x, N.angle);
+      if (L.hlOp.x < 0.05) snap(L.hlA, target);
+      else L.hlA.t = target;
       L.hlOp.t = 1;
     } else {
       L.hlOp.t = 0;
@@ -612,7 +631,7 @@
 
     // Levels: position, scale, fade.
     st.levels.forEach((Lv) => {
-      [Lv.cScale, Lv.op, Lv.ox, Lv.oy, Lv.iconOp, Lv.textOp, Lv.rimOp, Lv.rimA, Lv.hlOp, Lv.spin].forEach((s) => {
+      [Lv.cScale, Lv.op, Lv.ox, Lv.oy, Lv.iconOp, Lv.textOp, Lv.rimOp, Lv.rimA, Lv.hlOp, Lv.hlA, Lv.spin].forEach((s) => {
         step(s, dt);
         if (!settled(s)) busy = true;
       });
@@ -633,6 +652,11 @@
         Lv.rim.style.transform = `rotate(${Lv.rimA.x}deg) scale(${Lv.cScale.x})`;
         Lv.rim.style.opacity = String(clamp01(Lv.rimOp.x));
         Lv.hlPath.style.opacity = String(clamp01(Lv.hlOp.x));
+        const hk = Lv.hlA.x.toFixed(2) + '|' + Lv.hlHalf;
+        if (Lv.hlOp.x > 0.01 && hk !== Lv.hlDrawn) {
+          Lv.hlPath.setAttribute('d', sector(Lv.hlA.x, Lv.hlHalf, 62, Lv.r + 46));
+          Lv.hlDrawn = hk;
+        }
         Lv.wedgeSvg.style.transform = `rotate(${Lv.spin.x}deg)`;
       }
       if (Lv.link) {

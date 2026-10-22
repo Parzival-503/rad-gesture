@@ -215,9 +215,13 @@
 
   // ------------------------------------------------------------------ render
 
+  let lastTab = null;
   function render() {
     T.apply(document.documentElement, menuDraft && menuDraft.theme, 'ui');
     $main.innerHTML = '';
+    // Fade in only when the page changes, not on every re-render while editing.
+    $main.classList.toggle('fresh', ui.tab !== lastTab);
+    lastTab = ui.tab;
     const page = { rings: renderRings, ai: renderAI, shortcuts: renderShortcuts, general: renderGeneral, status: renderStatus }[ui.tab] || renderRings;
     page();
     paintStatusDot();
