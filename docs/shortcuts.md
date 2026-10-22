@@ -108,7 +108,6 @@ scripts (or `tools/external_hotkeys.json` for Rad Optimizer) and re-run it.
 | PACS > Enhance > Enhance | Ctrl+Alt+E | Rad Optimizer: PACS: enhance |
 | PACS > Enhance > Sharpen | Ctrl+Alt+B | Rad Optimizer: PACS: sharpen |
 | PACS > Insert priors | Ctrl+Alt+P | Rad Optimizer: PACS: insert priors (Comparison field) |
-| PACS > PowerScribe > Paste indication | Ctrl+Alt+G | Rad Optimizer: PowerScribe: paste selection into Indication |
 | PACS > PowerScribe > Next field | Ctrl+Alt+F | Rad Optimizer: PowerScribe: next field |
 | PACS > PowerScribe > Previous field | Ctrl+Alt+V | Rad Optimizer: PowerScribe: previous field |
 | PACS > PowerScribe > Lung screening 2 | Alt+Shift+I | Rad Optimizer: PowerScribe: lung screening pick-list 2 |

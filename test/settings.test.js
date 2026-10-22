@@ -163,3 +163,15 @@ test('an older menu gets Orthogonal moved next to Distance, once', () => {
   assert.deepStrictEqual(names(got.items.find((i) => i.name === 'Measure')).slice(0, 2), ['Distance', 'Orthogonal']);
   assert.ok(!names(got.items.find((i) => i.name === 'Crosshair')).includes('Orthogonal'));
 });
+
+test('an older menu loses Paste indication from the ring, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-pi-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const ps = (menu) => menu.categories.find((c) => c.id === 'pacs').items.find((i) => i.name === 'PowerScribe');
+  assert.ok(!ps(m).items.some((i) => i.action === 'helper:keys:^!g'), 'not in the default menu');
+  ps(m).items.splice(1, 0, { name: 'Paste indication', icon: 'content_paste', action: 'helper:keys:^!g' });
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  assert.ok(!ps(store.readMenu()).items.some((i) => i.action === 'helper:keys:^!g'));
+});

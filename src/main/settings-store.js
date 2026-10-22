@@ -75,6 +75,15 @@ function migrate(m) {
     done.push('orthogonal-in-measure');
     changed = true;
   }
+  if (!done.includes('no-paste-indication')) {
+    // Rad Optimizer's Paste indication (Ctrl+Alt+G) works only on a selection
+    // made by hand, never from the ring (Sina), so the ring no longer has it.
+    const pacs = m.categories.find((c) => c.id === 'pacs');
+    const ps = pacs && (pacs.items || []).find((it) => it.name === 'PowerScribe' && Array.isArray(it.items));
+    if (ps && ps.items.length > 1) ps.items = ps.items.filter((it) => !(it.action === 'helper:keys:^!g' && it.name === 'Paste indication'));
+    done.push('no-paste-indication');
+    changed = true;
+  }
   if (changed) m.migrated = done;
   return changed;
 }

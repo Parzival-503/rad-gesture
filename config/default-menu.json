@@ -269,11 +269,6 @@
               "action": "helper:lungrads"
             },
             {
-              "name": "Paste indication",
-              "icon": "content_paste",
-              "action": "helper:keys:^!g"
-            },
-            {
               "name": "Next field",
               "icon": "arrow_forward",
               "action": "helper:keys:^!f"

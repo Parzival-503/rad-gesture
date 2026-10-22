@@ -219,7 +219,8 @@ recorded in `menu.migrated`): installing keeps `menu.json`, so a change to
 the default menu reaches existing users only through a step there. The
 first one removes v3.0's Stopwatch ring while it is still the shipped one;
 the second moves Orthogonal (a measuring tool) from Crosshair to Measure,
-next to Distance.
+next to Distance; the third drops Paste indication (Rad Optimizer's Ctrl+Alt+G
+only works on a selection made by hand, never from the ring).
 
 ### Helper notes
 
