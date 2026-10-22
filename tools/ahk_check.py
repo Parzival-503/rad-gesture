@@ -359,6 +359,41 @@ def check_forced_expr(lines):
             problems.append((idx, raw.strip()))
     return problems
 
+COMMAND_LINE_RE = re.compile(r'^\s*[A-Za-z][A-Za-z0-9_]*\s*,')
+DEREF_RE = re.compile(r'%[A-Za-z_#@$][A-Za-z0-9_#@$]*%')
+
+def check_literal_percent(lines):
+    """AHK v1: in a command's plain-text parameters, % starts a variable.
+
+    `Run, chrome.exe "https://...sourcedoc=%7Ba9...%7D"` (a URL-encoded brace)
+    reads "7Ba9...-" as a variable name and dies at load with "variable name
+    contains an illegal character" -- the Rad Optimizer script shipped this.
+    A literal percent must be written `% . Flags any % left over in a command
+    line after escaped `%, %var% derefs and forced-expression parameters
+    (", % ...") are taken out.
+    """
+    problems = []
+    in_block_comment = False
+    for idx, raw in enumerate(lines, 1):
+        stripped = raw.strip()
+        if stripped.startswith('/*'):
+            in_block_comment = True
+        if in_block_comment:
+            if '*/' in stripped:
+                in_block_comment = False
+            continue
+        if stripped.startswith(';'):
+            continue
+        code = strip_line_comment(raw)
+        if not COMMAND_LINE_RE.match(code) or re.search(r'[:.+\-*/]=', code):
+            continue
+        rest = code.replace('`%', '')
+        rest = re.sub(r',\s*%\s.*$', '', rest)   # forced expression to the end
+        rest = DEREF_RE.sub('', rest)
+        if '%' in rest:
+            problems.append((idx, raw.strip()[:90]))
+    return problems
+
 IDENT_RE = re.compile(r'\b[A-Za-z_][A-Za-z0-9_]*\b')
 
 def check_undeclared_globals(lines):
@@ -761,6 +796,9 @@ def main():
                 lambda t: f"L{t[0]} {t[1]}(): {t[2]}", "no MsgBox in mid-workflow modes")
     ok = report(ok, check_hotkey_targets(lines, labels, funcs), "Hotkey targets with no label/function",
                 lambda t: f"L{t[0]}: '{t[1]}'  |  {t[2]}", "all Hotkey targets resolve")
+    lp = check_literal_percent(lines)
+    ok = report(ok, lp, "literal % in a command (starts a variable; write `%)",
+                lambda it: f"L{it[0]}: {it[1]}", "no stray % in command parameters")
     ok = report(ok, check_ascii(lines), "non-ASCII characters",
                 lambda t: f"L{t[0]}: {t[1]}", "file is pure ASCII")
 
