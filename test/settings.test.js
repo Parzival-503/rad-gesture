@@ -122,7 +122,7 @@ test('an older menu loses the shipped Stopwatch ring once, a home-made one stays
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify({ ...base, categories: [...base.categories, shipped] }));
   let m = store.readMenu();
   assert.ok(!m.categories.some((c) => c.id === 'stopwatch'), 'the shipped Stopwatch ring is removed');
-  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'menu.json'), 'utf8')).migrated, ['no-stopwatch-ring'], 'and that is saved');
+  assert.ok(JSON.parse(fs.readFileSync(path.join(dir, 'menu.json'), 'utf8')).migrated.includes('no-stopwatch-ring'), 'and that is saved');
   // Added back by hand afterwards: left alone.
   m.categories.push(shipped);
   store.writeMenu(m);
@@ -144,4 +144,22 @@ test('an older RadGesture.ini gets the Priors toolbar back once', () => {
   store.writeAI({ toolbarAtStartup: '0' }); // turned off on purpose afterwards
   assert.strictEqual(store.migrateIni(), false);
   assert.strictEqual(store.readAI().toolbarAtStartup, '0', 'and stays off');
+});
+
+test('an older menu gets Orthogonal moved next to Distance, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-orth-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const pacs = m.categories.find((c) => c.id === 'pacs');
+  const meas = pacs.items.find((i) => i.name === 'Measure');
+  const cross = pacs.items.find((i) => i.name === 'Crosshair');
+  const names = (b) => b.items.map((i) => i.name);
+  assert.deepStrictEqual(names(meas).slice(0, 2), ['Distance', 'Orthogonal'], 'the default menu already has it there');
+  // An older saved menu: Orthogonal still under Crosshair.
+  cross.items.push(meas.items.splice(1, 1)[0]);
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const got = store.readMenu().categories.find((c) => c.id === 'pacs');
+  assert.deepStrictEqual(names(got.items.find((i) => i.name === 'Measure')).slice(0, 2), ['Distance', 'Orthogonal']);
+  assert.ok(!names(got.items.find((i) => i.name === 'Crosshair')).includes('Orthogonal'));
 });

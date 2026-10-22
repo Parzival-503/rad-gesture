@@ -91,13 +91,13 @@ scripts (or `tools/external_hotkeys.json` for Rad Optimizer) and re-run it.
 | PACS > Window / level > Brain | Ctrl+Alt+4 | Rad Optimizer: PACS: W/L brain |
 | PACS > Window / level > Stroke | Ctrl+Alt+6 | Rad Optimizer: PACS: W/L stroke |
 | PACS > Measure > Distance | Ctrl+Alt+D | Rad Optimizer: PACS: distance |
+| PACS > Measure > Orthogonal | Ctrl+Alt+O | Rad Optimizer: PACS: orthogonal |
 | PACS > Measure > ROI | Ctrl+Alt+H | Rad Optimizer: PACS: ROI |
 | PACS > Measure > Arrow | Ctrl+Alt+A | Rad Optimizer: PACS: arrow |
 | PACS > Measure > Circle | Ctrl+Alt+C | Rad Optimizer: PACS: circle |
 | PACS > Measure > Insert measurement | Ctrl+Alt+M | Rad Optimizer: PACS: insert measurement |
 | PACS > Crosshair > Crosshair | Ctrl+Alt+X | Rad Optimizer: PACS: crosshair |
 | PACS > Crosshair > Link crosshair | Ctrl+Alt+L | Rad Optimizer: PACS: link crosshair |
-| PACS > Crosshair > Orthogonal | Ctrl+Alt+O | Rad Optimizer: PACS: orthogonal |
 | PACS > Layout > Previous layout | Ctrl+Alt+R | Rad Optimizer: PACS: previous layout |
 | PACS > Layout > Next layout | Ctrl+Alt+T | Rad Optimizer: PACS: next layout |
 | PACS > Layout > MPR | Ctrl+Alt+S | Rad Optimizer: PACS: MPR |

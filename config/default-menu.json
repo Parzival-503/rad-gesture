@@ -149,6 +149,11 @@
               "action": "helper:keys:^!d"
             },
             {
+              "name": "Orthogonal",
+              "icon": "square_foot",
+              "action": "helper:keys:^!o"
+            },
+            {
               "name": "ROI",
               "icon": "adjust",
               "action": "helper:keys:^!h"
@@ -183,11 +188,6 @@
               "name": "Link crosshair",
               "icon": "link",
               "action": "helper:keys:^!l"
-            },
-            {
-              "name": "Orthogonal",
-              "icon": "view_in_ar",
-              "action": "helper:keys:^!o"
             }
           ]
         },

@@ -58,6 +58,23 @@ function migrate(m) {
     done.push('no-stopwatch-ring');
     changed = true;
   }
+  if (!done.includes('orthogonal-in-measure')) {
+    // Orthogonal is a measuring tool (Sina): it moves from Crosshair to
+    // Measure, right after Distance. Only when both are where we shipped them.
+    const pacs = m.categories.find((c) => c.id === 'pacs');
+    const sub = (n) => pacs && (pacs.items || []).find((it) => it.name === n && Array.isArray(it.items));
+    const meas = sub('Measure');
+    const cross = sub('Crosshair');
+    const oi = cross ? cross.items.findIndex((it) => it.action === 'helper:keys:^!o') : -1;
+    const di = meas ? meas.items.findIndex((it) => it.name === 'Distance') : -1;
+    if (oi >= 0 && di >= 0 && meas.items.length < 8 && cross.items.length > 1) {
+      const [o] = cross.items.splice(oi, 1);
+      if (o.icon === 'view_in_ar') o.icon = 'square_foot';
+      meas.items.splice(di + 1, 0, o);
+    }
+    done.push('orthogonal-in-measure');
+    changed = true;
+  }
   if (changed) m.migrated = done;
   return changed;
 }
