@@ -19,6 +19,16 @@ const shots = path.join(__dirname, 'shots');
   const state = () => page.evaluate(() => { const s = window.RGRing.state(); return s && { levels: s.levels.length, hover: s.hover, cat: s.cat, mode: s.mode }; });
   const toast = () => page.evaluate(() => document.getElementById('toast').textContent);
   const cx = 640, cy = 420;
+  // Ring-button bar vs the directions on screen: names of any that overlap it.
+  const dockOverlaps = () => page.evaluate(() => {
+    const bar = document.querySelector('.dock .dchips');
+    if (!bar || getComputedStyle(bar.parentElement).opacity === '0') return [];
+    const b = bar.getBoundingClientRect();
+    return [...document.querySelectorAll('.node')].filter((n) => {
+      const r = n.getBoundingClientRect();
+      return r.width > 0 && r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
+    }).map((n) => n.textContent);
+  });
 
   // 1. Hold and aim at Impression (2nd item, about 72 degrees clockwise from up).
   await page.mouse.move(cx, cy);
@@ -40,6 +50,8 @@ const shots = path.join(__dirname, 'shots');
   assert.strictEqual(s.levels, 2, 'moving past One-liner opens its smaller ring');
   await page.mouse.move(cx + 110 + 60, cy + 150 + 40, { steps: 5 });
   await shot('2-oneliner-subring');
+  await page.waitForTimeout(250);
+  assert.deepStrictEqual(await dockOverlaps(), [], 'the ring buttons stay clear of a smaller ring opened down-right');
   await page.mouse.up();
   assert.match(await toast(), /\w/);
 
@@ -122,6 +134,7 @@ const shots = path.join(__dirname, 'shots');
     await page.waitForTimeout(300);
     assert.strictEqual((await state()).levels, on ? 2 : 1, on ? 'after a tap, moving past One-liner opens its smaller ring' : 'with the switch off it does not');
     if (on) await shot('8b-pass-after-tap');
+    if (on) { await page.waitForTimeout(250); assert.deepStrictEqual(await dockOverlaps(), [], 'ring buttons clear of the opened ring'); }
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
   }

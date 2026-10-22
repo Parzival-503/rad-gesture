@@ -283,16 +283,35 @@
     st.dockName.classList.toggle('hot', st.dockHover >= 0 && st.dockHover !== st.cat);
   }
 
-  function placeDock() {
+  // The dock sits clear of everything open: below the lowest ring (a smaller
+  // ring opened down-left or down-right used to land on it), else above the
+  // highest, else it steps aside until you go back.
+  function placeDock(dt) {
     if (!st.dock) return;
     const root = st.levels[0];
-    const off = (R_ROOT + DOCK_GAP) * st.s;
-    const below = root.cy + off + 60 < innerHeight;
+    let lo = -Infinity;
+    let hi = Infinity;
+    st.levels.forEach((L, i) => {
+      const reach = (i === st.levels.length - 1 ? L.r + 34 : 30) * st.s; // open ring: its directions; parents: their small center
+      const cy = L.cy + L.oy.x;
+      lo = Math.max(lo, cy + reach);
+      hi = Math.min(hi, cy - reach);
+    });
+    const gap = (DOCK_GAP - 34) * st.s; // with only the main ring open: where it always was
+    const yBelow = lo + gap;
+    const yAbove = hi - gap;
+    const below = yBelow + 60 < innerHeight;
+    const fits = below || yAbove - 70 > 0;
+    const y = below ? yBelow : yAbove;
+    if (!st.dockY) st.dockY = spring(y, 300, 30);
+    st.dockY.t = y;
+    if (dt) step(st.dockY, dt);
     const x = root.cx + root.ox.x;
-    const y = root.cy + root.oy.x + (below ? off : -off);
-    st.dock.style.transform = `translate(${x}px, ${y}px) scale(${st.s})`;
+    st.dock.style.transform = `translate(${x}px, ${st.dockY.x}px) scale(${st.s})`;
     st.dock.classList.toggle('above', !below);
-    st.dock.style.opacity = String(clamp01(root.op.x));
+    st.dock.style.opacity = String(fits ? clamp01(root.op.x) : 0);
+    st.dock.style.pointerEvents = fits ? '' : 'none';
+    return !settled(st.dockY);
   }
 
   function jumpTo(index) {
@@ -625,7 +644,7 @@
       }
     });
 
-    placeDock();
+    if (placeDock(dt)) busy = true;
     if (st.dock) st.dock.classList.toggle('hint', paused && lm !== 'never' && st.mode === 'click');
 
     L.nodes.forEach((N, i) => {

@@ -130,6 +130,9 @@ screenshots before handing over any visual change.
   and a center click step one ring (right-click the center: back one). Sina
   asked for the dock: cycling with the center took four clicks. Settings >
   General can hide it (`dock: false`), which brings back the center dots.
+  The dock keeps clear of every open ring (`placeDock`: below the lowest,
+  else above the highest, else it steps aside); a smaller ring opened
+  down-left/right used to land on it. `preview.js` checks for overlap.
 - **Drag the center** to move the ring; a press is a click until it moves 6 px.
   Centers are hit-tested by position (`centerAt`), not DOM target: right
   after a switch the new directions spring out of the middle and would
