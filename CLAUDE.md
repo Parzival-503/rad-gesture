@@ -240,6 +240,11 @@ only works on a selection made by hand, never from the ring).
   floating Priors toolbar shows at startup, as in RadProofread: the first v3
   builds hid it and Sina lost track of the tool (`migrateIni()` turned it
   back on once for INIs those builds wrote).
+  Closing the toolbar (its X button, the title-bar X) hides it AND saves
+  ShowAtStartup=0, so helper restarts don't bring it back; only Show toolbar
+  (ring or tray) turns it on again. The Priors tools never pop it up on
+  their own (an empty bin or nothing copied is a notification): Sina saw it
+  appear "on Ctrl+CapsLock" and could not get rid of it.
 - **Impression** (`ImpressionPrompt()`): a high-level SYNTHESIS, not a
   summary (Sina: the first one just reworded the findings). Answers the
   clinical question first, merges related findings, leaves out chronic and

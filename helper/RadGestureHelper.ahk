@@ -301,6 +301,7 @@ MenuOpenIni:
 return
 
 MenuPriorShow:
+    PriorBinSetWanted(true)
     ShowPriorBin()
 return
 
@@ -2040,7 +2041,6 @@ PriorAdd() {
 
     if (StrLen(text) < 20) {
         Notify("Priors: nothing copied. Select the prior report, Copy it, then + Add.", 3000)
-        ShowPriorBin()
         return
     }
     for i, p in g_Priors {
@@ -2052,7 +2052,7 @@ PriorAdd() {
 
     g_Priors.Push({ text: text, added: A_Now })
     g_PriorLast := A_Now
-    ShowPriorBin()
+    PriorBinRefresh()
 
     ; Echo the start of what was captured so a wrong clipboard is obvious.
     peek := SubStr(RegExReplace(text, "\s+", " "), 1, 60)
@@ -2078,7 +2078,8 @@ ShowPriorBin() {
         Gui, PriorBin:+AlwaysOnTop +ToolWindow +E0x08000000 -DPIScale
         Gui, PriorBin:Color, 1e1e1e
         Gui, PriorBin:Font, s9 cE8E8E8, Segoe UI
-        Gui, PriorBin:Add, Text, x8 y6 w220 vPriorBinCount, Priors collected: 0
+        Gui, PriorBin:Add, Text, x8 y6 w196 vPriorBinCount, Priors collected: 0
+        Gui, PriorBin:Add, Button, x210 y3 w20 h20 gPriorBin_Hide, X
         Gui, PriorBin:Add, Button, x8 y28 w70 h24 gPriorBin_Add, + Add
         Gui, PriorBin:Add, Button, x82 y28 w80 h24 gPriorBin_List, Checklist
         Gui, PriorBin:Add, Button, x166 y28 w62 h24 gPriorBin_Clear, Clear
@@ -2128,10 +2129,32 @@ PriorBin_OneLiner:
         Trigger_OneLiner()
 return
 
+; Closing it (X on the title bar or in the window, or Esc) hides it and
+; remembers that, so a restart of the helper doesn't bring it straight back.
+; Ring > AI Tools > Priors > Show toolbar (or the tray) turns it on again.
+PriorBin_Hide:
 PriorBinGuiClose:
-    ; Hiding keeps the priors; Tray -> Prior Checklist -> Show brings it back.
+PriorBinGuiEscape:
+    PriorBinSetWanted(false)
     Gui, PriorBin:Hide
+    Notify("Priors toolbar hidden. Bring it back: ring > AI Tools > Priors > Show toolbar.", 3500)
 return
+
+PriorBinSetWanted(on) {
+    global g_PriorAtStartup, INI_PATH
+    g_PriorAtStartup := on ? 1 : 0
+    IniWrite, %g_PriorAtStartup%, %INI_PATH%, Priors, ShowAtStartup
+}
+
+; After a prior is added: show the count if the toolbar is wanted, never
+; pop it up again once it was closed (the count is in the notification too).
+PriorBinRefresh() {
+    global g_PriorAtStartup
+    if (g_PriorAtStartup)
+        ShowPriorBin()
+    else
+        UpdatePriorBin()
+}
 
 PriorChecklist() {
     global g_Priors, g_ApiKey, g_PriorMaxTokens
@@ -2147,7 +2170,6 @@ PriorChecklist() {
     n := g_Priors.Length()
     if (n = 0) {
         Notify("Priors: the bin is empty. Copy a prior report, then + Add.", 3000)
-        ShowPriorBin()
         return
     }
 
@@ -3168,6 +3190,7 @@ RunHubAction(a) {
     } else if (a = "prior:clear") {
         PriorClear()
     } else if (a = "prior:show") {
+        PriorBinSetWanted(true)
         ShowPriorBin()
     } else if (a = "settings") {
         OpenAiSettings()
