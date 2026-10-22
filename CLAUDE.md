@@ -217,7 +217,9 @@ Kando gallery. Edited only through Settings.
 **Saved menus are migrated once** (`migrate()` in `settings-store.js`,
 recorded in `menu.migrated`): installing keeps `menu.json`, so a change to
 the default menu reaches existing users only through a step there. The
-first one removes v3.0's Stopwatch ring while it is still the shipped one.
+first one removes v3.0's Stopwatch ring while it is still the shipped one;
+the second moves Orthogonal (a measuring tool) from Crosshair to Measure,
+next to Distance.
 
 ### Helper notes
 
