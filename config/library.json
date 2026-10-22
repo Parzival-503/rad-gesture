@@ -1,0 +1,658 @@
+{
+  "_about": "RadGesture's function library: Rad Optimizer's functions, built into the helper (LibRun in helper/RadGestureHelper.ahk). Defaults only: what a person changes lives in RadGesture.ini [Lib.<id>]. hotkey = the keyboard shortcut RadGesture listens for; a 'key' param = what the function presses inside Sectra or PowerScribe. 'target' functions just bring that program up and press Key.",
+  "version": 1,
+  "groups": [
+    "PACS (Sectra)",
+    "PowerScribe",
+    "Logins",
+    "Apps"
+  ],
+  "targets": {
+    "sectra": "Sectra (Image Window)",
+    "powerscribe": "PowerScribe"
+  },
+  "functions": [
+    {
+      "id": "PS_ToggleDictation",
+      "name": "Dictation on/off",
+      "group": "PowerScribe",
+      "sub": "Dictation",
+      "description": "Presses the Sectra key first (if Sectra is open), then the dictation key in PowerScribe. Off by default: turn it on if you want it. RadStopwatch also starts its timer on Ctrl+Alt+F4, on purpose.",
+      "hotkey": "^!F4",
+      "on": false,
+      "icon": "mic",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in PowerScribe",
+          "default": "{F4}"
+        },
+        {
+          "name": "SectraKey",
+          "type": "key",
+          "label": "Presses in Sectra first (empty: skip)",
+          "default": "{F8}"
+        }
+      ]
+    },
+    {
+      "id": "PS_NextField",
+      "name": "Next field",
+      "group": "PowerScribe",
+      "sub": "Navigation",
+      "description": "Brings PowerScribe to the front and moves to the next field.",
+      "hotkey": "^!f",
+      "on": true,
+      "icon": "arrow_forward",
+      "target": "powerscribe",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in PowerScribe",
+          "default": "{Tab}"
+        }
+      ]
+    },
+    {
+      "id": "PS_PrevField",
+      "name": "Previous field",
+      "group": "PowerScribe",
+      "sub": "Navigation",
+      "description": "Brings PowerScribe to the front and moves to the previous field.",
+      "hotkey": "^!v",
+      "on": true,
+      "icon": "arrow_back",
+      "target": "powerscribe",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in PowerScribe",
+          "default": "+{Tab}"
+        }
+      ]
+    },
+    {
+      "id": "PS_PasteIndication",
+      "name": "Paste indication",
+      "group": "PowerScribe",
+      "sub": "Fields",
+      "description": "Copies the text you highlighted, finds the Indication field in PowerScribe and pastes it there. Works only on a selection you make by hand, so it is not on the ring and its shortcut is off by default.",
+      "hotkey": "^!g",
+      "on": false,
+      "icon": "content_paste",
+      "params": []
+    },
+    {
+      "id": "LungScreening2",
+      "name": "Lung screening 2",
+      "group": "PowerScribe",
+      "sub": "Fields",
+      "description": "Goes to the last field of the PowerScribe report and picks \"2\" in its list (Lung-RADS 2). Lung-RADS (auto) on the ring decides 1 or 2 for you instead.",
+      "hotkey": "+!i",
+      "on": true,
+      "icon": "pulmonology",
+      "params": []
+    },
+    {
+      "id": "PACS_WL_SoftTissue",
+      "name": "Soft tissue window",
+      "group": "PACS (Sectra)",
+      "sub": "Window / level",
+      "description": "Soft tissue window/level preset.",
+      "hotkey": "^!1",
+      "on": true,
+      "icon": "contrast",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "1"
+        }
+      ]
+    },
+    {
+      "id": "PACS_WL_Lung",
+      "name": "Lung window",
+      "group": "PACS (Sectra)",
+      "sub": "Window / level",
+      "description": "Lung window/level preset.",
+      "hotkey": "^!2",
+      "on": true,
+      "icon": "pulmonology",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "2"
+        }
+      ]
+    },
+    {
+      "id": "PACS_WL_Bone",
+      "name": "Bone window",
+      "group": "PACS (Sectra)",
+      "sub": "Window / level",
+      "description": "Bone window/level preset.",
+      "hotkey": "^!3",
+      "on": true,
+      "icon": "skeleton",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "3"
+        }
+      ]
+    },
+    {
+      "id": "PACS_WL_Brain",
+      "name": "Brain window",
+      "group": "PACS (Sectra)",
+      "sub": "Window / level",
+      "description": "Brain window/level preset.",
+      "hotkey": "^!4",
+      "on": true,
+      "icon": "neurology",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "4"
+        }
+      ]
+    },
+    {
+      "id": "PACS_WL_Stroke",
+      "name": "Stroke window",
+      "group": "PACS (Sectra)",
+      "sub": "Window / level",
+      "description": "Stroke window/level preset.",
+      "hotkey": "^!6",
+      "on": true,
+      "icon": "emergency",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "6"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Enhance",
+      "name": "Enhance",
+      "group": "PACS (Sectra)",
+      "sub": "Window / level",
+      "description": "Enhance contrast.",
+      "hotkey": "^!e",
+      "on": true,
+      "icon": "wand_stars",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "!e"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Sharpen",
+      "name": "Sharpen",
+      "group": "PACS (Sectra)",
+      "sub": "Window / level",
+      "description": "Sharpen the image.",
+      "hotkey": "^!b",
+      "on": true,
+      "icon": "filter_center_focus",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "!b"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Distance",
+      "name": "Distance",
+      "group": "PACS (Sectra)",
+      "sub": "Measure",
+      "description": "Distance measuring tool.",
+      "hotkey": "^!d",
+      "on": true,
+      "icon": "straighten",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "!d"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Orthogonal",
+      "name": "Orthogonal",
+      "group": "PACS (Sectra)",
+      "sub": "Measure",
+      "description": "Orthogonal measuring tool.",
+      "hotkey": "^!o",
+      "on": true,
+      "icon": "square_foot",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "!o"
+        }
+      ]
+    },
+    {
+      "id": "PACS_ROI",
+      "name": "ROI",
+      "group": "PACS (Sectra)",
+      "sub": "Measure",
+      "description": "Region-of-interest tool.",
+      "hotkey": "^!h",
+      "on": true,
+      "icon": "adjust",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "!h"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Arrow",
+      "name": "Arrow",
+      "group": "PACS (Sectra)",
+      "sub": "Measure",
+      "description": "Arrow annotation.",
+      "hotkey": "^!a",
+      "on": true,
+      "icon": "north_east",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "!a"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Circle",
+      "name": "Circle",
+      "group": "PACS (Sectra)",
+      "sub": "Measure",
+      "description": "Circle annotation.",
+      "hotkey": "^!c",
+      "on": true,
+      "icon": "circle",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "!c"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Insert_Measurement",
+      "name": "Insert measurement",
+      "group": "PACS (Sectra)",
+      "sub": "Measure",
+      "description": "Inserts the series and image number of the measurement into PowerScribe (Sectra does the inserting).",
+      "hotkey": "^!m",
+      "on": true,
+      "icon": "add_box",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "!m"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Crosshair",
+      "name": "Crosshair",
+      "group": "PACS (Sectra)",
+      "sub": "Navigation",
+      "description": "Crosshair / linked cursor.",
+      "hotkey": "^!x",
+      "on": true,
+      "icon": "my_location",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "x"
+        }
+      ]
+    },
+    {
+      "id": "PACS_LinkCrosshair",
+      "name": "Link crosshair",
+      "group": "PACS (Sectra)",
+      "sub": "Navigation",
+      "description": "Links the crosshair to prior studies.",
+      "hotkey": "^!l",
+      "on": true,
+      "icon": "link",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "!x"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Prev_Key_Image",
+      "name": "Previous key image",
+      "group": "PACS (Sectra)",
+      "sub": "Navigation",
+      "description": "Goes to the previous key image.",
+      "hotkey": "^!k",
+      "on": true,
+      "icon": "arrow_back",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "{;}"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Next_Key_Image",
+      "name": "Next key image",
+      "group": "PACS (Sectra)",
+      "sub": "Navigation",
+      "description": "Goes to the next key image.",
+      "hotkey": "^!i",
+      "on": true,
+      "icon": "arrow_forward",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "{'}"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Prev_Layout",
+      "name": "Previous layout",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Previous hanging layout.",
+      "hotkey": "^!r",
+      "on": true,
+      "icon": "arrow_back",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "{[}"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Next_Layout",
+      "name": "Next layout",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Next hanging layout.",
+      "hotkey": "^!t",
+      "on": true,
+      "icon": "arrow_forward",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "{]}"
+        }
+      ]
+    },
+    {
+      "id": "PACS_MPR",
+      "name": "MPR",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Multi-planar reconstruction.",
+      "hotkey": "^!s",
+      "on": true,
+      "icon": "view_in_ar",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "^m"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Matrix",
+      "name": "Matrix",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Matrix window: the images in a grid.",
+      "hotkey": "^!w",
+      "on": true,
+      "icon": "grid_view",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "m"
+        }
+      ]
+    },
+    {
+      "id": "PACS_ImageWindow",
+      "name": "Image window",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Brings the image windows back to the front.",
+      "hotkey": "^!n",
+      "on": true,
+      "icon": "web",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "n"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Insert_Priors",
+      "name": "Insert priors",
+      "group": "PACS (Sectra)",
+      "sub": "Navigation",
+      "description": "Selects the Comparison field in PowerScribe, then brings up Sectra and presses its \"insert priors\" key, so the prior studies land in Comparison.",
+      "hotkey": "^!p",
+      "on": true,
+      "icon": "history",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "^p"
+        }
+      ]
+    },
+    {
+      "id": "LoginUandP",
+      "name": "Log in (username + password)",
+      "group": "Logins",
+      "sub": "Logins",
+      "description": "Types your username, Tab, your password, Enter. Your username is set below; the password is asked once per session and never saved.",
+      "hotkey": "+!u",
+      "on": false,
+      "icon": "login",
+      "params": [
+        {
+          "name": "Tab",
+          "type": "bool",
+          "label": "Tab between username and password",
+          "default": "1"
+        },
+        {
+          "name": "Enter",
+          "type": "bool",
+          "label": "Enter after the password",
+          "default": "1"
+        }
+      ]
+    },
+    {
+      "id": "LoginU",
+      "name": "Type username",
+      "group": "Logins",
+      "sub": "Logins",
+      "description": "Types only your username.",
+      "hotkey": "",
+      "on": false,
+      "icon": "person",
+      "params": [
+        {
+          "name": "Tab",
+          "type": "bool",
+          "label": "Tab after the username",
+          "default": "0"
+        }
+      ]
+    },
+    {
+      "id": "LoginP",
+      "name": "Type password",
+      "group": "Logins",
+      "sub": "Logins",
+      "description": "Types only your password (asked once per session, never saved).",
+      "hotkey": "+!p",
+      "on": false,
+      "icon": "password",
+      "params": [
+        {
+          "name": "Enter",
+          "type": "bool",
+          "label": "Enter after the password",
+          "default": "0"
+        }
+      ]
+    },
+    {
+      "id": "LoginForget",
+      "name": "Forget the password",
+      "group": "Logins",
+      "sub": "Logins",
+      "description": "Forgets the password typed this session, so the next login asks again (for a typo).",
+      "hotkey": "",
+      "on": false,
+      "icon": "lock_reset",
+      "params": []
+    },
+    {
+      "id": "ActivateEPIC",
+      "name": "Epic",
+      "group": "Apps",
+      "sub": "Programs",
+      "description": "Brings Epic (Hyperspace) to the front.",
+      "hotkey": "+!e",
+      "on": true,
+      "icon": "local_hospital",
+      "params": []
+    },
+    {
+      "id": "ActivateTeams",
+      "name": "Teams",
+      "group": "Apps",
+      "sub": "Programs",
+      "description": "Brings Teams to the front, or starts it.",
+      "hotkey": "+!t",
+      "on": true,
+      "icon": "groups",
+      "params": []
+    },
+    {
+      "id": "OpenChromeTabs",
+      "name": "Open my websites",
+      "group": "Apps",
+      "sub": "Programs",
+      "description": "Opens your list of websites in Chrome (or your default browser if Chrome is missing).",
+      "hotkey": "+!c",
+      "on": true,
+      "icon": "tab",
+      "params": [
+        {
+          "name": "Urls",
+          "type": "list",
+          "label": "Websites (one per line)",
+          "default": "https://www.openevidence.com/|https://app.statdx.com/|https://www.imaios.com/en/e-anatomy|https://rad-call.com/"
+        }
+      ]
+    },
+    {
+      "id": "SearchRadiopaediaGoogle",
+      "name": "Search selection",
+      "group": "Apps",
+      "sub": "Search",
+      "description": "Copies the highlighted text and offers Google Images, Radiopaedia or both.",
+      "hotkey": "+!s",
+      "on": true,
+      "icon": "image_search",
+      "params": []
+    }
+  ]
+}

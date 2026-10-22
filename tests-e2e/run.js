@@ -54,6 +54,15 @@ async function waitFor(fn, ms, step = 200) {
       { name: 'Down: F14', icon: 'south', action: 'helper:keys:{F14}' },
     ],
   });
+  // Last: a ring of plain key presses for the Shortcuts page (the PACS ring
+  // runs Library functions now, so it has no keys to record).
+  menu.categories.push({
+    id: 'e2e-keys', name: 'E2E keys', color: '#5cc8d6', icon: 'keyboard',
+    items: [
+      { name: 'Soft tissue', icon: 'contrast', action: 'helper:keys:{F15}' },
+      { name: 'Lung', icon: 'pulmonology', action: 'helper:keys:{F16}' },
+    ],
+  });
   fs.writeFileSync(path.join(userData, 'menu.json'), JSON.stringify(menu, null, 2));
   fs.writeFileSync(path.join(userData, 'welcomed'), 'e2e');
 
@@ -85,7 +94,7 @@ async function waitFor(fn, ms, step = 200) {
     check('tray > Settings... opens the Settings window', !!win);
     await win.waitForFunction(() => window.__settingsReady === true, null, { timeout: 15000 });
     await win.setViewportSize({ width: 1200, height: 780 }).catch(() => {});
-    for (const tab of ['rings', 'ai', 'shortcuts', 'general', 'status']) {
+    for (const tab of ['rings', 'ai', 'shortcuts', 'library', 'general', 'status']) {
       await win.click(`#nav button[data-tab="${tab}"]`);
       await sleep(350);
       const h1 = await win.textContent('main h1');
@@ -125,9 +134,9 @@ async function waitFor(fn, ms, step = 200) {
     // Keys the ring presses: record a single key (as Sectra's often are) for
     // the first one, save, export, clear all, import, save: it comes back.
     const menuNow = () => JSON.parse(fs.readFileSync(path.join(userData, 'menu.json'), 'utf8'));
-    const firstKeys = (m) => m.categories.find((c) => c.name === 'PACS').items.find((i) => i.name === 'Window / level').items.find((i) => i.name === 'Soft tissue');
+    const firstKeys = (m) => m.categories.find((c) => c.name === 'E2E keys').items.find((i) => i.name === 'Soft tissue');
     const krec = await win.$('.krow:has(.kname:text-is("Soft tissue")) .recorder');
-    check('Shortcuts lists the keys the ring presses', !!krec && (await win.$$('.krow')).length >= 30, `${(await win.$$('.krow')).length} rows`);
+    check('Shortcuts lists the keys the ring presses', !!krec && (await win.$$('.krow')).length >= 4, `${(await win.$$('.krow')).length} rows`);
     await krec.click();
     await win.keyboard.press('KeyW');
     await sleep(200);
@@ -139,7 +148,8 @@ async function waitFor(fn, ms, step = 200) {
     await win.click('#exportKeys');
     await sleep(500);
     const exported = fs.existsSync(setFile) ? JSON.parse(fs.readFileSync(setFile, 'utf8')) : {};
-    check('Export writes a shortcut set file', exported.format === 'radgesture-shortcuts' && exported.keys.length >= 30);
+    check('Export writes a shortcut set file', exported.format === 'radgesture-shortcuts' && exported.keys.length >= 4);
+    check('the exported set carries the Library keys', !!(exported.library && exported.library.PACS_WL_Lung && exported.library.PACS_WL_Lung.Key === '2'));
     await win.click('#clearKeys');
     await win.click('#clearKeysYes');
     await win.click('#saveAll');
@@ -164,6 +174,50 @@ async function waitFor(fn, ms, step = 200) {
     await win.keyboard.up('Control');
     await win.keyboard.press('Escape');
     await sleep(150);
+
+    // Library: Rad Optimizer's functions. One entry each; switch a shortcut on
+    // and record it, change the key a function presses in Sectra, set the
+    // username, look at the code, save: it all lands in RadGesture.ini.
+    const libDef = JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'library.json'), 'utf8'));
+    await win.click('#nav button[data-tab="library"]');
+    await sleep(350);
+    check('Library lists every function', (await win.$$('.libfn')).length === libDef.functions.length, `${(await win.$$('.libfn')).length} of ${libDef.functions.length}`);
+    check('Library opens with the "set the keys in Sectra first" note', !!(await win.$('#libSetup')) && /Sectra/.test(await win.textContent('#libSetup')));
+    check('Library shows where a function sits on the rings', /PACS › Window \/ level › Lung/.test(await win.textContent('#lib-PACS_WL_Lung')));
+    await win.click('#lib-LoginForget .libline .switch');
+    await sleep(150);
+    await win.click('#lib-LoginForget .recorder');
+    await win.keyboard.press('Control+Alt+Shift+F9');
+    await sleep(150);
+    const lungRecs = await win.$$('#lib-PACS_WL_Lung .recorder');
+    await lungRecs[1].click();
+    await win.keyboard.press('KeyL');
+    await sleep(150);
+    await win.fill('#libUser', 'e2e-user');
+    await win.click('#lib-PACS_Insert_Priors button:has-text("Code")');
+    await sleep(200);
+    check('Library shows a function\'s code', /Lib_InsertPriors/.test(await win.textContent('#lib-PACS_Insert_Priors .libcode')));
+    await win.$eval('#lib-PACS_Insert_Priors', (el) => el.scrollIntoView());
+    await win.screenshot({ path: path.join(SHOTS, 'settings-library-code.png') });
+    await win.click('#saveAll');
+    await sleep(700);
+    const ini3 = fs.readFileSync(path.join(userData, 'RadGesture.ini'), 'latin1');
+    check('Library saves a shortcut switched on and recorded', /\[Lib\.LoginForget\][^[]*On=1/.test(ini3) && /\[Lib\.LoginForget\][^[]*Hotkey=\^!\+F9/.test(ini3));
+    check('Library saves the key pressed in Sectra', /\[Lib\.PACS_WL_Lung\][^[]*Key=l/.test(ini3) && /\[Lib\.PACS_WL_Lung\][^[]*Target=sectra/.test(ini3));
+    check('Library saves the username (and no password anywhere)', /\[Library\][^[]*Username=e2e-user/.test(ini3) && !/password/i.test(ini3));
+    await win.$eval('main', (el) => el.scrollTo(0, 0));
+    await win.screenshot({ path: path.join(SHOTS, 'settings-library.png') });
+
+    // The ring editor offers Library functions, with the key note.
+    await win.click('#nav button[data-tab="rings"]');
+    await sleep(300);
+    await win.click('.rings .card:first-child .lrow:has-text("PACS")');
+    await sleep(200);
+    await win.click('.rings .card:nth-child(2) .lrow:has-text("Insert priors")');
+    await sleep(200);
+    check('a PACS direction is a Library function in the ring editor', (await win.$eval('#libPick', (e) => e.value)) === 'PACS_Insert_Priors');
+    check('the ring editor says which key it presses in Sectra', /Presses Ctrl\+P/.test(await win.textContent('.editor')));
+    await win.screenshot({ path: path.join(SHOTS, 'settings-rings-library.png') });
 
     // Rings editor: add a ring, rename it, save.
     await win.click('#nav button[data-tab="rings"]');
@@ -294,6 +348,17 @@ async function waitFor(fn, ms, step = 200) {
       await waitFor(async () => notepads() >= 2, 8000);
       check('"Open another copy" does open another', notepads() === 2, `notepad processes: ${notepads()}`);
       try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe']); } catch (_) {}
+
+      // Library: from the ring (as Try it does) and from its own keyboard
+      // shortcut, recorded above, pressed for real by a second script.
+      await runVia('lib:LoginForget');
+      check('a Library function runs in the helper', await waitFor(async () => (await ev()).some((e) => e === 'done lib:LoginForget'), 8000));
+      if (process.env.AHK_EXE) {
+        const pressFile = path.join(userData, 'press-lib.ahk');
+        fs.writeFileSync(pressFile, '#NoTrayIcon\r\nSendLevel, 1\r\nSend, ^!+{F9}\r\nExitApp\r\n');
+        spawnSync(process.env.AHK_EXE, [pressFile], { timeout: 15000 });
+        check('a Library keyboard shortcut runs its function', await waitFor(async () => (await ev()).some((e) => e === 'done lib-key:LoginForget'), 8000), (await ev()).slice(-6).join(' | '));
+      }
 
       const ahk = process.env.AHK_EXE;
       if (ahk && connected) {

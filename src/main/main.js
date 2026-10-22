@@ -34,8 +34,9 @@ if (!app.requestSingleInstanceLock()) {
 
 const ROOT = path.join(__dirname, '..', '..');
 const userDir = () => app.getPath('userData');
-const store = createStore({ userDir, defaultMenuPath: path.join(ROOT, 'config', 'default-menu.json') });
+const store = createStore({ userDir, defaultMenuPath: path.join(ROOT, 'config', 'default-menu.json'), libraryPath: path.join(ROOT, 'config', 'library.json') });
 const icons = createIconStore({ dir: () => path.join(userDir(), 'icons'), nativeImage });
+const { codeFor } = require('./library-code');
 const resourcesHelperDir = () => (app.isPackaged ? path.join(process.resourcesPath, 'helper') : path.join(ROOT, 'helper'));
 
 let overlay = null;
@@ -396,6 +397,25 @@ async function testApiKey(key, model) {
   }
 }
 
+function libraryCode() {
+  try {
+    const src = fs.readFileSync(path.join(resourcesHelperDir(), 'RadGestureHelper.ahk'), 'utf8');
+    return codeFor(store.library(), src, store.readLibrary().values);
+  } catch (_) {
+    return {};
+  }
+}
+
+// Is any library keyboard shortcut switched on? Then a running Rad Optimizer
+// takes the same keys and is listed as a clash.
+function libraryHotkeysOn() {
+  try {
+    return Object.values(store.readLibrary().values).some((v) => v.On === '1' && v.Hotkey);
+  } catch (_) {
+    return false;
+  }
+}
+
 function tellHelperToReload() {
   bridge.enqueue('reload');
 }
@@ -411,8 +431,18 @@ function registerSettingsIpc() {
     images: icons.dataUrls(),
     iconNames: JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'fonts', 'material-symbols-names.json'), 'utf8')),
     externalHotkeys: JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'external_hotkeys.json'), 'utf8')),
+    library: store.library(),
+    libraryValues: store.readLibrary(),
+    libraryCode: libraryCode(),
     status: fullStatus(),
   }));
+  ipcMain.handle('rgs:save-library', (_e, v) => {
+    store.writeLibrary(v);
+    tellHelperToReload();
+    logEvent('library-saved');
+    scanConflicts(false);
+    return { ok: true };
+  });
   ipcMain.handle('rgs:save-menu', (_e, m) => {
     const r = store.writeMenu(m);
     if (r.ok) {
@@ -599,7 +629,7 @@ function buildTray() {
 // ---------------------------------------------------------------- conflicts
 
 async function scanConflicts(announce) {
-  const found = await conflicts.scan({ selfExe: process.execPath, selfPids: [process.pid] });
+  const found = await conflicts.scan({ selfExe: process.execPath, selfPids: [process.pid], libraryOn: libraryHotkeysOn() });
   lastConflicts = found;
   updateTray();
   if (announce && found.length) {
@@ -628,6 +658,7 @@ app.whenReady().then(async () => {
   setInterval(updateTray, 2000); // helper connected/disconnected shows in the tray
   if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: menu.startAtLogin !== false });
   try { store.migrateIni(); } catch (e) { logEvent('error', 'ini migration: ' + e.message); }
+  try { store.syncLibrary(); } catch (e) { logEvent('error', 'library settings: ' + e.message); }
   if ((!menu.helper || menu.helper.autoStart !== false) && !process.env.RG_NO_HELPER) supervisor.start();
   startPrograms();
   scanConflicts(true);

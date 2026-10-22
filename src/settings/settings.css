@@ -302,3 +302,22 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
   main.fresh > * { animation: none; }
   .btn, .side button, .lrow, .seg button, .iconbtn, .krow, .tpick, .colors button, .recorder { transition: none; }
 }
+
+/* Library (Rad Optimizer's functions) */
+.libfn { padding: 14px 0; border-top: 1px solid var(--line); }
+.card > h2 + .libfn, .card > .row + .libfn { border-top: 1px solid var(--line); }
+.libhead { display: flex; gap: 12px; align-items: flex-start; }
+.libhead .kic { flex: 0 0 28px; margin-top: 2px; }
+.libtx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.libtx b { font-weight: 600; display: flex; align-items: center; }
+.libtx small { color: var(--ink-2); font-size: 13px; }
+.libtx .libplaces { color: var(--ink-3); font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.libtx .libplaces .msym { font-size: 14px; }
+.libnote { align-items: flex-start; }
+.libbtns { display: flex; gap: 6px; flex: 0 0 auto; }
+.libctl { margin: 10px 0 0 40px; display: flex; flex-direction: column; gap: 8px; }
+.libline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.libline .liblabel { flex: 0 0 250px; color: var(--ink-2); font-size: 13px; }
+.libline textarea { flex: 1; min-width: 260px; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+.libcode { margin: 10px 0 0 40px; padding: 12px 14px; background: var(--well); border: 1px solid var(--line); border-radius: 10px; font: 12px/1.45 ui-monospace, Consolas, monospace; color: var(--ink-2); white-space: pre; overflow-x: auto; max-height: 360px; }
+#libSetup h2 { display: flex; align-items: center; gap: 4px; }

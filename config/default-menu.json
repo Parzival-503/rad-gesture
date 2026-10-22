@@ -115,27 +115,27 @@
             {
               "name": "Soft tissue",
               "icon": "contrast",
-              "action": "helper:keys:^!1"
+              "action": "helper:lib:PACS_WL_SoftTissue"
             },
             {
               "name": "Lung",
               "icon": "pulmonology",
-              "action": "helper:keys:^!2"
+              "action": "helper:lib:PACS_WL_Lung"
             },
             {
               "name": "Bone",
               "icon": "skeleton",
-              "action": "helper:keys:^!3"
+              "action": "helper:lib:PACS_WL_Bone"
             },
             {
               "name": "Brain",
               "icon": "neurology",
-              "action": "helper:keys:^!4"
+              "action": "helper:lib:PACS_WL_Brain"
             },
             {
               "name": "Stroke",
               "icon": "emergency",
-              "action": "helper:keys:^!6"
+              "action": "helper:lib:PACS_WL_Stroke"
             }
           ]
         },
@@ -146,32 +146,32 @@
             {
               "name": "Distance",
               "icon": "straighten",
-              "action": "helper:keys:^!d"
+              "action": "helper:lib:PACS_Distance"
             },
             {
               "name": "Orthogonal",
               "icon": "square_foot",
-              "action": "helper:keys:^!o"
+              "action": "helper:lib:PACS_Orthogonal"
             },
             {
               "name": "ROI",
               "icon": "adjust",
-              "action": "helper:keys:^!h"
+              "action": "helper:lib:PACS_ROI"
             },
             {
               "name": "Arrow",
               "icon": "north_east",
-              "action": "helper:keys:^!a"
+              "action": "helper:lib:PACS_Arrow"
             },
             {
               "name": "Circle",
               "icon": "circle",
-              "action": "helper:keys:^!c"
+              "action": "helper:lib:PACS_Circle"
             },
             {
               "name": "Insert measurement",
               "icon": "add_box",
-              "action": "helper:keys:^!m"
+              "action": "helper:lib:PACS_Insert_Measurement"
             }
           ]
         },
@@ -182,12 +182,12 @@
             {
               "name": "Crosshair",
               "icon": "my_location",
-              "action": "helper:keys:^!x"
+              "action": "helper:lib:PACS_Crosshair"
             },
             {
               "name": "Link crosshair",
               "icon": "link",
-              "action": "helper:keys:^!l"
+              "action": "helper:lib:PACS_LinkCrosshair"
             }
           ]
         },
@@ -198,27 +198,27 @@
             {
               "name": "Previous layout",
               "icon": "arrow_back",
-              "action": "helper:keys:^!r"
+              "action": "helper:lib:PACS_Prev_Layout"
             },
             {
               "name": "Next layout",
               "icon": "arrow_forward",
-              "action": "helper:keys:^!t"
+              "action": "helper:lib:PACS_Next_Layout"
             },
             {
               "name": "MPR",
               "icon": "view_in_ar",
-              "action": "helper:keys:^!s"
+              "action": "helper:lib:PACS_MPR"
             },
             {
               "name": "Matrix",
               "icon": "grid_view",
-              "action": "helper:keys:^!w"
+              "action": "helper:lib:PACS_Matrix"
             },
             {
               "name": "Image window",
               "icon": "web",
-              "action": "helper:keys:^!n"
+              "action": "helper:lib:PACS_ImageWindow"
             }
           ]
         },
@@ -229,12 +229,12 @@
             {
               "name": "Previous key image",
               "icon": "arrow_back",
-              "action": "helper:keys:^!k"
+              "action": "helper:lib:PACS_Prev_Key_Image"
             },
             {
               "name": "Next key image",
               "icon": "arrow_forward",
-              "action": "helper:keys:^!i"
+              "action": "helper:lib:PACS_Next_Key_Image"
             }
           ]
         },
@@ -245,19 +245,19 @@
             {
               "name": "Enhance",
               "icon": "wand_stars",
-              "action": "helper:keys:^!e"
+              "action": "helper:lib:PACS_Enhance"
             },
             {
               "name": "Sharpen",
               "icon": "filter_center_focus",
-              "action": "helper:keys:^!b"
+              "action": "helper:lib:PACS_Sharpen"
             }
           ]
         },
         {
           "name": "Insert priors",
           "icon": "history",
-          "action": "helper:keys:^!p"
+          "action": "helper:lib:PACS_Insert_Priors"
         },
         {
           "name": "PowerScribe",
@@ -271,17 +271,17 @@
             {
               "name": "Next field",
               "icon": "arrow_forward",
-              "action": "helper:keys:^!f"
+              "action": "helper:lib:PS_NextField"
             },
             {
               "name": "Previous field",
               "icon": "arrow_back",
-              "action": "helper:keys:^!v"
+              "action": "helper:lib:PS_PrevField"
             },
             {
               "name": "Lung screening 2",
               "icon": "pulmonology",
-              "action": "helper:keys:+!i"
+              "action": "helper:lib:LungScreening2"
             }
           ]
         }
@@ -414,22 +414,22 @@
         {
           "name": "Epic",
           "icon": "local_hospital",
-          "action": "helper:keys:+!e"
+          "action": "helper:lib:ActivateEPIC"
         },
         {
           "name": "Teams",
           "icon": "groups",
-          "action": "helper:keys:+!t"
+          "action": "helper:lib:ActivateTeams"
         },
         {
           "name": "Chrome tabs",
           "icon": "tab",
-          "action": "helper:keys:+!c"
+          "action": "helper:lib:OpenChromeTabs"
         },
         {
           "name": "Search selection",
           "icon": "image_search",
-          "action": "helper:keys:+!s"
+          "action": "helper:lib:SearchRadiopaediaGoogle"
         },
         {
           "name": "OpenEvidence",

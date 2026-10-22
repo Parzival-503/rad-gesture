@@ -121,6 +121,19 @@ global g_SavedClip       := ""
 global g_PendingText     := ""
 global g_DirectFlavor    := ""    ; set by the ring: skip the flavor picker
 
+; Function library (Rad Optimizer's functions; section at the bottom). Every id
+; must be in config/library.json and the other way round.
+global LIB_IDS := "PS_ToggleDictation|PS_NextField|PS_PrevField|PS_PasteIndication|LungScreening2"
+    . "|PACS_WL_SoftTissue|PACS_WL_Lung|PACS_WL_Bone|PACS_WL_Brain|PACS_WL_Stroke|PACS_Enhance|PACS_Sharpen"
+    . "|PACS_Distance|PACS_Orthogonal|PACS_ROI|PACS_Arrow|PACS_Circle|PACS_Insert_Measurement"
+    . "|PACS_Crosshair|PACS_LinkCrosshair|PACS_Prev_Key_Image|PACS_Next_Key_Image"
+    . "|PACS_Prev_Layout|PACS_Next_Layout|PACS_MPR|PACS_Matrix|PACS_ImageWindow|PACS_Insert_Priors"
+    . "|LoginUandP|LoginU|LoginP|LoginForget|ActivateEPIC|ActivateTeams|OpenChromeTabs|SearchRadiopaediaGoogle"
+global g_LibBound := {}     ; hotkey -> library id, for LibHotkey
+global g_LibPass := ""      ; the login password, this session only (never written anywhere)
+global g_LibSearchTerm := ""
+global g_LibKeyId := ""
+
 ; Bridge to the RadGesture hub (see the section at the bottom).
 global g_HubTrigger      := "^CapsLock"
 global g_HubBoundDown    := ""
@@ -132,6 +145,7 @@ global g_RingOpen        := false
 FileCreateDir, %g_DataDir%
 MigrateOldSettings()
 LoadSettings()
+RegisterLibraryHotkeys()
 RegisterHotkey()
 RegisterPriorHotkeys()
 RegisterToolHotkeys()
@@ -3161,6 +3175,7 @@ RunHubAction(a) {
         ; Settings were saved in the RadGesture window: read them again and
         ; rebind every shortcut.
         LoadSettings()
+        RegisterLibraryHotkeys()
         RegisterHotkey()
         RegisterPriorHotkeys()
         RegisterToolHotkeys()
@@ -3204,6 +3219,9 @@ RunHubAction(a) {
         ShowHistoryViewer()
     } else if (SubStr(a, 1, 4) = "run:") {
         RunProgram(SubStr(a, 5))
+    } else if (SubStr(a, 1, 4) = "lib:") {
+        ; A library function (Rad Optimizer's functions, built in).
+        LibRun(SubStr(a, 5))
     } else if (SubStr(a, 1, 5) = "keys:") {
         hubKeys := SubStr(a, 6)
         ; SendLevel 1 so another script's hotkeys (RadStopwatch's F4 / F12)
@@ -3487,4 +3505,559 @@ PS_SimulateDblClick(hCtrl, idx) {
     DllCall("PostMessage", "Ptr", hCtrl, "UInt", WM_LBUTTONUP, "Ptr", 0, "Ptr", lParam)
 
     return true
+}
+
+; ============================================================================
+; FUNCTION LIBRARY  (Rad Optimizer's functions, built in)
+; ----------------------------------------------------------------------------
+; config/library.json lists every function with its description and defaults;
+; Settings > Library is where a person turns a keyboard shortcut on or off,
+; changes it, and sets the key each function presses inside Sectra or
+; PowerScribe. All of that lives in RadGesture.ini [Lib.<id>] (the hub fills
+; in the defaults before the helper starts). Two ways in:
+;   - its keyboard shortcut (RegisterLibraryHotkeys, the same keys Rad
+;     Optimizer used, so a mouse button or macro pad keeps working), and
+;   - the ring: "helper:lib:<id>" -> RunHubAction -> LibRun(id).
+; The code is Sina's Rad Optimizer code (3-16-26 / 5-8-26), kept as it was
+; except where a comment says "Change:". Every id here must be in
+; config/library.json and the other way round (test/library.test.js).
+; ============================================================================
+
+
+; Keyboard shortcuts for the library functions that are switched on. Runs
+; BEFORE RadGesture's own shortcuts are bound, so if a person gives a library
+; function the same key as Proofread (Settings warns), Proofread wins.
+RegisterLibraryHotkeys() {
+    global g_LibBound, LIB_IDS
+    for hk in g_LibBound
+        try Hotkey, %hk%, Off
+    g_LibBound := {}
+    failed := ""
+    Loop, Parse, LIB_IDS, |
+    {
+        id := A_LoopField
+        if (LibParam(id, "On", "0") != "1")
+            continue
+        hk := LibParam(id, "Hotkey")
+        if (hk = "" || g_LibBound.HasKey(hk))
+            continue
+        try {
+            Hotkey, %hk%, LibHotkey, On
+            g_LibBound[hk] := id
+        } catch {
+            failed .= (failed = "" ? "" : ", ") . id
+        }
+    }
+    if (failed != "")
+        Toast("These library shortcuts could not be set: " . failed . ". Change them in Settings > Library.", "warn")
+}
+
+LibHotkey:
+    g_LibKeyId := g_LibBound[A_ThisHotkey]
+    LibRun(g_LibKeyId)
+    ; Settings > Status shows it; the Windows tests check it.
+    HubRequest("POST", "/done?action=lib-key:" . g_LibKeyId)
+return
+
+; One setting of a library function, from RadGesture.ini [Lib.<id>].
+LibParam(id, name, dflt := "") {
+    global INI_PATH
+    IniRead, v, %INI_PATH%, Lib.%id%, %name%, %A_Space%
+    v := Trim(v)
+    return (v = "") ? dflt : v
+}
+
+LibRun(id) {
+    if (id = "")
+        return false
+    ; "Bring this program up and press its key": most of Rad Optimizer.
+    target := LibParam(id, "Target")
+    if (target != "")
+        return LibPress(target, LibParam(id, "Key"), id)
+    if (id = "PS_ToggleDictation")
+        return Lib_ToggleDictation(LibParam(id, "Key", "{F4}"), LibParam(id, "SectraKey"))
+    if (id = "PS_PasteIndication")
+        return Lib_PasteIndication()
+    if (id = "LungScreening2")
+        return Lib_LungScreening2()
+    if (id = "PACS_Insert_Priors")
+        return Lib_InsertPriors(LibParam(id, "Key", "^p"))
+    if (id = "LoginUandP")
+        return Lib_Login(true, true, LibParam(id, "Tab", "1") = "1", LibParam(id, "Enter", "1") = "1")
+    if (id = "LoginU")
+        return Lib_Login(true, false, LibParam(id, "Tab", "0") = "1", false)
+    if (id = "LoginP")
+        return Lib_Login(false, true, false, LibParam(id, "Enter", "0") = "1")
+    if (id = "LoginForget") {
+        g_LibPass := ""
+        Notify("Password forgotten. The next login asks again.", 2000)
+        return true
+    }
+    if (id = "ActivateEPIC")
+        return Lib_ActivateEPIC()
+    if (id = "ActivateTeams")
+        return Lib_ActivateTeams()
+    if (id = "OpenChromeTabs")
+        return Lib_OpenTabs(LibParam(id, "Urls"))
+    if (id = "SearchRadiopaediaGoogle")
+        return Lib_SearchRadiopaediaGoogle()
+    Toast("Unknown library function: " . id, "warn")
+    return false
+}
+
+LibWindow(target) {
+    if (target = "sectra")
+        return "Image Window"
+    if (target = "powerscribe")
+        return "ahk_exe Nuance.PowerScribe360.exe"
+    return target
+}
+
+; Rad Optimizer's PACS_* / PS_NextField / PS_PrevField were all:
+;     WinActivate Image Window
+;     Send <key>
+; Change: if the program is not open, say so instead of pressing the key into
+; whatever window is in front (a "2" typed into the report), and wait up to
+; a second for it to come up before pressing.
+LibPress(target, keys, id := "") {
+    win := LibWindow(target)
+    if (keys = "") {
+        Notify("No key set for " . id . " (Settings > Library)", 2500)
+        return false
+    }
+    if !WinExist(win) {
+        Notify((target = "sectra" ? "Sectra's image window" : target = "powerscribe" ? "PowerScribe" : win) . " is not open", 2000)
+        return false
+    }
+    WinActivate, %win%
+    WinWaitActive, %win%, , 1
+    Send, %keys%
+    return true
+}
+
+; PS_ToggleDictation, the 3-16-26 version Sina kept: F8 in Sectra first (if
+; open), then F4 in PowerScribe. Change: both keys come from Settings; an
+; empty Sectra key skips that step.
+Lib_ToggleDictation(psKey, sectraKey) {
+    if (sectraKey != "" && WinExist("Image Window")) {
+        WinActivate, Image Window
+        WinWaitActive, Image Window, , 1
+        Send, %sectraKey%
+        Sleep, 50
+    }
+    WinActivate, ahk_exe Nuance.PowerScribe360.exe
+    WinWaitActive, ahk_exe Nuance.PowerScribe360.exe, , 1
+    Send, %psKey%
+    return true
+}
+
+; PACS_Insert_Priors, as in Rad Optimizer. The pick-list question
+; (LB_FINDSTRINGEXACT) is read-only; the field is chosen with Control,
+; ChooseString exactly as before, which has worked daily from a mouse button.
+; Change: the Sectra key comes from Settings, and it says what went wrong.
+Lib_InsertPriors(sectraKey) {
+    ps := "ahk_exe Nuance.PowerScribe360.exe"
+    fieldName := "Comparison"
+
+    ; Step 1: activate PowerScribe and select "Comparison"
+    if !WinExist(ps) {
+        Notify("PowerScribe is not open", 2000)
+        return false
+    }
+    WinActivate, %ps%
+    WinWaitActive, %ps%, , 1.5
+    if !WinActive(ps) {
+        Notify("Could not bring up PowerScribe", 2000)
+        return false
+    }
+
+    WinGet, list, ControlList, %ps%
+    found := false
+
+    Loop, Parse, list, `n
+    {
+        ctrl := A_LoopField
+        if !InStr(ctrl, "LISTBOX")
+            continue
+
+        ControlGet, h, Hwnd,, %ctrl%, %ps%
+        if (!h)
+            continue
+
+        idx := PS_LB_FindExact(h, fieldName)
+        if (idx < 0)
+            continue
+
+        ControlFocus, %ctrl%, %ps%
+        Sleep 30
+        Control, ChooseString, %fieldName%, %ctrl%, %ps%
+        found := true
+        break
+    }
+
+    if (!found) {
+        Notify("No Comparison field in this report", 2000)
+        return false
+    }
+
+    ; Step 2: activate Image Window and send the Sectra shortcut
+    WinActivate, Image Window
+    WinWaitActive, Image Window, , 1.0
+    Send, %sectraKey%
+    return true
+}
+
+; PS_PasteIndication, as in Rad Optimizer. Change: the clipboard you had
+; before comes back at the end (the original emptied it there).
+Lib_PasteIndication() {
+    ps := "ahk_exe Nuance.PowerScribe360.exe"
+    fieldName := "Indication"
+
+    ; Step 1: Capture currently highlighted/selected text
+    ClipSaved := ClipboardAll
+    Clipboard := ""
+    Send ^c
+    ClipWait, 1
+    if (Clipboard = "") {
+        Clipboard := ClipSaved
+        Notify("Highlight the indication first", 2000)
+        return false
+    }
+    selectedText := Clipboard
+    Clipboard := ClipSaved
+
+    ; Step 2: Activate PowerScribe window
+    if !WinExist(ps) {
+        Notify("PowerScribe is not open", 2000)
+        return false
+    }
+    WinActivate, %ps%
+    WinWaitActive, %ps%, , 1.5
+    if !WinActive(ps)
+        return false
+
+    ; Step 3: Scan all controls for a ListBox containing "Indication"
+    WinGet, list, ControlList, %ps%
+    found := false
+    Loop, Parse, list, `n
+    {
+        ctrl := A_LoopField
+        if !InStr(ctrl, "LISTBOX")
+            continue
+        ControlGet, h, Hwnd,, %ctrl%, %ps%
+        if (!h)
+            continue
+        idx := PS_LB_FindExact(h, fieldName)
+        if (idx < 0)
+            continue
+        ControlFocus, %ctrl%, %ps%
+        Sleep, 30
+        Control, ChooseString, %fieldName%, %ctrl%, %ps%
+        found := true
+        break
+    }
+
+    if (!found) {
+        Notify("No Indication field in this report", 2000)
+        return false
+    }
+
+    ; Step 4: Put selected text into clipboard and paste into the Indication field
+    Sleep, 150
+    Clipboard := selectedText
+    Send ^v
+
+    ; Step 5: Restore original clipboard after a brief delay
+    Sleep, 300
+    Clipboard := ClipSaved
+    return true
+}
+
+; LungScreening2 ("Lung Screening Navigation"), as in Rad Optimizer: last
+; field of the report, pick "2" in its list, double-click it. Uses the same
+; PS_LB_FindExact as Lung-RADS above (read-only question).
+Lib_LungScreening2() {
+    static cachedHwnd := 0
+    static cachedCtrl := ""
+    static psExe := "Nuance.PowerScribe360.exe"
+
+    choice := "2"
+    psWin  := "ahk_exe " . psExe
+
+    if !WinExist(psWin) {
+        Notify("PowerScribe is not open", 2000)
+        return false
+    }
+    WinActivate, %psWin%
+    WinWaitActive, %psWin%, , 1.5
+    if !WinActive(psWin)
+        return false
+
+    Send ^{End}
+    Sleep 60
+    Send +{Tab}
+    Sleep 80
+
+    if (cachedHwnd && DllCall("IsWindow", "Ptr", cachedHwnd)) {
+        idx := PS_LB_FindExact(cachedHwnd, choice)
+        if (idx >= 0) {
+            if (cachedCtrl != "") {
+                ControlFocus, %cachedCtrl%, %psWin%
+                Sleep 30
+                Control, ChooseString, %choice%, %cachedCtrl%, %psWin%
+                Sleep 40
+            }
+            return Lib_DoubleClickIndex(cachedHwnd, idx)
+        }
+        cachedHwnd := 0
+        cachedCtrl := ""
+    }
+
+    ctrl := ""
+    hCtrl := 0
+    idxFound := -1
+    if (!Lib_FindPickListControl_Fast(psWin, choice, ctrl, hCtrl, idxFound)) {
+        Notify("No list with ""2"" in the last field", 2000)
+        return false
+    }
+
+    cachedHwnd := hCtrl
+    cachedCtrl := ctrl
+
+    ControlFocus, %ctrl%, %psWin%
+    Sleep 30
+    Control, ChooseString, %choice%, %ctrl%, %psWin%
+    Sleep 40
+
+    return Lib_DoubleClickIndex(hCtrl, idxFound)
+}
+
+Lib_FindPickListControl_Fast(psWin, choice, ByRef outCtrl, ByRef outHwnd, ByRef outIdx) {
+    WinGet, list, ControlList, %psWin%
+
+    Loop, Parse, list, `n
+    {
+        ctrl := A_LoopField
+        if (ctrl = "")
+            continue
+
+        if !InStr(ctrl, "LISTBOX")
+            continue
+
+        ControlGet, hCtrl, Hwnd,, %ctrl%, %psWin%
+        if (!hCtrl)
+            continue
+
+        idx := PS_LB_FindExact(hCtrl, choice)
+        if (idx >= 0) {
+            outCtrl := ctrl
+            outHwnd := hCtrl
+            outIdx  := idx
+            return true
+        }
+    }
+    return false
+}
+
+; Rad Optimizer's PS_DoubleClickIndex: a real double-click (the mouse moves
+; there) on a list item. LB_GETITEMRECT is a read-only question.
+Lib_DoubleClickIndex(hCtrl, idx) {
+    static LB_GETITEMRECT := 0x198
+
+    VarSetCapacity(rc, 16, 0)
+    ok := DllCall("SendMessage"
+        , "Ptr", hCtrl
+        , "UInt", LB_GETITEMRECT
+        , "Ptr", idx
+        , "Ptr", &rc
+        , "Ptr")
+    if (!ok)
+        return false
+
+    left   := NumGet(rc, 0, "Int")
+    top    := NumGet(rc, 4, "Int")
+    right  := NumGet(rc, 8, "Int")
+    bottom := NumGet(rc, 12, "Int")
+
+    cx := left + ((right - left) // 2)
+    cy := top  + ((bottom - top) // 2)
+
+    VarSetCapacity(pt, 8, 0)
+    NumPut(cx, pt, 0, "Int")
+    NumPut(cy, pt, 4, "Int")
+    DllCall("ClientToScreen", "Ptr", hCtrl, "Ptr", &pt)
+
+    MouseMove, % NumGet(pt, 0, "Int"), % NumGet(pt, 4, "Int"), 0
+    Click, 2
+    return true
+}
+
+; Rad Optimizer's LoginUandP / LoginP. Changes: no username or password in
+; the code. The username comes from Settings > Library; the password is asked
+; once per session and kept only in memory (as in the merged Rad Optimizer).
+; {Raw} so a password with ! + ^ # { is typed as it is, not as Alt/Shift/...
+Lib_Login(typeUser, typePass, tab, enter) {
+    global INI_PATH
+    user := ""
+    if (typeUser) {
+        IniRead, user, %INI_PATH%, Library, Username, %A_Space%
+        user := Trim(user)
+        if (user = "") {
+            Notify("Set your username in Settings > Library first", 2500)
+            return false
+        }
+    }
+    if (typePass && !LibPassword())
+        return false
+    if (typeUser) {
+        SendEvent, {Raw}%user%
+        if (tab) {
+            SendEvent, {Tab}
+            Sleep, 200
+        }
+    }
+    if (typePass) {
+        pass := g_LibPass
+        SendEvent, {Raw}%pass%
+        if (enter)
+            SendEvent, {Enter}
+    }
+    return true
+}
+
+; Rad Optimizer's GetPassword(): asks the first time, then remembers until
+; the helper stops (or "Forget the password").
+LibPassword() {
+    global g_LibPass
+    if (g_LibPass != "")
+        return true
+    WinGet, prevId, ID, A
+    InputBox, entered, RadGesture, Password for this session (kept in memory only):, HIDE, 340, 130
+    if (ErrorLevel || entered = "")
+        return false
+    g_LibPass := entered
+    WinActivate, ahk_id %prevId%
+    WinWaitActive, ahk_id %prevId%, , 1
+    return true
+}
+
+; Rad Optimizer's ActivateEPIC. Change: says so when Epic is not open.
+Lib_ActivateEPIC() {
+    if !WinExist("Hyperspace") {
+        Notify("Epic (Hyperspace) is not open", 2000)
+        return false
+    }
+    WinActivate, Hyperspace
+    return true
+}
+
+; Rad Optimizer's ActivateTeams, unchanged.
+Lib_ActivateTeams() {
+    if WinExist("Teams")
+    {
+        WinActivate
+        return true
+    }
+
+    Run, ms-teams:
+    WinWait, Teams, , 10
+    if WinExist("Teams")
+    {
+        WinActivate
+        return true
+    }
+
+    return false
+}
+
+; Rad Optimizer's OpenChromeTabs. Change: the websites come from Settings >
+; Library (one list per person: no work links in the code), and the default
+; browser opens them when Chrome is not installed. A URL is passed as a
+; variable, so its % signs need no escaping.
+Lib_OpenTabs(urls) {
+    if (urls = "") {
+        Notify("No websites set (Settings > Library)", 2000)
+        return false
+    }
+    Loop, Parse, urls, |
+    {
+        url := Trim(A_LoopField)
+        if (url = "")
+            continue
+        try Run, chrome.exe "%url%"
+        catch
+            Run, %url%
+    }
+    return true
+}
+
+; Rad Optimizer's SearchRadiopaediaGoogle. Changes: its window and labels are
+; named LibSearch so they can't collide with the helper's; Esc closes it.
+Lib_SearchRadiopaediaGoogle() {
+    global g_LibSearchTerm
+    ClipSaved := ClipboardAll
+    Clipboard := ""
+    Send ^c
+    ClipWait, 1
+    if (Clipboard = "") {
+        Clipboard := ClipSaved
+        Notify("Highlight some text first", 1500)
+        return false
+    }
+    term := Trim(Clipboard)
+    g_LibSearchTerm := term
+    Clipboard := ClipSaved
+
+    ; Grab active window position before doing anything else
+    WinGetPos, wx, wy, ww, wh, A
+
+    Gui, LibSearch:New, +AlwaysOnTop +ToolWindow -SysMenu, Search
+    Gui, LibSearch:Add, Text,   x20 y16 w300, % """" . (StrLen(term) > 45 ? SubStr(term,1,45) "..." : term) . """"
+    Gui, LibSearch:Add, Button, x20 y48  w300 h34 gLibSearch_Gimg,  Google Images
+    Gui, LibSearch:Add, Button, x20 y90  w300 h34 gLibSearch_Rpad,  Radiopaedia
+    Gui, LibSearch:Add, Button, x20 y132 w300 h34 gLibSearch_Both,  Both
+    Gui, LibSearch:Add, Button, x20 y178 w300 h26 gLibSearch_Close, Cancel
+
+    ; Center GUI over the source window
+    guiW := 340, guiH := 220
+    gx := wx + (ww - guiW) // 2
+    gy := wy + (wh - guiH) // 2
+    Gui, LibSearch:Show, x%gx% y%gy% w%guiW% h%guiH%
+    return true
+}
+
+LibSearch_Gimg:
+    Gui, LibSearch:Destroy
+    LibSearch_OpenURL("https://www.google.com/search?tbm=isch&q=" . LibSearch_Enc(g_LibSearchTerm))
+return
+
+LibSearch_Rpad:
+    Gui, LibSearch:Destroy
+    LibSearch_OpenURL("https://radiopaedia.org/search?q=" . LibSearch_Enc(g_LibSearchTerm))
+return
+
+LibSearch_Both:
+    Gui, LibSearch:Destroy
+    LibSearch_OpenURL("https://www.google.com/search?tbm=isch&q=" . LibSearch_Enc(g_LibSearchTerm))
+    Sleep, 300
+    LibSearch_OpenURL("https://radiopaedia.org/search?q=" . LibSearch_Enc(g_LibSearchTerm))
+return
+
+LibSearchGuiClose:
+LibSearchGuiEscape:
+LibSearch_Close:
+    Gui, LibSearch:Destroy
+return
+
+LibSearch_OpenURL(url) {
+    try Run, chrome.exe "%url%"
+    catch
+        Run, %url%
+}
+
+LibSearch_Enc(str) {
+    out := ""
+    Loop, Parse, str
+        out .= (A_LoopField ~= "[A-Za-z0-9\-._~]") ? A_LoopField : "%" Format("{:02X}", Ord(A_LoopField))
+    return out
 }

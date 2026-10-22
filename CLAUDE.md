@@ -180,8 +180,8 @@ screenshots before handing over any visual change.
 Rings (visual editor: rings list, mini ring preview, directions list,
 editor with icon picker / action type / key recorder with clash warnings,
 Try it), AI tools (key + live test, model, proofread pickiness, impression
-rules, priors), Shortcuts (below), General (labels, size, start with Windows,
-pause), Status (helper state + restart, old tools that clash + close them,
+rules, priors), Shortcuts (below), Library (below), General (labels, size,
+start with Windows, pause), Status (helper state + restart, old tools that clash + close them,
 how to use, recent activity). `src/main/settings-store.js` maps it onto
 `menu.json` and `RadGesture.ini`; a save tells the helper to `reload`.
 
@@ -199,10 +199,55 @@ since a second copy would ask to replace it. Without the helper the hub
 starts it directly. Choosing a program in Settings also takes its icon
 (`app.getFileIcon`). The Windows e2e opens Notepad through it twice.
 
+### Library: Rad Optimizer's functions, built in
+
+Sina's Rad Optimizer (an AutoHotkey script + a Supabase website that
+generated it; the site is the free-org Supabase project "Radiology Workflow
+Optimizer") is now part of RadGesture. Every function it had is a **library
+function**: `config/library.json` (id = Rad Optimizer's function name, name,
+group, description, default keyboard shortcut = Rad Optimizer's key, on/off
+default, params) + its code in the helper's FUNCTION LIBRARY section
+(`LibRun(id)`). No AutoHotkey script is generated: the helper runs them.
+
+- **Two ways in**: a ring direction `helper:lib:<id>` (RunHubAction), and the
+  function's own keyboard shortcut (`RegisterLibraryHotkeys`, bound BEFORE
+  RadGesture's own so Proofread etc. win a clash). A mouse button or macro
+  pad set to send Ctrl+Alt+P keeps doing Insert priors. A shortcut run POSTs
+  `/done?action=lib-key:<id>`.
+- **Params**: `key` = what the function presses inside Sectra/PowerScribe
+  (Send syntax: `{;}`, `!o`, `^p`), `bool`, `list` (`|`-separated). Most
+  functions are `target` functions (`sectra` = "Image Window", `powerscribe` =
+  `ahk_exe Nuance.PowerScribe360.exe`): bring it up, press `Key`
+  (`LibPress`; says so instead of typing into the wrong window when the
+  program is closed). Insert priors / Paste indication / Lung screening 2 /
+  dictation / logins / Epic / Teams / websites / search are their own code.
+- **Settings**: `RadGesture.ini [Lib.<id>]` On, Hotkey, params; `Target` is
+  rewritten from the JSON every start (`syncLibrary()`, before the helper
+  starts, fills in every default). `[Library] Username`. **The password is
+  never stored** (asked once per session, in memory, `LibPassword`); no
+  username, password or work link (kp.org, SharePoint, OneDrive) goes in the
+  repo: this repo is public. `test/library.test.js` checks that.
+- **Off by default** (Sina): Dictation on/off (F8 in Sectra, then F4 in
+  PowerScribe), Paste indication (needs a selection made by hand; not on the
+  ring), the logins. Everything else is on with Rad Optimizer's keys.
+- Settings > Library: the "set the keys in Sectra first" card (colleagues'
+  Sectra differs; Sina asked for that note), one entry per function
+  (shortcut switch + recorder, the keys it presses, where it is on the
+  rings, Try it, its code via `src/main/library-code.js`), username, websites.
+  The ring editor has a "Library function" type with the same key note.
+- Saved menus: migration `library` turns a direction pressing exactly Rad
+  Optimizer's key (`helper:keys:^!2`) into `helper:lib:PACS_WL_Lung`; keys a
+  person chose for their own Sectra stay key presses.
+- A running Rad Optimizer (script or compiled `*optimizer*.exe`) is a clash
+  in Status (and on the Library page) once any library shortcut is on.
+- Adding a function: an entry in library.json, its id in `LIB_IDS`, a branch
+  in `LibRun` (unless it is a `target` function), a line in
+  `library-code.js` CODE_FUNCS. The tests fail until all are there.
+
 ### Shortcuts page (made so colleagues can use RadGesture)
 
-Sina's PACS/Apps rings press Rad Optimizer's keys; a colleague's Sectra has
-its own. So Settings > Shortcuts holds every key in one place: a 3-step
+Sina's PACS/Apps rings used to press Rad Optimizer's keys (now Library
+functions, above); a colleague's Sectra has its own. So Settings > Shortcuts holds every key in one place: a 3-step
 setup card (give tools keys in Sectra + **Copy the list**, match them here,
 **Export / Import** a `.rgkeys` set), RadGesture's own shortcuts, and **every
 `helper:keys:` direction** grouped by ring with its own recorder, search,
@@ -237,7 +282,8 @@ the default menu reaches existing users only through a step there. The
 first one removes v3.0's Stopwatch ring while it is still the shipped one;
 the second moves Orthogonal (a measuring tool) from Crosshair to Measure,
 next to Distance; the third drops Paste indication (Rad Optimizer's Ctrl+Alt+G
-only works on a selection made by hand, never from the ring).
+only works on a selection made by hand, never from the ring); the fourth
+(`library`) turns Rad Optimizer key presses into Library functions.
 
 ### Helper notes
 
@@ -283,10 +329,11 @@ only works on a selection made by hand, never from the ring).
 
 `tools/hotkey_audit.py` collects every hotkey on the workstation: the helper's
 INI defaults, RadStopwatch (from `../rad-stopwatch` when checked out, else a
-saved copy) and Rad Optimizer (keys only, in `tools/external_hotkeys.json`,
+saved copy), the Library's default shortcuts (`config/library.json`) and
+retired scripts like Rad Optimizer (keys only, in `tools/external_hotkeys.json`,
 also bundled so Settings can warn about clashes). Fails on shared keys,
 swallowed keys, ring buttons pressing unhandled keys, Windows-reserved
-combos; writes `docs/shortcuts.md`. Update the JSON when Rad Optimizer changes.
+combos, Library buttons naming no function; writes `docs/shortcuts.md`.
 
 ### Build
 
@@ -332,12 +379,10 @@ standalone script is running.
   menu no longer has a Stopwatch ring: Sina launches it with an "Open a
   program" direction set to start with RadGesture, and can still add
   "Press keys" directions for F4 / F12.
-- **Rad Optimizer** stays its own script and keeps its keys; the PACS and
-  Apps rings send them, so those rings need it running. Its code is not in any
-  repo (internal URLs, login variables). If it is ever brought in: it uses
-  `SendMessageW` on PowerScribe listboxes, which must be reduced to the four
-  read-only queries above; Ctrl+Alt+F4 there toggles dictation while
-  RadStopwatch also starts its timer on it, which is intended.
+- **Rad Optimizer** is not needed any more: its functions are the Library
+  (above). Its old script is not in any repo (it held a username and work
+  links). Ctrl+Alt+F4 (Library dictation, off by default) is shared with
+  RadStopwatch's timer on purpose.
 
 <!-- BEGIN wrap-skill (synced by sync-wrap-skill.sh — do not hand-edit) -->
 ## Close working sessions with a wrap summary

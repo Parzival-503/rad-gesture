@@ -51,14 +51,18 @@
     item.action = PREFIX + hotkeyToSend(spec);
   }
 
-  function exportSet(menu, shortcuts) {
-    return {
+  // `library` = the Library's per-function values ({ <id>: { On, Hotkey,
+  // Key, ... } }); the username is not part of it, so it never leaves the PC.
+  function exportSet(menu, shortcuts, library) {
+    const set = {
       format: FORMAT,
       version: 1,
       note: 'RadGesture shortcuts. Import it in RadGesture: Settings > Shortcuts > Import.',
       keys: keyItems(menu).map((k) => ({ path: k.path, keys: k.keys })),
       shortcuts: { ...(shortcuts || {}) },
     };
+    if (library) set.library = JSON.parse(JSON.stringify(library));
+    return set;
   }
 
   // Applies a set to `menu` (changed in place) and returns what happened.
@@ -78,7 +82,8 @@
         matched++;
       } else if (Array.isArray(e.path)) unmatched.push(e.path.join(' > '));
     }
-    return { ok: true, matched, unmatched, shortcuts: set.shortcuts && typeof set.shortcuts === 'object' ? set.shortcuts : null };
+    const library = set.library && typeof set.library === 'object' && !Array.isArray(set.library) ? set.library : null;
+    return { ok: true, matched, unmatched, shortcuts: set.shortcuts && typeof set.shortcuts === 'object' ? set.shortcuts : null, library };
   }
 
   // Back to the keys the default menu ships with, for every direction that

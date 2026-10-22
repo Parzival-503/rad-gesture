@@ -4,7 +4,7 @@ Sina's radiology tool hub. Hold **Ctrl+CapsLock** anywhere: a ring opens at the
 mouse. Flick toward a tool and let go, or tap and click.
 
 - **AI Tools**: Proofread, Impression, One-liner (4 flavors), Priors checklist
-- **PACS** and **Apps**: Rad Optimizer's shortcuts (needs Rad Optimizer running), Lung-RADS
+- **PACS** and **Apps**: Rad Optimizer's functions, now built in (Settings > Library; Rad Optimizer is no longer needed), Lung-RADS
 - **Gallery**: reference links (Lung-RADS, Fleischner, LI-RADS, TI-RADS, ...), search copied text
 
 Scroll or click the center to switch rings.

@@ -50,7 +50,8 @@ test('every helper action in the menu is handled by the AutoHotkey helper', () =
   const handled = (id) =>
     body.includes(`(a = "${id}")`) ||
     (id.startsWith('oneliner:') && body.includes('(SubStr(a, 1, 9) = "oneliner:")')) ||
-    (id.startsWith('keys:') && body.includes('(SubStr(a, 1, 5) = "keys:")'));
+    (id.startsWith('keys:') && body.includes('(SubStr(a, 1, 5) = "keys:")')) ||
+    (id.startsWith('lib:') && body.includes('(SubStr(a, 1, 4) = "lib:")')); // ids: test/library.test.js
   for (const c of menu.categories) {
     walk(c.items, (it) => {
       const a = it.action && parseAction(it.action);

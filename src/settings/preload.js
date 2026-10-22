@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('rgs', {
   saveMenu: (m) => ipcRenderer.invoke('rgs:save-menu', m),
   saveAI: (v) => ipcRenderer.invoke('rgs:save-ai', v),
   saveShortcuts: (v) => ipcRenderer.invoke('rgs:save-shortcuts', v),
+  saveLibrary: (v) => ipcRenderer.invoke('rgs:save-library', v),
   testKey: (key, model) => ipcRenderer.invoke('rgs:test-key', { key, model }),
   status: () => ipcRenderer.invoke('rgs:status'),
   restartHelper: () => ipcRenderer.invoke('rgs:restart-helper'),

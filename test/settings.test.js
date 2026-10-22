@@ -156,8 +156,8 @@ test('an older menu gets Orthogonal moved next to Distance, once', () => {
   const cross = pacs.items.find((i) => i.name === 'Crosshair');
   const names = (b) => b.items.map((i) => i.name);
   assert.deepStrictEqual(names(meas).slice(0, 2), ['Distance', 'Orthogonal'], 'the default menu already has it there');
-  // An older saved menu: Orthogonal still under Crosshair.
-  cross.items.push(meas.items.splice(1, 1)[0]);
+  // An older saved menu: Orthogonal still under Crosshair, pressing Rad Optimizer's key.
+  cross.items.push(Object.assign(meas.items.splice(1, 1)[0], { action: 'helper:keys:^!o' }));
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
   const got = store.readMenu().categories.find((c) => c.id === 'pacs');
   assert.deepStrictEqual(names(got.items.find((i) => i.name === 'Measure')).slice(0, 2), ['Distance', 'Orthogonal']);

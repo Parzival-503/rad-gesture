@@ -16,8 +16,9 @@
   let menuDraft = clone(D.menu);
   let aiDraft = { ...D.ai };
   let scDraft = { ...D.shortcuts };
-  const dirty = { menu: false, ai: false, shortcuts: false };
-  const ui = { tab: new URLSearchParams(location.search).get('tab') || 'rings', ring: 0, path: [], sel: null, iconQuery: '', iconOpen: false, showKey: false, testResult: null, confirmConvert: false, keyQuery: '', confirmClear: false };
+  let libDraft = clone(D.libraryValues);
+  const dirty = { menu: false, ai: false, shortcuts: false, library: false };
+  const ui = { tab: new URLSearchParams(location.search).get('tab') || 'rings', ring: 0, path: [], sel: null, iconQuery: '', iconOpen: false, showKey: false, testResult: null, confirmConvert: false, keyQuery: '', confirmClear: false, libQuery: '', libCode: {} };
 
   const ACCENTS = ['#8fb0ff', '#c79bff', '#f2b84b', '#5cc8d6', '#5fd38d', '#ff8f8f', '#ff9ec7', '#e6e9f0'];
   const HELPER_ACTIONS = [
@@ -117,7 +118,7 @@
   function actionType(it) {
     if (it.items) return 'ring';
     const a = M.parseAction(it.action) || { kind: 'url', value: '' };
-    if (a.kind === 'helper') return a.value.startsWith('keys:') ? 'keys' : 'ai';
+    if (a.kind === 'helper') return a.value.startsWith('keys:') ? 'keys' : a.value.startsWith('lib:') ? 'lib' : 'ai';
     return { url: 'web', file: 'file', search: 'search', hub: 'hub', app: 'app' }[a.kind] || 'web';
   }
   function describe(it) {
@@ -126,6 +127,7 @@
     if (!a) return 'no action';
     if (a.kind === 'helper') {
       if (a.value.startsWith('keys:')) return 'presses ' + HK.pretty(sendToHotkey(a.value.slice(5)));
+      if (a.value.startsWith('lib:')) { const f = libFn(a.value.slice(4)); return f ? 'library: ' + f.name : 'unknown library function'; }
       const f = HELPER_ACTIONS.find(([id]) => id === a.value);
       return f ? f[1] : a.value;
     }
@@ -144,8 +146,13 @@
     const sw = D.externalHotkeys.sibling_fallback;
     if (sw) for (const hk of sw.hotkeys) if (!hk.context) out.push({ key: hk.key, script: sw.script, does: hk.does });
     for (const [k, label] of SHORTCUTS) if (scDraft[k]) out.push({ key: scDraft[k], script: 'RadGesture', does: label, field: k });
+    for (const f of D.library.functions) {
+      const v = libDraft.values[f.id];
+      if (v && v.On === '1' && v.Hotkey) out.push({ key: v.Hotkey, script: 'RadGesture Library', does: f.name, lib: f.id });
+    }
     return out;
   }
+  const libFn = (id) => D.library.functions.find((f) => f.id === id);
 
   // ------------------------------------------------------------------ nav + save bar
 
@@ -160,7 +167,7 @@
   const saveBar = h('div', { class: 'savebar' });
   document.body.append(saveBar);
   function renderSaveBar() {
-    const parts = Object.entries(dirty).filter(([, v]) => v).map(([k]) => ({ menu: 'rings', ai: 'AI tools', shortcuts: 'shortcuts' })[k]);
+    const parts = Object.entries(dirty).filter(([, v]) => v).map(([k]) => ({ menu: 'rings', ai: 'AI tools', shortcuts: 'shortcuts', library: 'library' })[k]);
     saveBar.innerHTML = '';
     saveBar.classList.toggle('show', parts.length > 0);
     if (!parts.length) return;
@@ -189,8 +196,13 @@
       await api.saveShortcuts(scDraft);
       dirty.shortcuts = false;
     }
+    if (dirty.library) {
+      await api.saveLibrary(libDraft);
+      dirty.library = false;
+    }
     D = await api.get();
     I.setImages(D.images);
+    libDraft = clone(D.libraryValues);
     renderSaveBar();
     render();
     toast('Saved');
@@ -199,7 +211,8 @@
     menuDraft = clone(D.menu);
     aiDraft = { ...D.ai };
     scDraft = { ...D.shortcuts };
-    dirty.menu = dirty.ai = dirty.shortcuts = false;
+    libDraft = clone(D.libraryValues);
+    dirty.menu = dirty.ai = dirty.shortcuts = dirty.library = false;
     ui.path = [];
     ui.sel = null;
     ui.ring = Math.min(ui.ring, menuDraft.categories.length - 1);
@@ -222,7 +235,7 @@
     // Fade in only when the page changes, not on every re-render while editing.
     $main.classList.toggle('fresh', ui.tab !== lastTab);
     lastTab = ui.tab;
-    const page = { rings: renderRings, ai: renderAI, shortcuts: renderShortcuts, general: renderGeneral, status: renderStatus }[ui.tab] || renderRings;
+    const page = { rings: renderRings, ai: renderAI, shortcuts: renderShortcuts, library: renderLibrary, general: renderGeneral, status: renderStatus }[ui.tab] || renderRings;
     page();
     paintStatusDot();
   }
@@ -394,7 +407,7 @@
     box.append(field('Name', h('input', { type: 'text', id: 'itemName', value: it.name, oninput: (e) => { it.name = e.target.value; markDirty('menu'); refreshLists(); } })));
     box.append(field('Icon', iconPicker(it.icon, (v) => { it.icon = v; markDirty('menu'); render(); })));
     const type = actionType(it);
-    const types = [['ai', 'AI tool', 'stars'], ['app', 'Open a program', 'apps'], ['web', 'Website', 'public'], ['search', 'Search copied text', 'search'], ['file', 'File or folder', 'folder_open'], ['keys', 'Press keys', 'keyboard'], ['ring', 'Smaller ring', 'donut_small']];
+    const types = [['ai', 'AI tool', 'stars'], ['lib', 'Library function', 'library_books'], ['app', 'Open a program', 'apps'], ['web', 'Website', 'public'], ['search', 'Search copied text', 'search'], ['file', 'File or folder', 'folder_open'], ['keys', 'Press keys', 'keyboard'], ['ring', 'Smaller ring', 'donut_small']];
     box.append(field('What it does', seg(types, type, (t) => changeType(it, t))));
     box.append(typeFields(it, type));
     return box;
@@ -424,7 +437,7 @@
     } else {
       delete it.items;
       if (t !== 'app') ['args', 'ifRunning', 'startWithHub'].forEach((k) => delete it[k]);
-      it.action = { app: 'app:notepad.exe', ai: 'helper:proofread', web: 'url:https://www.google.com', search: 'search:' + SEARCHES[0][1], file: 'file:%USERPROFILE%\\Documents', keys: 'helper:keys:{F4}' }[t];
+      it.action = { app: 'app:notepad.exe', ai: 'helper:proofread', web: 'url:https://www.google.com', search: 'search:' + SEARCHES[0][1], file: 'file:%USERPROFILE%\\Documents', keys: 'helper:keys:{F4}', lib: 'helper:lib:PACS_WL_SoftTissue' }[t];
     }
     markDirty('menu');
     render();
@@ -453,6 +466,14 @@
       const sel = h('select', { class: 'wide', onchange: (e) => { set('helper:' + e.target.value); } },
         HELPER_ACTIONS.map(([id, label]) => h('option', { value: id, selected: a.value === id }, label)));
       box.append(field('Tool', sel, 'Runs in the active window, the moment you let go.'));
+    } else if (type === 'lib') {
+      const id = a.value.replace(/^lib:/, '');
+      const sel = h('select', { class: 'wide', id: 'libPick', onchange: (e) => { set('helper:lib:' + e.target.value); render(); } },
+        D.library.groups.map((g) => h('optgroup', { label: g },
+          D.library.functions.filter((f) => f.group === g).map((f) => h('option', { value: f.id, selected: f.id === id }, `${f.name}  (${f.sub})`)))));
+      const f = libFn(id);
+      box.append(field('Function', sel, f ? f.description : 'Pick a function.'));
+      if (f) box.append(libKeyNote(f, true));
     } else if (type === 'web') {
       box.append(field('Address', h('input', { type: 'url', value: a.value, placeholder: 'https://', oninput: (e) => set('url:' + e.target.value.trim()) })));
     } else if (type === 'search') {
@@ -745,12 +766,12 @@
       h('h2', {}, 'Setting up on a new workstation'),
       h('div', { class: 'steps3' },
         step(1, 'settings_applications', 'Give the tools keys in Sectra',
-          'In Sectra\'s keyboard shortcut settings, give each tool you want on the ring a key (Sectra\'s own keys work too). The list shows what the ring presses now.',
+          'In Sectra\'s keyboard shortcut settings, give each tool you want a key (Sectra\'s own keys work too). Most PACS directions are Library functions: their keys are in Library. This list is for "Press keys" directions.',
           h('button', { class: 'btn small', id: 'copyKeyList', onclick: copyKeyList }, msym('content_copy'), 'Copy the list')),
         step(2, 'keyboard', 'Match them here',
           'Under "Keys the ring presses", click each one and press the key you gave it in Sectra. Single keys are fine.'),
         step(3, 'ios_share', 'Share your setup',
-          'Export a file colleagues can import, so they only do steps 1-2 once per department.',
+          'Export a file colleagues can import (ring keys, shortcuts and the Library\'s keys; never your username), so they only do steps 1-2 once per department.',
           h('button', { class: 'btn small', id: 'exportKeys', onclick: exportKeys }, msym('upload'), 'Export...'),
           h('button', { class: 'btn small', id: 'importKeys', onclick: importKeys }, msym('download'), 'Import...'))));
   }
@@ -760,7 +781,7 @@
     toast('Copied. Paste it anywhere to keep it next to Sectra.');
   }
   async function exportKeys() {
-    const r = await api.exportKeys(KS.exportSet(menuDraft, scDraft));
+    const r = await api.exportKeys(KS.exportSet(menuDraft, scDraft, libDraft.values));
     if (r.ok) toast('Saved ' + r.file.split(/[\\/]/).pop());
     else if (!r.canceled) toast('Not saved: ' + (r.error || 'unknown error'));
   }
@@ -776,9 +797,20 @@
       for (const [k] of SHORTCUTS) if (typeof res.shortcuts[k] === 'string') scDraft[k] = res.shortcuts[k];
       markDirty('shortcuts');
     }
+    let libN = 0;
+    if (res.library) {
+      // Only known functions and known settings; everything as text.
+      for (const f of D.library.functions) {
+        const theirs = res.library[f.id];
+        if (!theirs || typeof theirs !== 'object') continue;
+        for (const k of Object.keys(libDraft.values[f.id])) if (typeof theirs[k] === 'string') libDraft.values[f.id][k] = theirs[k];
+        libN++;
+      }
+      if (libN) markDirty('library');
+    }
     markDirty('menu');
     render();
-    toast(`Imported ${res.matched} key${res.matched === 1 ? '' : 's'}` + (res.unmatched.length ? `; ${res.unmatched.length} not in your rings` : '') + '. Save to keep them.');
+    toast(`Imported ${res.matched} key${res.matched === 1 ? '' : 's'}` + (libN ? ` and ${libN} library functions` : '') + (res.unmatched.length ? `; ${res.unmatched.length} not in your rings` : '') + '. Save to keep them.');
   }
 
   function ownShortcutsCard() {
@@ -854,6 +886,159 @@
     }
     card.append(list);
     return card;
+  }
+
+  // ---------------------------------------------------------------- Library
+  //
+  // Rad Optimizer's functions, built into the helper: one entry per function
+  // with its description, its keyboard shortcut (on/off + the key), the key it
+  // presses inside Sectra or PowerScribe, Try it, where it sits on the rings,
+  // and its code. Defaults in config/library.json; choices in RadGesture.ini.
+
+  // "Presses Alt+O in Sectra" - the note that the key must already do that
+  // job in this person's Sectra / PowerScribe (Sina: colleagues have their own).
+  function libKeyNote(f, inEditor) {
+    const v = libDraft.values[f.id] || {};
+    const keys = (f.params || []).filter((p) => p.type === 'key' && v[p.name]);
+    if (!keys.length) return null;
+    const what = keys.map((p) => `${HK.pretty(sendToHotkey(v[p.name]))} ${p.label.replace(/^Presses /, '').replace(/\s*\(.*\)$/, '')}`).join(' and ');
+    return h('div', { class: 'warnline libnote' }, msym('info'),
+      h('span', {}, `Presses ${what}. That key must already do this in your ${f.group === 'PowerScribe' ? 'PowerScribe' : 'Sectra'}` +
+        (inEditor ? ': change it in Library if yours is different.' : ': set it there first, or record the key yours uses.')));
+  }
+
+  // Where each library function sits on the rings.
+  function libPlaces() {
+    const out = {};
+    menuDraft.categories.forEach((cat) => {
+      const walk = (items, path) => (items || []).forEach((it) => {
+        if (it.items) walk(it.items, path.concat(it.name));
+        else if (typeof it.action === 'string' && it.action.startsWith('helper:lib:')) {
+          const id = it.action.slice('helper:lib:'.length);
+          (out[id] = out[id] || []).push(path.concat(it.name).join(' › '));
+        }
+      });
+      walk(cat.items, [cat.name]);
+    });
+    return out;
+  }
+
+  function setLib(id, k, v) {
+    libDraft.values[id][k] = v;
+    markDirty('library');
+    render();
+  }
+
+  function renderLibrary() {
+    $main.append(h('h1', {}, 'Library'),
+      h('p', { class: 'lede' }, 'Rad Optimizer\'s functions, built into RadGesture. Each one works from the ring (Rings › a direction › Library function) and, when switched on, from its own keyboard shortcut. A mouse button or macro pad that sends that shortcut works too.'));
+    const optimizer = (D.status.conflicts || []).filter((c) => c.optimizer);
+    $main.append(h('div', { class: 'card setup', id: 'libSetup' },
+      h('h2', {}, msym('priority_high'), ' Before you use these'),
+      h('div', { class: 'steps3' },
+        h('div', { class: 'step' }, h('div', { class: 'stepn' }, '1'), h('div', { class: 'stepb' }, h('b', {}, msym('settings_applications'), 'Keys in Sectra and PowerScribe'),
+          h('p', {}, 'Most functions bring Sectra or PowerScribe up and press a key there ("Presses in Sectra"). That key must already do the job in your Sectra: set it in Sectra\'s keyboard settings, or record the key yours uses.'),
+          h('div', { class: 'addrow' }, h('button', { class: 'btn small', id: 'copyLibKeys', onclick: copyLibKeys }, msym('content_copy'), 'Copy the list')))),
+        h('div', { class: 'step' }, h('div', { class: 'stepn' }, '2'), h('div', { class: 'stepb' }, h('b', {}, msym('keyboard'), 'Your shortcuts'),
+          h('p', {}, 'Switch on the keyboard shortcuts you want. They start as Rad Optimizer\'s, so a mouse button set to Ctrl+Alt+P keeps doing Insert priors.'))),
+        h('div', { class: 'step' }, h('div', { class: 'stepn' }, '3'), h('div', { class: 'stepb' }, h('b', {}, msym('block'), 'Close Rad Optimizer'),
+          h('p', {}, 'It uses the same keys. Close it, and take it out of Windows startup, so only RadGesture answers them.'),
+          optimizer.length ? h('div', { class: 'addrow' }, h('span', { class: 'chip warn' }, msym('warning'), 'Running now'),
+            h('button', { class: 'btn small primary', id: 'closeOptimizer', onclick: async () => { D.status = await api.closeConflicts(); toast('Closed'); render(); } }, msym('close'), 'Close it now')) : null)))));
+
+    const known = knownHotkeys();
+    const places = libPlaces();
+    const q = ui.libQuery.trim().toLowerCase();
+    const search = h('input', { type: 'text', id: 'libSearch', class: 'search', placeholder: 'Search the library', value: ui.libQuery,
+      oninput: (e) => { ui.libQuery = e.target.value; const pos = e.target.selectionStart; render(); const s2 = document.getElementById('libSearch'); s2.focus(); s2.setSelectionRange(pos, pos); } });
+    const on = D.library.functions.filter((f) => libDraft.values[f.id].On === '1' && libDraft.values[f.id].Hotkey).length;
+    $main.append(h('div', { class: 'ktools', style: 'margin-bottom:14px' },
+      h('div', { class: 'searchbox' }, msym('search'), search),
+      h('span', { class: 'chip' }, `${D.library.functions.length} functions`),
+      h('span', { class: 'chip' }, `${on} shortcuts on`),
+      h('span', { class: 'grow' }),
+      h('button', { class: 'btn ghost small', id: 'libDefaults', title: 'Shortcuts and keys as RadGesture ships them (your username and websites stay)', onclick: () => {
+        for (const f of D.library.functions) {
+          const v = libDraft.values[f.id];
+          v.On = f.on ? '1' : '0';
+          v.Hotkey = f.hotkey || '';
+          for (const p of f.params || []) if (p.type === 'key' || p.type === 'bool') v[p.name] = p.default;
+        }
+        markDirty('library');
+        render();
+        toast('Back to the defaults. Save to keep them.');
+      } }, msym('restart_alt'), 'Defaults')));
+
+    for (const g of D.library.groups) {
+      const fns = D.library.functions.filter((f) => f.group === g && (!q || (f.name + ' ' + f.sub + ' ' + f.description).toLowerCase().includes(q)));
+      if (!fns.length) continue;
+      const card = h('div', { class: 'card' }, h('h2', {}, g));
+      if (g === 'Logins') {
+        card.append(row('Your username', 'Typed by the login functions. Stays on this PC; never in exported shortcut files. The password is asked once per session and never saved.',
+          h('input', { type: 'text', id: 'libUser', value: libDraft.username || '', autocomplete: 'off', spellcheck: 'false', placeholder: 'e.g. A123456',
+            oninput: (e) => { libDraft.username = e.target.value; markDirty('library'); } })));
+      }
+      for (const f of fns) card.append(libEntry(f, known, places[f.id] || []));
+      $main.append(card);
+    }
+    if (q && !D.library.functions.some((f) => (f.name + ' ' + f.sub + ' ' + f.description).toLowerCase().includes(q))) $main.append(h('div', { class: 'empty' }, 'Nothing matches.'));
+  }
+
+  function libEntry(f, known, places) {
+    const v = libDraft.values[f.id];
+    const isOn = v.On === '1';
+    const clash = isOn && v.Hotkey ? HK.clashes(v.Hotkey, known.filter((k) => k.lib !== f.id)) : [];
+    const ctl = h('div', { class: 'libctl' },
+      h('div', { class: 'libline' },
+        h('span', { class: 'liblabel' }, 'Keyboard shortcut'),
+        sw(isOn, (x) => setLib(f.id, 'On', x ? '1' : '0'), 'Keyboard shortcut for ' + f.name),
+        isOn ? recorder(v.Hotkey, (k) => setLib(f.id, 'Hotkey', k)) : h('span', { class: 'hint' }, v.Hotkey ? `off (${HK.pretty(v.Hotkey)})` : 'off')),
+      clash.length ? h('div', { class: 'warnline' }, msym('warning'), `Also used by ${clash.map((c) => `${c.script} (${c.does})`).join(', ')}.`) : null);
+    for (const p of f.params || []) {
+      if (p.type === 'key') {
+        ctl.append(h('div', { class: 'libline' }, h('span', { class: 'liblabel' }, p.label),
+          recorder(sendToHotkey(v[p.name]), (k) => setLib(f.id, p.name, hotkeyToSend(k)), { plain: true })));
+      } else if (p.type === 'bool') {
+        ctl.append(h('div', { class: 'libline' }, h('span', { class: 'liblabel' }, p.label),
+          sw(v[p.name] === '1', (x) => setLib(f.id, p.name, x ? '1' : '0'), p.label)));
+      } else if (p.type === 'list') {
+        ctl.append(h('div', { class: 'libline' }, h('span', { class: 'liblabel' }, p.label),
+          h('textarea', { class: 'wide', rows: 4, id: 'lib-' + f.id + '-' + p.name, spellcheck: 'false',
+            oninput: (e) => { v[p.name] = e.target.value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean).join('|'); markDirty('library'); } },
+          String(v[p.name] || '').split('|').join('\n'))));
+      }
+    }
+    const note = libKeyNote(f, false);
+    const showCode = !!ui.libCode[f.id];
+    const code = (D.libraryCode || {})[f.id];
+    return h('div', { class: 'libfn', id: 'lib-' + f.id },
+      h('div', { class: 'libhead' },
+        h('span', { class: 'kic' }, icon(f.icon)),
+        h('div', { class: 'libtx' }, h('b', {}, f.name, h('span', { class: 'chip', style: 'margin-left:8px' }, f.sub)), h('small', {}, f.description),
+          note,
+          h('small', { class: 'libplaces' }, msym('donut_large'), places.length ? 'On the ring: ' + places.join('; ') : 'Not on a ring (add it in Rings: Library function)')),
+        h('div', { class: 'libbtns' },
+          h('button', { class: 'btn small', title: 'Runs it now with your SAVED settings', onclick: () => { api.runHelperAction('lib:' + f.id); toast('Sent to the helper: ' + f.name); } }, msym('play_arrow'), 'Try it'),
+          code ? h('button', { class: 'btn ghost small', onclick: () => { ui.libCode[f.id] = !showCode; render(); } }, msym('code'), showCode ? 'Hide code' : 'Code') : null)),
+      ctl,
+      showCode && code ? h('pre', { class: 'libcode' }, code) : null);
+  }
+
+  async function copyLibKeys() {
+    const lines = ['RadGesture Library: keys pressed inside Sectra / PowerScribe', ''];
+    for (const g of D.library.groups) {
+      const fns = D.library.functions.filter((f) => f.group === g && (f.params || []).some((p) => p.type === 'key'));
+      if (!fns.length) continue;
+      lines.push(g);
+      for (const f of fns) {
+        const v = libDraft.values[f.id];
+        const keys = f.params.filter((p) => p.type === 'key').map((p) => `${p.label.replace(/^Presses /, '')}: ${v[p.name] ? HK.pretty(sendToHotkey(v[p.name])) : '(not set)'}`);
+        lines.push(`  ${f.name}: ${keys.join('; ')}` + (v.On === '1' && v.Hotkey ? `   [shortcut ${HK.pretty(v.Hotkey)}]` : ''));
+      }
+      lines.push('');
+    }
+    await api.copyText(lines.join('\r\n'));
+    toast('Copied. Paste it anywhere to keep it next to Sectra.');
   }
 
   // ---------------------------------------------------------------- General
@@ -944,7 +1129,7 @@
           h('div', { class: 'addrow' },
             h('button', { class: 'btn primary', id: 'closeConflicts', onclick: async () => { D.status = await api.closeConflicts(); toast('Closed'); render(); } }, msym('close'), 'Close them now'),
             c.some((x) => x.kind === 'old-radgesture') ? h('button', { class: 'btn', onclick: () => api.openUninstall() }, msym('delete'), 'Uninstall old RadGesture...') : null))
-        : h('div', { class: 'big' }, h('div', { class: 'orb good' }, msym('verified')), h('div', {}, h('h3', {}, 'None found'), h('p', {}, 'No old RadGesture, RadProofread, RadOneLiner or Lung-RADS script is running.')))
+        : h('div', { class: 'big' }, h('div', { class: 'orb good' }, msym('verified')), h('div', {}, h('h3', {}, 'None found'), h('p', {}, 'No old RadGesture, RadProofread, RadOneLiner, Lung-RADS or Rad Optimizer script is running.')))
       , h('div', { class: 'addrow' }, h('button', { class: 'btn ghost small', onclick: async () => { D.status = await api.rescan(); render(); } }, msym('refresh'), 'Check again'))));
 
     $main.append(h('div', { class: 'card' },

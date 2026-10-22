@@ -1,242 +1,6 @@
 {
-  "_about": "Shortcuts of Sina's scripts that are NOT in this repo, for tools/hotkey_audit.py. Keys and actions only: Rad Optimizer's links and login variables stay on the workstation. Update this when those scripts change. 'sends' = keys the script presses into an app.",
-  "running": [
-    {
-      "script": "Rad Optimizer",
-      "hotkeys": [
-        {
-          "key": "^!g",
-          "does": "PowerScribe: paste selection into Indication",
-          "sends": [
-            "^c",
-            "^v"
-          ]
-        },
-        {
-          "key": "^!F4",
-          "does": "PowerScribe: dictation on/off",
-          "sends": [
-            "{F4}"
-          ]
-        },
-        {
-          "key": "^!f",
-          "does": "PowerScribe: next field",
-          "sends": [
-            "{Tab}"
-          ]
-        },
-        {
-          "key": "^!v",
-          "does": "PowerScribe: previous field",
-          "sends": [
-            "+{Tab}"
-          ]
-        },
-        {
-          "key": "^!o",
-          "does": "PACS: orthogonal",
-          "sends": [
-            "!o"
-          ]
-        },
-        {
-          "key": "^!d",
-          "does": "PACS: distance",
-          "sends": [
-            "!d"
-          ]
-        },
-        {
-          "key": "^!h",
-          "does": "PACS: ROI",
-          "sends": [
-            "!h"
-          ]
-        },
-        {
-          "key": "^!a",
-          "does": "PACS: arrow",
-          "sends": [
-            "!a"
-          ]
-        },
-        {
-          "key": "^!c",
-          "does": "PACS: circle",
-          "sends": [
-            "!c"
-          ]
-        },
-        {
-          "key": "^!m",
-          "does": "PACS: insert measurement",
-          "sends": [
-            "!m"
-          ]
-        },
-        {
-          "key": "^!x",
-          "does": "PACS: crosshair",
-          "sends": [
-            "x"
-          ]
-        },
-        {
-          "key": "^!l",
-          "does": "PACS: link crosshair",
-          "sends": [
-            "!x"
-          ]
-        },
-        {
-          "key": "^!p",
-          "does": "PACS: insert priors (Comparison field)",
-          "sends": [
-            "^p"
-          ]
-        },
-        {
-          "key": "^!k",
-          "does": "PACS: previous key image",
-          "sends": [
-            ";"
-          ]
-        },
-        {
-          "key": "^!i",
-          "does": "PACS: next key image",
-          "sends": [
-            "'"
-          ]
-        },
-        {
-          "key": "^!r",
-          "does": "PACS: previous layout",
-          "sends": [
-            "["
-          ]
-        },
-        {
-          "key": "^!t",
-          "does": "PACS: next layout",
-          "sends": [
-            "]"
-          ]
-        },
-        {
-          "key": "^!1",
-          "does": "PACS: W/L soft tissue",
-          "sends": [
-            "1"
-          ]
-        },
-        {
-          "key": "^!2",
-          "does": "PACS: W/L lung",
-          "sends": [
-            "2"
-          ]
-        },
-        {
-          "key": "^!3",
-          "does": "PACS: W/L bone",
-          "sends": [
-            "3"
-          ]
-        },
-        {
-          "key": "^!4",
-          "does": "PACS: W/L brain",
-          "sends": [
-            "4"
-          ]
-        },
-        {
-          "key": "^!6",
-          "does": "PACS: W/L stroke",
-          "sends": [
-            "6"
-          ]
-        },
-        {
-          "key": "^!e",
-          "does": "PACS: enhance",
-          "sends": [
-            "!e"
-          ]
-        },
-        {
-          "key": "^!b",
-          "does": "PACS: sharpen",
-          "sends": [
-            "!b"
-          ]
-        },
-        {
-          "key": "^!s",
-          "does": "PACS: MPR",
-          "sends": [
-            "^m"
-          ]
-        },
-        {
-          "key": "^!w",
-          "does": "PACS: matrix",
-          "sends": [
-            "m"
-          ]
-        },
-        {
-          "key": "^!n",
-          "does": "PACS: image window",
-          "sends": [
-            "n"
-          ]
-        },
-        {
-          "key": "+!u",
-          "does": "Type user name + password",
-          "sends": []
-        },
-        {
-          "key": "+!p",
-          "does": "Type password",
-          "sends": []
-        },
-        {
-          "key": "+!e",
-          "does": "Switch to Epic",
-          "sends": []
-        },
-        {
-          "key": "+!t",
-          "does": "Switch to Teams",
-          "sends": []
-        },
-        {
-          "key": "+!c",
-          "does": "Open Chrome tabs",
-          "sends": []
-        },
-        {
-          "key": "+!s",
-          "does": "Search selection (Radiopaedia / Google Images)",
-          "sends": [
-            "^c"
-          ]
-        },
-        {
-          "key": "+!i",
-          "does": "PowerScribe: lung screening pick-list 2",
-          "sends": [
-            "^{End}",
-            "+{Tab}"
-          ]
-        }
-      ]
-    }
-  ],
+  "_about": "Shortcuts of scripts that are NOT in this repo, for tools/hotkey_audit.py and the Settings window's clash warnings. 'running' = scripts expected to run next to RadGesture (none now: RadStopwatch is read from its repo, with 'sibling_fallback' as the saved copy). 'retire' = scripts that must be closed because RadGesture took over their keys: Rad Optimizer's functions are RadGesture's Library now (config/library.json). Keys and actions only: no links or login variables. 'sends' = keys a script presses into an app.",
+  "running": [],
   "retire": [
     {
       "script": "old RadGesture (Kando)",
@@ -273,12 +37,153 @@
           "does": "Lung-RADS"
         }
       ]
+    },
+    {
+      "script": "Rad Optimizer",
+      "hotkeys": [
+        {
+          "key": "^!g",
+          "does": "PowerScribe: paste selection into Indication"
+        },
+        {
+          "key": "^!F4",
+          "does": "PowerScribe: dictation on/off"
+        },
+        {
+          "key": "^!f",
+          "does": "PowerScribe: next field"
+        },
+        {
+          "key": "^!v",
+          "does": "PowerScribe: previous field"
+        },
+        {
+          "key": "^!o",
+          "does": "PACS: orthogonal"
+        },
+        {
+          "key": "^!d",
+          "does": "PACS: distance"
+        },
+        {
+          "key": "^!h",
+          "does": "PACS: ROI"
+        },
+        {
+          "key": "^!a",
+          "does": "PACS: arrow"
+        },
+        {
+          "key": "^!c",
+          "does": "PACS: circle"
+        },
+        {
+          "key": "^!m",
+          "does": "PACS: insert measurement"
+        },
+        {
+          "key": "^!x",
+          "does": "PACS: crosshair"
+        },
+        {
+          "key": "^!l",
+          "does": "PACS: link crosshair"
+        },
+        {
+          "key": "^!p",
+          "does": "PACS: insert priors (Comparison field)"
+        },
+        {
+          "key": "^!k",
+          "does": "PACS: previous key image"
+        },
+        {
+          "key": "^!i",
+          "does": "PACS: next key image"
+        },
+        {
+          "key": "^!r",
+          "does": "PACS: previous layout"
+        },
+        {
+          "key": "^!t",
+          "does": "PACS: next layout"
+        },
+        {
+          "key": "^!1",
+          "does": "PACS: W/L soft tissue"
+        },
+        {
+          "key": "^!2",
+          "does": "PACS: W/L lung"
+        },
+        {
+          "key": "^!3",
+          "does": "PACS: W/L bone"
+        },
+        {
+          "key": "^!4",
+          "does": "PACS: W/L brain"
+        },
+        {
+          "key": "^!6",
+          "does": "PACS: W/L stroke"
+        },
+        {
+          "key": "^!e",
+          "does": "PACS: enhance"
+        },
+        {
+          "key": "^!b",
+          "does": "PACS: sharpen"
+        },
+        {
+          "key": "^!s",
+          "does": "PACS: MPR"
+        },
+        {
+          "key": "^!w",
+          "does": "PACS: matrix"
+        },
+        {
+          "key": "^!n",
+          "does": "PACS: image window"
+        },
+        {
+          "key": "+!u",
+          "does": "Type user name + password"
+        },
+        {
+          "key": "+!p",
+          "does": "Type password"
+        },
+        {
+          "key": "+!e",
+          "does": "Switch to Epic"
+        },
+        {
+          "key": "+!t",
+          "does": "Switch to Teams"
+        },
+        {
+          "key": "+!c",
+          "does": "Open Chrome tabs"
+        },
+        {
+          "key": "+!s",
+          "does": "Search selection (Radiopaedia / Google Images)"
+        },
+        {
+          "key": "+!i",
+          "does": "PowerScribe: lung screening pick-list 2"
+        }
+      ]
     }
   ],
   "shared_on_purpose": [
     {
       "key": "^!F4",
-      "why": "Rad Optimizer turns dictation on and RadStopwatch (~ passes the key through) starts the study timer: one press, both."
+      "why": "RadGesture Library's \"Dictation on/off\" (off by default) turns dictation on and RadStopwatch (~ passes the key through) starts the study timer: one press, both."
     }
   ],
   "sibling_fallback": {

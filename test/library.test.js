@@ -1,0 +1,185 @@
+// The function library: Rad Optimizer's functions, built into the helper.
+const test = require('node:test');
+const assert = require('node:assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const HK = require('../src/common/hotkeys');
+const KS = require('../src/common/keyset');
+const { createStore, migrate, optimizerKeyMap } = require('../src/main/settings-store');
+const { codeFor, functionSource, CODE_FUNCS } = require('../src/main/library-code');
+const ini = require('../src/main/ini');
+
+const root = path.join(__dirname, '..');
+const lib = JSON.parse(fs.readFileSync(path.join(root, 'config/library.json'), 'utf8'));
+const ahk = fs.readFileSync(path.join(root, 'helper/RadGestureHelper.ahk'), 'utf8');
+const defaultMenu = JSON.parse(fs.readFileSync(path.join(root, 'config/default-menu.json'), 'utf8'));
+
+const helperIds = () => {
+  const m = ahk.match(/global LIB_IDS := ((?:"[^"]*"\s*(?:\.\s*)?)+)/);
+  return m[1].match(/"([^"]*)"/g).map((s) => s.slice(1, -1)).join('').split('|');
+};
+
+test('library.json: unique ids, known groups and targets, valid shortcuts and keys', () => {
+  const ids = lib.functions.map((f) => f.id);
+  assert.strictEqual(new Set(ids).size, ids.length);
+  for (const f of lib.functions) {
+    assert.ok(lib.groups.includes(f.group), `${f.id}: group ${f.group}`);
+    assert.ok(f.name && f.description && f.icon, f.id);
+    if (f.target) assert.ok(lib.targets[f.target], `${f.id}: target ${f.target}`);
+    if (f.hotkey) assert.ok(HK.parse(f.hotkey).key, `${f.id}: hotkey ${f.hotkey}`);
+    for (const p of f.params || []) {
+      assert.ok(['key', 'bool', 'list'].includes(p.type), `${f.id}.${p.name}`);
+      if (p.type === 'key' && p.default) assert.ok(KS.sendToHotkey(p.default), `${f.id}.${p.name}: ${p.default}`);
+      if (p.type === 'bool') assert.ok(['0', '1'].includes(p.default));
+    }
+    if (f.target) assert.ok((f.params || []).some((p) => p.name === 'Key'), `${f.id} needs a Key`);
+  }
+});
+
+test('the helper knows exactly the library functions in library.json', () => {
+  assert.deepStrictEqual(helperIds().sort(), lib.functions.map((f) => f.id).sort());
+  const body = ahk.slice(ahk.indexOf('LibRun(id) {'), ahk.indexOf('LibWindow(target) {'));
+  for (const f of lib.functions) {
+    if (f.target) continue; // LibPress, from the Target setting
+    assert.ok(body.includes(`(id = "${f.id}")`), `LibRun has no branch for ${f.id}`);
+  }
+  for (const t of Object.keys(lib.targets)) assert.ok(ahk.includes(`(target = "${t}")`), `LibWindow does not know ${t}`);
+});
+
+test('no two library functions share a default shortcut, and none takes a RadGesture key', () => {
+  const seen = new Map();
+  for (const f of lib.functions.filter((x) => x.hotkey)) {
+    const k = HK.pretty(f.hotkey);
+    assert.ok(!seen.has(k), `${f.id} and ${seen.get(k)} both use ${k}`);
+    seen.set(k, f.id);
+  }
+  for (const own of ['^!q', '^!u', '!+l', '^CapsLock']) assert.ok(!seen.has(HK.pretty(own)), own);
+});
+
+test('defaults: Rad Optimizer keys, dictation / paste indication / logins off', () => {
+  const f = (id) => lib.functions.find((x) => x.id === id);
+  assert.strictEqual(f('PACS_WL_Lung').hotkey, '^!2');
+  assert.strictEqual(f('PACS_Insert_Priors').hotkey, '^!p');
+  assert.strictEqual(f('PACS_Insert_Priors').params[0].default, '^p');
+  for (const id of ['PS_ToggleDictation', 'PS_PasteIndication', 'LoginUandP', 'LoginP', 'LoginU']) assert.strictEqual(f(id).on, false, id);
+  assert.strictEqual(f('PS_ToggleDictation').params.find((p) => p.name === 'SectraKey').default, '{F8}');
+});
+
+test('no work links, usernames or passwords in the library or the helper', () => {
+  const text = JSON.stringify(lib) + ahk;
+  assert.ok(!/kp\.org|sharepoint|onedrive|docs\.google\.com\/document/i.test(text));
+  assert.ok(!/nuser\s*:=|npass\s*:=\s*"/.test(text));
+  assert.ok(!/f\d{6}/i.test(JSON.stringify(lib)));
+});
+
+test('every ring button that runs a library function names a real one', () => {
+  const ids = new Set(lib.functions.map((f) => f.id));
+  const walk = (items) => items.forEach((it) => {
+    if (it.items) return walk(it.items);
+    if (it.action.startsWith('helper:lib:')) assert.ok(ids.has(it.action.slice(11)), it.action);
+    assert.ok(!/^helper:keys:(\^!|\+!)/.test(it.action), `${it.name} still presses Rad Optimizer's ${it.action}`);
+  });
+  defaultMenu.categories.forEach((c) => walk(c.items));
+});
+
+test('a saved menu: Rad Optimizer keys become library functions, own keys stay', () => {
+  const m = { categories: [{ id: 'pacs', name: 'PACS', items: [
+    { name: 'Lung', icon: 'x', action: 'helper:keys:^!2' },
+    { name: 'Mine', icon: 'x', action: 'helper:keys:2' },
+    { name: 'Group', icon: 'x', items: [{ name: 'Priors', icon: 'x', action: 'helper:keys:^!p' }, { name: 'Epic', icon: 'x', action: 'helper:keys:+!e' }] },
+  ] }] };
+  assert.strictEqual(migrate(m, lib), true);
+  assert.strictEqual(m.categories[0].items[0].action, 'helper:lib:PACS_WL_Lung');
+  assert.strictEqual(m.categories[0].items[1].action, 'helper:keys:2');
+  assert.strictEqual(m.categories[0].items[2].items[0].action, 'helper:lib:PACS_Insert_Priors');
+  assert.strictEqual(m.categories[0].items[2].items[1].action, 'helper:lib:ActivateEPIC');
+  assert.ok(m.migrated.includes('library'));
+  // once only: a key put back by hand afterwards stays
+  m.categories[0].items[1].action = 'helper:keys:^!3';
+  migrate(m, lib);
+  assert.strictEqual(m.categories[0].items[1].action, 'helper:keys:^!3');
+  assert.strictEqual(optimizerKeyMap(lib).get('helper:keys:^!6'), 'helper:lib:PACS_WL_Stroke');
+});
+
+function tmpStore() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-lib-'));
+  return { dir, store: createStore({ userDir: () => dir, defaultMenuPath: path.join(root, 'config/default-menu.json'), libraryPath: path.join(root, 'config/library.json') }) };
+}
+
+test('the INI gets every library default before the helper starts, and keeps what a person chose', () => {
+  const { dir, store } = tmpStore();
+  assert.strictEqual(store.syncLibrary(), true);
+  const read = () => ini.parse(fs.readFileSync(path.join(dir, 'RadGesture.ini'), 'latin1'));
+  let s = read();
+  assert.strictEqual(ini.get(s, 'Lib.PACS_WL_Lung', 'Hotkey'), '^!2');
+  assert.strictEqual(ini.get(s, 'Lib.PACS_WL_Lung', 'On'), '1');
+  assert.strictEqual(ini.get(s, 'Lib.PACS_WL_Lung', 'Key'), '2');
+  assert.strictEqual(ini.get(s, 'Lib.PACS_WL_Lung', 'Target'), 'sectra');
+  assert.strictEqual(ini.get(s, 'Lib.PS_ToggleDictation', 'On'), '0');
+  assert.strictEqual(ini.get(s, 'Lib.PACS_Insert_Priors', 'Target', null), null);
+  assert.strictEqual(store.syncLibrary(), false); // nothing missing now
+
+  const v = store.readLibrary();
+  v.values.PACS_WL_Lung.Key = 'l';
+  v.values.PACS_WL_Lung.On = '0';
+  v.values.OpenChromeTabs.Urls = 'https://a.example/|https://b.example/x%20y';
+  v.username = '  someone  ';
+  store.writeLibrary(v);
+  store.syncLibrary();
+  s = read();
+  assert.strictEqual(ini.get(s, 'Lib.PACS_WL_Lung', 'Key'), 'l');
+  assert.strictEqual(ini.get(s, 'Lib.PACS_WL_Lung', 'On'), '0');
+  assert.strictEqual(ini.get(s, 'Library', 'Username'), 'someone');
+  assert.strictEqual(store.readLibrary().values.OpenChromeTabs.Urls, 'https://a.example/|https://b.example/x%20y');
+  // Target is not a setting: a hand-edited one is put back
+  const raw = fs.readFileSync(path.join(dir, 'RadGesture.ini'), 'latin1').replace('Target=sectra', 'Target=notepad');
+  fs.writeFileSync(path.join(dir, 'RadGesture.ini'), raw, 'latin1');
+  store.syncLibrary();
+  assert.strictEqual(ini.get(read(), 'Lib.PACS_WL_Lung', 'Target'), 'sectra');
+});
+
+test('the library keeps the rest of the INI as it was', () => {
+  const { dir, store } = tmpStore();
+  fs.writeFileSync(path.join(dir, 'RadGesture.ini'), '[API]\r\nApiKey=sk-ant-x\r\n[Behavior]\r\nHotkey=^!q\r\n', 'latin1');
+  store.syncLibrary();
+  const s = ini.parse(fs.readFileSync(path.join(dir, 'RadGesture.ini'), 'latin1'));
+  assert.strictEqual(ini.get(s, 'API', 'ApiKey'), 'sk-ant-x');
+  assert.strictEqual(ini.get(s, 'Behavior', 'Hotkey'), '^!q');
+});
+
+test('exported shortcut sets carry the library but never the username', () => {
+  const { store } = tmpStore();
+  store.syncLibrary();
+  const v = store.readLibrary();
+  v.username = 'someone';
+  v.values.PACS_WL_Bone.Key = 'b';
+  const set = KS.exportSet(defaultMenu, {}, v.values);
+  assert.ok(!JSON.stringify(set).includes('someone'));
+  const back = KS.importSet(JSON.parse(JSON.stringify(defaultMenu)), JSON.parse(JSON.stringify(set)));
+  assert.strictEqual(back.library.PACS_WL_Bone.Key, 'b');
+  assert.strictEqual(KS.importSet(defaultMenu, { format: KS.FORMAT, keys: [], library: [] }).library, null);
+});
+
+test('"Show the code" finds every library function in the helper', () => {
+  const code = codeFor(lib, ahk, {});
+  for (const f of lib.functions) assert.ok(code[f.id] && code[f.id].length > 20, `no code for ${f.id}`);
+  assert.match(code.PACS_WL_Lung, /WinActivate, Image Window\n {4}Send, 2/);
+  assert.match(code.PACS_Insert_Priors, /^; PACS_Insert_Priors, as in Rad Optimizer/);
+  assert.match(code.PACS_Insert_Priors, /Send, %sectraKey%\n {4}return true\n\}$/);
+  for (const names of Object.values(CODE_FUNCS)) for (const n of names) assert.ok(functionSource(ahk, n), n);
+  assert.match(functionSource(ahk, 'Lib_SearchRadiopaediaGoogle'), /return true\n\}$/);
+});
+
+test('a running Rad Optimizer is a clash once library shortcuts are on, not before', () => {
+  const { classify } = require('../src/main/conflicts');
+  const procs = [
+    { ProcessId: 11, Name: 'Rad_Optimizer_5-8-26.exe', ExecutablePath: 'C:\\x\\Rad_Optimizer_5-8-26.exe', CommandLine: '"C:\\x\\Rad_Optimizer_5-8-26.exe"' },
+    { ProcessId: 12, Name: 'AutoHotkeyU64.exe', ExecutablePath: 'C:\\AHK\\AutoHotkeyU64.exe', CommandLine: '"C:\\AHK\\AutoHotkeyU64.exe" "C:\\x\\Rad_Optimizer_5-8-26.ahk"' },
+    { ProcessId: 13, Name: 'AutoHotkeyU64.exe', ExecutablePath: 'C:\\AHK\\AutoHotkeyU64.exe', CommandLine: '"C:\\AHK\\AutoHotkeyU64.exe" "C:\\x\\RadStopwatch.ahk"' },
+  ];
+  assert.deepStrictEqual(classify(procs, {}), []);
+  const on = classify(procs, { libraryOn: true });
+  assert.deepStrictEqual(on.map((c) => c.pid), [11, 12]);
+  assert.ok(on.every((c) => c.optimizer && /Library/.test(c.label)));
+});

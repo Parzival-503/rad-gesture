@@ -7,7 +7,19 @@ const HK = require('../src/common/hotkeys');
 const { validateMenu } = require('../src/common/menu');
 
 const norm = (list) => list.map((k) => { const p = HK.parse(k); return p.mods + p.key; });
-const menu = () => JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'default-menu.json'), 'utf8'));
+// A menu from before the Library: its PACS / Apps directions pressed Rad
+// Optimizer's keys (the default menu now runs library functions instead).
+const lib = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'library.json'), 'utf8'));
+const toKeys = (m) => {
+  const walk = (items) => items.forEach((it) => {
+    if (it.items) return walk(it.items);
+    const f = it.action.startsWith('helper:lib:') && lib.functions.find((x) => 'helper:lib:' + x.id === it.action);
+    if (f) it.action = 'helper:keys:' + KS.hotkeyToSend(f.hotkey);
+  });
+  m.categories.forEach((c) => walk(c.items));
+  return m;
+};
+const menu = () => toKeys(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'default-menu.json'), 'utf8')));
 
 test('keys: recorder spelling <-> Send spelling', () => {
   for (const [hot, send] of [['^!1', '^!1'], ['F4', '{F4}'], ['w', 'w'], ['^Space', '^{Space}'], ['+!i', '!+i'], ['Numpad3', '{Numpad3}'], ['^;', '^{;}']]) {
