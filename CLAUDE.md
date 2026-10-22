@@ -84,6 +84,13 @@ opened a JSON file. Rules since:
   `helper-supervisor.js` (restarts with back-off, captures errors, AHK
   fallback with `/ErrorStdOut`). Its state is always visible (tray line,
   Settings > Status, sidebar dot).
+- **One helper, always the tracked one.** The supervisor ignores a late
+  exit from a copy it already replaced (that race once nulled the new child
+  and chained restarts, leaving an untracked helper with a frozen Priors
+  toolbar and "exit code 0" in Status), and kills stray
+  RadGestureHelper.exe before each start. The helper's tray Reload exits
+  for the hub to restart it (never AHK `Reload`), and its Quit asks the hub
+  to quit. `test/supervisor.test.js`.
 - **No user-facing JSON or folders.** Everything goes through the Settings
   window (`src/settings/`). The data folder is only an "advanced" button.
 - **Nothing ships without the Windows e2e passing** (below): real AutoHotkey

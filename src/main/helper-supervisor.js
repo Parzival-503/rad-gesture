@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawn, execFile } = require('child_process');
+const { spawn, execFile, execFileSync } = require('child_process');
 
 function findAutoHotkey(configured, env = process.env) {
   const roots = [env.ProgramFiles, env['ProgramFiles(x86)'], path.join(env.LOCALAPPDATA || '', 'Programs')]
@@ -30,7 +30,7 @@ function findAutoHotkey(configured, env = process.env) {
   return candidates.find((c) => c && fs.existsSync(c)) || null;
 }
 
-function createSupervisor({ resourcesDir, ahkPathSetting, dataDir, onChange, log = () => {} }) {
+function createSupervisor({ resourcesDir, ahkPathSetting, dataDir, onChange, log = () => {}, platform = process.platform, spawnImpl = spawn, killStrays }) {
   const exePath = path.join(resourcesDir, 'RadGestureHelper.exe');
   const scriptPath = path.join(resourcesDir, 'RadGestureHelper.ahk');
   const st = {
@@ -65,8 +65,19 @@ function createSupervisor({ resourcesDir, ahkPathSetting, dataDir, onChange, log
     };
   }
 
+  // A helper left running from before (started by an earlier RadGesture, or
+  // reloaded from its own tray) is not ours to track, still shows its Priors
+  // toolbar, and may be stuck. Clear them out before starting a fresh one.
+  // Only the bundled exe: the AutoHotkey fallback shares AutoHotkey.exe with
+  // RadStopwatch and other scripts.
+  const clearStrays = killStrays || (() => {
+    try {
+      execFileSync('taskkill', ['/F', '/IM', 'RadGestureHelper.exe'], { timeout: 4000, stdio: 'ignore', windowsHide: true });
+    } catch (_) {} // none running is an error exit too
+  });
+
   function start() {
-    if (process.platform !== 'win32') {
+    if (platform !== 'win32') {
       st.lastError = 'The helper only runs on Windows.';
       changed();
       return;
@@ -81,6 +92,7 @@ function createSupervisor({ resourcesDir, ahkPathSetting, dataDir, onChange, log
       const interp = fs.existsSync(path.join(resourcesDir, 'RadGestureHelper.interpreter'));
       st.mode = 'bundled';
       cmd = exePath;
+      clearStrays();
       args = interp ? ['/ErrorStdOut', scriptPath] : [];
     } else {
       const ahk = findAutoHotkey(ahkPathSetting && ahkPathSetting());
@@ -101,12 +113,13 @@ function createSupervisor({ resourcesDir, ahkPathSetting, dataDir, onChange, log
       // folder; tell it where that is rather than both guessing.
       const env = { ...process.env };
       if (dataDir) env.RG_DATA_DIR = dataDir();
-      child = spawn(cmd, args, { windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'] });
+      child = spawnImpl(cmd, args, { windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
       st.lastError = 'Could not start the helper: ' + e.message;
       changed();
       return;
     }
+    const me = child;
     st.pid = child.pid;
     st.running = true;
     st.lastError = '';
@@ -116,18 +129,25 @@ function createSupervisor({ resourcesDir, ahkPathSetting, dataDir, onChange, log
     child.stdout.on('data', grab);
     child.stderr.on('data', grab);
     child.on('error', (e) => {
+      if (child !== me) return;
       st.lastError = 'Could not start the helper: ' + e.message;
       st.running = false;
       changed();
     });
     child.on('exit', (code) => {
+      // A copy we already replaced (restart) reports in late: not a crash of
+      // the current one. Treating it as one used to null out the new child
+      // and set off a chain of restarts that left an untracked helper behind.
+      if (child !== me) return;
       st.running = false;
       st.pid = null;
       child = null;
       if (st.stopped) return changed();
       st.lastError = st.output.trim()
         ? 'The helper stopped with this message: ' + st.output.trim().slice(0, 600)
-        : `The helper stopped (exit code ${code}).`;
+        : code === 0
+          ? 'The helper closed (exit code 0): it was exited from its own tray icon, or another copy took over.'
+          : `The helper stopped (exit code ${code}).`;
       log(st.lastError);
       // Restart with growing pauses; give up after 5 tries in 2 minutes.
       const now = Date.now();
@@ -152,7 +172,7 @@ function createSupervisor({ resourcesDir, ahkPathSetting, dataDir, onChange, log
         child.kill();
       } catch (_) {}
       // AutoHotkey can leave its tray icon behind if killed politely and slowly.
-      if (process.platform === 'win32' && pid) execFile('taskkill', ['/PID', String(pid), '/T', '/F'], () => {});
+      if (platform === 'win32' && pid) execFile('taskkill', ['/PID', String(pid), '/T', '/F'], () => {});
       child = null;
     }
   }

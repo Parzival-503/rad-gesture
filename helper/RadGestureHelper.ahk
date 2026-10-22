@@ -272,7 +272,7 @@ BuildTrayMenu() {
     Menu, Tray, Add, Prior Checklist, :PriorMenu
     Menu, Tray, Add
     Menu, Tray, Add, Reload Script, MenuReload
-    Menu, Tray, Add, Exit, MenuExit
+    Menu, Tray, Add, Quit RadGesture, MenuExit
     Menu, Tray, Default, Settings...
     Menu, Tray, Tip, % "RadGesture helper (" . g_Model . ") - Ctrl+CapsLock opens the ring"
 }
@@ -317,12 +317,18 @@ MenuPriorClear:
     PriorClear()
 return
 
+; Reload must not start a second copy behind RadGesture's back (it fought
+; the hub's own restarts and left a stray helper with its Priors toolbar).
+; Exiting lets the hub start a fresh one, which reads everything again.
 MenuReload:
-    Reload
+    ExitApp, 3
 return
 
+; The helper is part of RadGesture: Exit quits the whole thing, otherwise
+; the hub would just start the helper again.
 MenuExit:
-    ExitApp
+    if (HubRequest("POST", "/quit") = "")
+        ExitApp
 return
 
 ; ----------------------------------------------------------------------------
