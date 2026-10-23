@@ -321,3 +321,6 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
 .libline textarea { flex: 1; min-width: 260px; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
 .libcode { margin: 10px 0 0 40px; padding: 12px 14px; background: var(--well); border: 1px solid var(--line); border-radius: 10px; font: 12px/1.45 ui-monospace, Consolas, monospace; color: var(--ink-2); white-space: pre; overflow-x: auto; max-height: 360px; }
 #libSetup h2 { display: flex; align-items: center; gap: 4px; }
+.libtx input.myname { font-weight: 600; font-size: 14.5px; max-width: 420px; }
+.libtx input.mydesc { font-size: 13px; max-width: 620px; }
+.libctl textarea.mycode { width: 100%; font: 12.5px/1.5 ui-monospace, Consolas, monospace; background: var(--well); color: var(--ink); white-space: pre; tab-size: 4; }

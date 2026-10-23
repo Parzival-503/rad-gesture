@@ -208,6 +208,22 @@ async function waitFor(fn, ms, step = 200) {
     await win.$eval('main', (el) => el.scrollTo(0, 0));
     await win.screenshot({ path: path.join(SHOTS, 'settings-library.png') });
 
+    // My functions: write one, save: its script is in the functions folder.
+    const marker = path.join(userData, 'my-function-ran.txt');
+    await win.click('#addMyFunction');
+    await sleep(250);
+    await win.fill('#myFunctions .libfn:last-child input.myname', 'E2E marker');
+    await win.fill('#myFunctions .libfn:last-child textarea.mycode', 'FileAppend, ran, ' + marker);
+    await win.click('#saveAll');
+    await sleep(700);
+    const fnDir = path.join(userData, 'functions');
+    const fnFiles = fs.existsSync(fnDir) ? fs.readdirSync(fnDir) : [];
+    const myId = fnFiles.length ? fnFiles[0].replace(/\.ahk$/, '') : '';
+    check('My functions: a new function is saved as its own script', fnFiles.length === 1 && fs.readFileSync(path.join(fnDir, fnFiles[0]), 'utf8').includes('FileAppend, ran, '), fnFiles.join(','));
+    check('My functions: listed for the helper', new RegExp('Custom=' + myId).test(fs.readFileSync(path.join(userData, 'RadGesture.ini'), 'latin1')));
+    await win.$eval('#myFunctions', (el) => el.scrollIntoView());
+    await win.screenshot({ path: path.join(SHOTS, 'settings-library-mine.png') });
+
     // The ring editor offers Library functions, with the key note.
     await win.click('#nav button[data-tab="rings"]');
     await sleep(300);
@@ -351,6 +367,10 @@ async function waitFor(fn, ms, step = 200) {
 
       // Library: from the ring (as Try it does) and from its own keyboard
       // shortcut, recorded above, pressed for real by a second script.
+      if (myId) {
+        await runVia('lib:' + myId);
+        check('My functions: a function you wrote runs (bundled AutoHotkey)', await waitFor(() => fs.existsSync(marker), 10000), (await ev()).slice(-4).join(' | '));
+      }
       await runVia('lib:LoginForget');
       check('a Library function runs in the helper', await waitFor(async () => (await ev()).some((e) => e === 'done lib:LoginForget'), 8000));
       if (process.env.AHK_EXE) {

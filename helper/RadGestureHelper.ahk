@@ -3533,7 +3533,11 @@ RegisterLibraryHotkeys() {
         try Hotkey, %hk%, Off
     g_LibBound := {}
     failed := ""
-    Loop, Parse, LIB_IDS, |
+    ; Built-in functions, then "My functions" (written in Settings > Library).
+    IniRead, mine, %INI_PATH%, Library, Custom, %A_Space%
+    mine := Trim(mine)
+    ids := LIB_IDS . (mine != "" ? "|" . mine : "")
+    Loop, Parse, ids, |
     {
         id := A_LoopField
         if (LibParam(id, "On", "0") != "1")
@@ -3570,6 +3574,9 @@ LibParam(id, name, dflt := "") {
 LibRun(id) {
     if (id = "")
         return false
+    ; One of "My functions": its own script, run by the bundled AutoHotkey.
+    if (LibParam(id, "Custom") = "1")
+        return LibRunCustom(id)
     ; "Bring this program up and press its key": most of Rad Optimizer.
     target := LibParam(id, "Target")
     if (target != "")
@@ -3603,6 +3610,36 @@ LibRun(id) {
         return Lib_SearchRadiopaediaGoogle()
     Toast("Unknown library function: " . id, "warn")
     return false
+}
+
+; "My functions": %APPDATA%\RadGesture\functions\<id>.ahk, written by
+; Settings > Library. Run as a separate AutoHotkey process (the AutoHotkey
+; that ships next to the helper), so a mistake in it shows AutoHotkey's own
+; error box and can never stop or freeze the helper.
+LibRunCustom(id) {
+    global g_DataDir
+    file := g_DataDir . "\functions\" . id . ".ahk"
+    if !FileExist(file) {
+        Notify("This function's script is missing (Settings > Library)", 2500)
+        return false
+    }
+    exe := LibAutoHotkey()
+    if (exe = "") {
+        Notify("AutoHotkey is missing from the RadGesture folder: reinstall RadGesture", 3000)
+        return false
+    }
+    Run, "%exe%" "%file%", %g_DataDir%\functions, UseErrorLevel
+    return (ErrorLevel != "ERROR")
+}
+
+; The AutoHotkey that runs "My functions": shipped next to the helper; when
+; the helper itself runs as a script (fallback, development), that AutoHotkey.
+LibAutoHotkey() {
+    if FileExist(A_ScriptDir . "\AutoHotkeyU64.exe")
+        return A_ScriptDir . "\AutoHotkeyU64.exe"
+    if (!A_IsCompiled && FileExist(A_AhkPath))
+        return A_AhkPath
+    return ""
 }
 
 LibWindow(target) {

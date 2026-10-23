@@ -128,6 +128,9 @@ jobs:
             $mode = 'bundled-interpreter'
           }
           Write-Host "helper mode: $mode"
+          # "My functions" (Settings > Library) are scripts a person writes;
+          # this AutoHotkey runs them, each as its own process.
+          Copy-Item "$env:AHK_DIR\AutoHotkeyU64.exe" helper\AutoHotkeyU64.exe
           "HELPER_MODE=$mode" | Out-File -FilePath $env:GITHUB_ENV -Append
           # The exe must start and leave cleanly on its own.
           $st = if ($mode -eq 'compiled') { RunFor (Resolve-Path helper\RadGestureHelper.exe) '--selftest' 60 } else { RunFor (Resolve-Path helper\RadGestureHelper.exe) '/ErrorStdOut helper\RadGestureHelper.ahk --selftest' 60 }
@@ -177,9 +180,25 @@ jobs:
           tag: radgesture-latest
           release_name: RadGesture (latest build)
           body: |
-            Latest RadGesture. Download "RadGesture-Setup.exe" below and run it.
+            Latest RadGesture. Two ways to get it, same app:
+            - "RadGesture-Setup.exe": run it; installs for your Windows user only (no admin).
+            - "RadGesture-portable.zip": nothing to install. Unzip it somewhere permanent (e.g. Documents\RadGesture) and open RadGesture.exe. For PCs that block installers. To update: quit RadGesture from the tray, replace the folder; your rings and settings stay.
             Everything it needs is inside (including the AutoHotkey helper).
             This build passed the end-to-end test on a Windows machine with real Ctrl+CapsLock presses.
           prerelease: true
           overwrite: true
           file: dist/RadGesture-Setup.exe
+
+      - name: Publish the portable zip too (fixed link, nothing to install)
+        shell: pwsh
+        run: Copy-Item (Get-ChildItem dist\RadGesture-*-win-x64.zip | Select-Object -First 1).FullName dist\RadGesture-portable.zip
+
+      - name: Upload the portable zip to "radgesture-latest"
+        uses: svenstaro/upload-release-action@2.11.5
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: radgesture-latest
+          prerelease: true
+          overwrite: true
+          file: dist/RadGesture-portable.zip
+          asset_name: RadGesture-portable.zip

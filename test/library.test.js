@@ -183,3 +183,45 @@ test('a running Rad Optimizer is a clash once library shortcuts are on, not befo
   assert.deepStrictEqual(on.map((c) => c.pid), [11, 12]);
   assert.ok(on.every((c) => c.optimizer && /Library/.test(c.label)));
 });
+
+test('My functions: saved as their own AutoHotkey file, read back, deleted', () => {
+  const { dir, store } = tmpStore();
+  store.syncLibrary();
+  const v = store.readLibrary();
+  assert.deepStrictEqual(v.custom, []);
+  v.custom = [{ id: 'myabc123', name: 'Ortho', description: 'Alt+O in Sectra', code: 'WinActivate, Image Window\nSend, !o' }];
+  v.values.myabc123 = { On: '1', Hotkey: '^!+o' };
+  store.writeLibrary(v);
+  const file = path.join(dir, 'functions', 'myabc123.ahk');
+  const text = fs.readFileSync(file, 'utf8');
+  assert.ok(text.startsWith('﻿'), 'UTF-8 with a BOM for AutoHotkey v1');
+  assert.match(text, /#NoTrayIcon\r\n/);
+  assert.match(text, /\r\nWinActivate, Image Window\r\nSend, !o\r\n/);
+  const s = ini.parse(fs.readFileSync(path.join(dir, 'RadGesture.ini'), 'latin1'));
+  assert.strictEqual(ini.get(s, 'Library', 'Custom'), 'myabc123');
+  assert.strictEqual(ini.get(s, 'Lib.myabc123', 'Custom'), '1');
+  assert.strictEqual(ini.get(s, 'Lib.myabc123', 'Hotkey'), '^!+o');
+  const back = store.readLibrary();
+  assert.deepStrictEqual(back.custom, [{ id: 'myabc123', name: 'Ortho', description: 'Alt+O in Sectra', code: 'WinActivate, Image Window\nSend, !o' }]);
+  assert.strictEqual(back.values.myabc123.On, '1');
+  // A bad id is never written (it becomes a file name).
+  back.custom.push({ id: '..\\evil', name: 'x', code: 'x' });
+  store.writeLibrary(back);
+  assert.deepStrictEqual(fs.readdirSync(path.join(dir, 'functions')), ['myabc123.ahk']);
+  // Deleted in Settings: its file and settings go.
+  back.custom = [];
+  store.writeLibrary(back);
+  assert.ok(!fs.existsSync(file));
+  const s2 = ini.parse(fs.readFileSync(path.join(dir, 'RadGesture.ini'), 'latin1'));
+  assert.strictEqual(ini.get(s2, 'Lib.myabc123', 'Hotkey', null), null);
+  assert.strictEqual(ini.get(s2, 'Library', 'Custom'), '');
+});
+
+test('the helper runs My functions with the AutoHotkey that ships next to it', () => {
+  assert.ok(ahk.includes('if (LibParam(id, "Custom") = "1")'));
+  assert.ok(ahk.includes('IniRead, mine, %INI_PATH%, Library, Custom'));
+  assert.match(ahk, /LibAutoHotkey\(\) \{[\s\S]*AutoHotkeyU64\.exe/);
+  const wf = fs.readFileSync(path.join(root, '.github/workflows/build-windows.yml'), 'utf8');
+  assert.ok(wf.includes('helper\\AutoHotkeyU64.exe'), 'CI puts AutoHotkey next to the helper');
+  assert.ok(wf.includes('asset_name: RadGesture-portable.zip'), 'CI publishes the portable zip');
+});

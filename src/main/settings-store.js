@@ -92,6 +92,39 @@ function optimizerKeyMap(lib) {
   return m;
 }
 
+// "My functions": library functions a person writes themselves (the Rad
+// Optimizer website's personal functions). Each is an AutoHotkey script in
+// %APPDATA%\RadGesture\functions\<id>.ahk, run by the AutoHotkey that ships
+// in the helper folder as its own process, so a broken one cannot stop the
+// helper. Name / description / On / Hotkey live in [Lib.<id>] like a built-in
+// one (plus Custom=1); [Library] Custom lists the ids for the helper.
+const CUSTOM_ID = /^my[a-z0-9]{3,24}$/;
+const CODE_START = '; ---- your code ----';
+const CODE_END = '; ---- end of your code ----';
+function wrapCustom(f) {
+  const clean = (t) => String(t || '').replace(/[\r\n]+/g, ' ');
+  return [
+    '; RadGesture: one of "My functions". Written by Settings > Library; edit it there.',
+    '; ' + clean(f.name) + (f.description ? ': ' + clean(f.description) : ''),
+    '#NoEnv',
+    '#NoTrayIcon',
+    '#SingleInstance Off',
+    'SendMode Input',
+    'SetTitleMatchMode, 2',
+    CODE_START,
+    String(f.code || '').replace(/\r?\n/g, '\r\n').replace(/\s+$/, ''),
+    CODE_END,
+    '',
+  ].join('\r\n');
+}
+function unwrapCustom(text) {
+  const t = String(text || '').replace(/^\uFEFF/, '');
+  const a = t.indexOf(CODE_START);
+  const b = t.lastIndexOf(CODE_END);
+  if (a < 0 || b < a) return t;
+  return t.slice(a + CODE_START.length, b).replace(/^\r?\n/, '').replace(/\r?\n$/, '').replace(/\r\n/g, '\n');
+}
+
 // One-time changes to a menu saved by an older version. Each runs once
 // (recorded in `migrated`), so something the person adds back stays.
 const OLD_STOPWATCH_KEYS = ['helper:keys:{F4}', 'helper:keys:{F12}'];
@@ -190,7 +223,10 @@ function createStore({ userDir, defaultMenuPath, libraryPath }) {
     return true;
   }
 
-  // { values: { <id>: { On, Hotkey, Key, ... } }, username }
+  const functionsDir = () => path.join(userDir(), 'functions');
+  const customIds = (s) => String(ini.get(s, 'Library', 'Custom', '')).split('|').filter((x) => CUSTOM_ID.test(x));
+
+  // { values: { <id>: { On, Hotkey, Key, ... } }, username, custom: [...] }
   function readLibrary() {
     const lib = library();
     const s = readIni();
@@ -200,7 +236,18 @@ function createStore({ userDir, defaultMenuPath, libraryPath }) {
       values[f.id] = {};
       for (const [k, v] of Object.entries(defs[f.id])) values[f.id][k] = ini.get(s, LIB_SECTION(f.id), k, v);
     }
-    return { values, username: ini.get(s, 'Library', 'Username', '') };
+    const custom = customIds(s).map((id) => {
+      const sec = LIB_SECTION(id);
+      const file = path.join(functionsDir(), id + '.ahk');
+      values[id] = { On: ini.get(s, sec, 'On', '0'), Hotkey: ini.get(s, sec, 'Hotkey', '') };
+      return {
+        id,
+        name: ini.get(s, sec, 'Name', id),
+        description: ini.get(s, sec, 'Description', ''),
+        code: fs.existsSync(file) ? unwrapCustom(fs.readFileSync(file, 'utf8')) : '',
+      };
+    });
+    return { values, username: ini.get(s, 'Library', 'Username', ''), custom };
   }
 
   function writeLibrary(v) {
@@ -212,6 +259,27 @@ function createStore({ userDir, defaultMenuPath, libraryPath }) {
       for (const k of Object.keys(defs[f.id])) if (mine[k] !== undefined) ini.set(s, LIB_SECTION(f.id), k, String(mine[k]));
     }
     if (v.username !== undefined) ini.set(s, 'Library', 'Username', String(v.username).trim());
+    if (Array.isArray(v.custom)) {
+      const keep = v.custom.filter((f) => f && CUSTOM_ID.test(f.id));
+      for (const old of customIds(s)) {
+        if (keep.some((f) => f.id === old)) continue;
+        s.delete(LIB_SECTION(old));
+        fs.rmSync(path.join(functionsDir(), old + '.ahk'), { force: true });
+      }
+      fs.mkdirSync(functionsDir(), { recursive: true });
+      for (const f of keep) {
+        const sec = LIB_SECTION(f.id);
+        const mine = (v.values || {})[f.id] || {};
+        ini.set(s, sec, 'Custom', '1');
+        ini.set(s, sec, 'Name', String(f.name || 'My function').trim() || 'My function');
+        ini.set(s, sec, 'Description', String(f.description || '').trim());
+        ini.set(s, sec, 'On', mine.On === '1' ? '1' : '0');
+        ini.set(s, sec, 'Hotkey', String(mine.Hotkey || ''));
+        // UTF-8 with a BOM: how AutoHotkey v1 knows the file is UTF-8.
+        fs.writeFileSync(path.join(functionsDir(), f.id + '.ahk'), '\uFEFF' + wrapCustom(f), 'utf8');
+      }
+      ini.set(s, 'Library', 'Custom', keep.map((f) => f.id).join('|'));
+    }
     syncLibraryIni(s, lib);
     fs.mkdirSync(userDir(), { recursive: true });
     fs.writeFileSync(iniPath(), ini.serialize(s), 'latin1');
@@ -276,4 +344,4 @@ function createStore({ userDir, defaultMenuPath, libraryPath }) {
   };
 }
 
-module.exports = { createStore, MODELS, MODEL_LABELS, AI_FIELDS, SHORTCUT_FIELDS, migrate, libraryDefaults, syncLibraryIni, optimizerKeyMap };
+module.exports = { createStore, MODELS, MODEL_LABELS, AI_FIELDS, SHORTCUT_FIELDS, migrate, libraryDefaults, syncLibraryIni, optimizerKeyMap, wrapCustom, unwrapCustom, CUSTOM_ID };

@@ -240,9 +240,21 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   person chose for their own Sectra stay key presses.
 - A running Rad Optimizer (script or compiled `*optimizer*.exe`) is a clash
   in Status (and on the Library page) once any library shortcut is on.
-- Adding a function: an entry in library.json, its id in `LIB_IDS`, a branch
-  in `LibRun` (unless it is a `target` function), a line in
-  `library-code.js` CODE_FUNCS. The tests fail until all are there.
+- Adding a built-in function: an entry in library.json, its id in
+  `LIB_IDS`, a branch in `LibRun` (unless it is a `target` function), a line
+  in `library-code.js` CODE_FUNCS. The tests fail until all are there.
+  Step by step for people: `docs/adding-functions.md`.
+- **My functions** (Sina: "people can add new script functions, like Rad
+  Optimizer's website"): written in Settings > Library, stored as
+  `%APPDATA%\RadGesture\functions\<id>.ahk` (id `my[a-z0-9]+`, wrapped by
+  `wrapCustom` with UTF-8 BOM) + `[Lib.<id>] Custom=1, Name, Description, On,
+  Hotkey` and `[Library] Custom=id|id`. The helper runs each as its own
+  process with the AutoHotkeyU64.exe CI copies next to the helper
+  (`LibRunCustom` / `LibAutoHotkey`; uncompiled: `A_AhkPath`), so a broken one
+  shows AutoHotkey's error and never stops the helper. **Copy** on a target
+  function starts one from it. Export/Import carry them (`set.functions`,
+  code included; import never runs them). The Windows e2e writes one and
+  checks it ran.
 
 ### Shortcuts page (made so colleagues can use RadGesture)
 
@@ -338,10 +350,13 @@ combos, Library buttons naming no function; writes `docs/shortcuts.md`.
 ### Build
 
 `.github/workflows/build-windows.yml`: Linux checks + e2e, then Windows:
-download AHK v1.1, selftest, compile the helper, `npm run dist`, Windows e2e
-with real keys, then publish `RadGesture-Setup.exe` to the
-`radgesture-latest` release (fixed link
-`.../releases/download/radgesture-latest/RadGesture-Setup.exe`).
+download AHK v1.1, selftest, compile the helper (and copy AutoHotkeyU64.exe
+next to it for My functions), `npm run dist`, Windows e2e with real keys,
+then publish to the `radgesture-latest` release (fixed links):
+`.../releases/download/radgesture-latest/RadGesture-Setup.exe` (per-user
+install, no admin) and `RadGesture-portable.zip` (nothing installed: unzip
+and run `RadGesture.exe`, for PCs that block installers; same app, settings
+in `%APPDATA%\RadGesture` either way).
 
 **Closing the running app on install/uninstall** is ours, not
 electron-builder's (`build/installer.nsh` calls `build/rg-close.ps1`; keep it

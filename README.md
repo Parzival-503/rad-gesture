@@ -16,6 +16,13 @@ Scroll or click the center to switch rings.
    (The new one also finds them for you: Settings > Status.)
 2. Download https://github.com/Parzival-503/rad-gesture/releases/download/radgesture-latest/RadGesture-Setup.exe
    and run it. No admin needed, nothing else to install.
+
+   **PC blocks installers?** Download
+   https://github.com/Parzival-503/rad-gesture/releases/download/radgesture-latest/RadGesture-portable.zip
+   instead: unzip it somewhere permanent (e.g. `Documents\RadGesture`) and open
+   `RadGesture.exe`. Same app, nothing installed. To update, quit it from the
+   tray and replace the folder; your rings and settings are kept.
+   (A PC that only runs IT-approved programs blocks both; that needs IT.)
 3. Settings opens. Go to **AI tools**, paste the Claude API key, press **Test**.
 
 Everything after that is in Settings (left-click the tray icon) or the tray
@@ -25,9 +32,10 @@ icon's right-click menu: edit rings, change shortcuts, pause, start with Windows
 
 Their PACS has its own keys, so after installing:
 
-1. Settings > **Shortcuts** > **Copy the list**: what each ring button presses.
-2. In Sectra, give those tools keys (or keep Sectra's own), then click each
-   key in that list and press the same key. Single keys are fine.
+1. Settings > **Library** > **Copy the list**: the key each function presses
+   in Sectra or PowerScribe (window/level, measure, layouts, insert priors...).
+2. In Sectra, give those tools keys (or keep Sectra's own), then in Library
+   record the same key for each. Single keys are fine.
 3. Or skip both: **Import** a `.rgkeys` file someone already made with
    **Export** (one per department is enough).
 
@@ -39,6 +47,16 @@ In Settings > Rings, a direction can **open a program** (an app, shortcut or
 AutoHotkey script; it brings the window up if it is already open, and can
 start with RadGesture), and its icon can be any of about 9,000 bundled icons
 (Material and Tabler), an emoji, or a picture of your own.
+
+## Your own functions (like the Rad Optimizer website)
+
+Settings > **Library** holds every Rad Optimizer function, each with its
+description, its keyboard shortcut and the key it presses in Sectra. At the
+bottom, **My functions** > **New function**: give it a name, write its
+AutoHotkey code, then put it on a ring (Rings > a direction > Library
+function) or give it a keyboard shortcut. **Copy** on a PACS or PowerScribe
+function starts one from it. Share them with Shortcuts > **Export**. Step by
+step, with examples: [docs/adding-functions.md](docs/adding-functions.md).
 
 ## Themes
 

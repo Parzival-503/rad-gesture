@@ -146,13 +146,16 @@
     const sw = D.externalHotkeys.sibling_fallback;
     if (sw) for (const hk of sw.hotkeys) if (!hk.context) out.push({ key: hk.key, script: sw.script, does: hk.does });
     for (const [k, label] of SHORTCUTS) if (scDraft[k]) out.push({ key: scDraft[k], script: 'RadGesture', does: label, field: k });
-    for (const f of D.library.functions) {
+    for (const f of allFns()) {
       const v = libDraft.values[f.id];
       if (v && v.On === '1' && v.Hotkey) out.push({ key: v.Hotkey, script: 'RadGesture Library', does: f.name, lib: f.id });
     }
     return out;
   }
-  const libFn = (id) => D.library.functions.find((f) => f.id === id);
+  // Built-in functions plus "My functions" (written in Library), as one list.
+  const customAsFn = (c) => ({ id: c.id, name: c.name || 'My function', group: 'My functions', sub: 'Mine', description: c.description || 'Your own script.', icon: 'code', params: [], custom: true });
+  const allFns = () => D.library.functions.concat((libDraft.custom || []).map(customAsFn));
+  const libFn = (id) => allFns().find((f) => f.id === id);
 
   // ------------------------------------------------------------------ nav + save bar
 
@@ -469,8 +472,8 @@
     } else if (type === 'lib') {
       const id = a.value.replace(/^lib:/, '');
       const sel = h('select', { class: 'wide', id: 'libPick', onchange: (e) => { set('helper:lib:' + e.target.value); render(); } },
-        D.library.groups.map((g) => h('optgroup', { label: g },
-          D.library.functions.filter((f) => f.group === g).map((f) => h('option', { value: f.id, selected: f.id === id }, `${f.name}  (${f.sub})`)))));
+        D.library.groups.concat(libDraft.custom && libDraft.custom.length ? ['My functions'] : []).map((g) => h('optgroup', { label: g },
+          allFns().filter((f) => f.group === g).map((f) => h('option', { value: f.id, selected: f.id === id }, `${f.name}  (${f.sub})`)))));
       const f = libFn(id);
       box.append(field('Function', sel, f ? f.description : 'Pick a function.'));
       if (f) box.append(libKeyNote(f, true));
@@ -781,7 +784,9 @@
     toast('Copied. Paste it anywhere to keep it next to Sectra.');
   }
   async function exportKeys() {
-    const r = await api.exportKeys(KS.exportSet(menuDraft, scDraft, libDraft.values));
+    const set = KS.exportSet(menuDraft, scDraft, libDraft.values);
+    set.functions = (libDraft.custom || []).map((c) => ({ id: c.id, name: c.name, description: c.description, code: c.code }));
+    const r = await api.exportKeys(set);
     if (r.ok) toast('Saved ' + r.file.split(/[\\/]/).pop());
     else if (!r.canceled) toast('Not saved: ' + (r.error || 'unknown error'));
   }
@@ -808,9 +813,22 @@
       }
       if (libN) markDirty('library');
     }
+    // A colleague's own functions: added (same id = replaced), never run on import.
+    let fnN = 0;
+    if (Array.isArray(r.set.functions)) {
+      for (const f of r.set.functions) {
+        if (!f || typeof f.id !== 'string' || !/^my[a-z0-9]{3,24}$/.test(f.id) || typeof f.code !== 'string') continue;
+        const c = { id: f.id, name: String(f.name || 'My function'), description: String(f.description || ''), code: f.code };
+        libDraft.custom = (libDraft.custom || []).filter((x) => x.id !== c.id).concat([c]);
+        const theirs = res.library && res.library[c.id];
+        libDraft.values[c.id] = { On: theirs && theirs.On === '1' ? '1' : '0', Hotkey: theirs && typeof theirs.Hotkey === 'string' ? theirs.Hotkey : '' };
+        fnN++;
+      }
+      if (fnN) markDirty('library');
+    }
     markDirty('menu');
     render();
-    toast(`Imported ${res.matched} key${res.matched === 1 ? '' : 's'}` + (libN ? ` and ${libN} library functions` : '') + (res.unmatched.length ? `; ${res.unmatched.length} not in your rings` : '') + '. Save to keep them.');
+    toast(`Imported ${res.matched} key${res.matched === 1 ? '' : 's'}` + (libN ? ` and ${libN} library functions` : '') + (fnN ? `, plus ${fnN} of their own functions (look them over in Library before saving)` : '') + (res.unmatched.length ? `; ${res.unmatched.length} not in your rings` : '') + '. Save to keep them.');
   }
 
   function ownShortcutsCard() {
@@ -981,8 +999,85 @@
       for (const f of fns) card.append(libEntry(f, known, places[f.id] || []));
       $main.append(card);
     }
-    if (q && !D.library.functions.some((f) => (f.name + ' ' + f.sub + ' ' + f.description).toLowerCase().includes(q))) $main.append(h('div', { class: 'empty' }, 'Nothing matches.'));
+    if (q && !allFns().some((f) => (f.name + ' ' + f.sub + ' ' + f.description).toLowerCase().includes(q))) $main.append(h('div', { class: 'empty' }, 'Nothing matches.'));
+    $main.append(myFunctionsCard(known, places, q));
   }
+
+  // ---- My functions: scripts a person (or a colleague) writes, like the
+  // Rad Optimizer website's own functions. Saved as AutoHotkey files in the
+  // RadGesture folder; each runs as its own little program.
+  const NEW_FN_CODE = [
+    '; Your AutoHotkey (v1.1) code. It runs when you pick this function on the',
+    '; ring or press its keyboard shortcut. Example: bring up Sectra, press Alt+O.',
+    'WinActivate, Image Window',
+    'WinWaitActive, Image Window, , 1',
+    'Send, !o',
+  ].join('\n');
+  function newCustomId() {
+    return 'my' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
+  }
+  function addCustom(from) {
+    const id = newCustomId();
+    const f = from || { name: 'My function', description: '', code: NEW_FN_CODE };
+    libDraft.custom = (libDraft.custom || []).concat([{ id, name: f.name, description: f.description, code: f.code }]);
+    libDraft.values[id] = { On: '0', Hotkey: '' };
+    ui.libQuery = '';
+    markDirty('library');
+    render();
+    const el = document.getElementById('lib-' + id);
+    if (el) el.scrollIntoView({ block: 'center' });
+  }
+  // A built-in "bring it up and press a key" function as a starting point.
+  function copyAsCustom(f) {
+    const v = libDraft.values[f.id] || {};
+    const win = f.target === 'powerscribe' ? 'ahk_exe Nuance.PowerScribe360.exe' : 'Image Window';
+    addCustom({ name: f.name + ' (my copy)', description: f.description, code: `; Copied from the Library's "${f.name}".\nWinActivate, ${win}\nWinWaitActive, ${win}, , 1\nSend, ${v.Key || ''}` });
+  }
+
+  function myFunctionsCard(known, places, q) {
+    const mine = (libDraft.custom || []).filter((c) => !q || (c.name + ' ' + c.description + ' ' + c.code).toLowerCase().includes(q));
+    const card = h('div', { class: 'card', id: 'myFunctions' }, h('h2', {}, 'My functions'),
+      h('p', { class: 'hint', style: 'margin:-6px 0 10px' },
+        'Add your own: give it a name, write its AutoHotkey code, then put it on a ring (Rings: Library function) or give it a keyboard shortcut. ',
+        'Each one runs as its own small program, so a mistake shows AutoHotkey\'s error box and never stops RadGesture. ',
+        'Share them with Shortcuts > Export; import only from people you trust, since a function can do anything a program can.'),
+      h('div', { class: 'addrow' }, h('button', { class: 'btn primary small', id: 'addMyFunction', onclick: () => addCustom() }, msym('add'), 'New function')));
+    for (const c of mine) card.append(customEntry(c, known, places[c.id] || []));
+    if (!(libDraft.custom || []).length) card.append(h('div', { class: 'hint', style: 'margin-top:10px' }, 'None yet. Tip: "Copy" on any PACS or PowerScribe function above starts one from it.'));
+    return card;
+  }
+
+  function customEntry(c, known, places) {
+    const v = libDraft.values[c.id] || (libDraft.values[c.id] = { On: '0', Hotkey: '' });
+    const isOn = v.On === '1';
+    const clash = isOn && v.Hotkey ? HK.clashes(v.Hotkey, known.filter((k) => k.lib !== c.id)) : [];
+    const touch = () => markDirty('library');
+    return h('div', { class: 'libfn', id: 'lib-' + c.id },
+      h('div', { class: 'libhead' },
+        h('span', { class: 'kic' }, msym('code')),
+        h('div', { class: 'libtx' },
+          h('input', { type: 'text', class: 'myname', value: c.name, placeholder: 'Name', oninput: (e) => { c.name = e.target.value; touch(); } }),
+          h('input', { type: 'text', class: 'mydesc', value: c.description, placeholder: 'What it does (for you and colleagues)', oninput: (e) => { c.description = e.target.value; touch(); } }),
+          h('small', { class: 'libplaces' }, msym('donut_large'), places.length ? 'On the ring: ' + places.join('; ') : 'Not on a ring (add it in Rings: Library function)')),
+        h('div', { class: 'libbtns' },
+          h('button', { class: 'btn small', title: 'Runs it now with your SAVED settings', onclick: () => { api.runHelperAction('lib:' + c.id); toast('Sent to the helper: ' + c.name); } }, msym('play_arrow'), 'Try it'),
+          h('button', { class: 'btn ghost small danger', title: 'Delete this function', onclick: () => {
+            libDraft.custom = libDraft.custom.filter((x) => x !== c);
+            delete libDraft.values[c.id];
+            markDirty('library');
+            render();
+          } }, msym('delete')))),
+      h('div', { class: 'libctl' },
+        h('div', { class: 'libline' },
+          h('span', { class: 'liblabel' }, 'Keyboard shortcut'),
+          sw(isOn, (x) => setLib(c.id, 'On', x ? '1' : '0'), 'Keyboard shortcut for ' + c.name),
+          isOn ? recorder(v.Hotkey, (k) => setLib(c.id, 'Hotkey', k)) : h('span', { class: 'hint' }, 'off')),
+        clash.length ? h('div', { class: 'warnline' }, msym('warning'), `Also used by ${clash.map((x) => `${x.script} (${x.does})`).join(', ')}.`) : null,
+        h('textarea', { class: 'mycode', rows: Math.min(18, Math.max(6, c.code.split('\n').length + 1)), spellcheck: 'false', 'aria-label': 'AutoHotkey code for ' + c.name,
+          oninput: (e) => { c.code = e.target.value; touch(); } }, c.code),
+        h('div', { class: 'hint' }, 'AutoHotkey v1.1. Runs top to bottom. Sectra\'s window is "Image Window"; PowerScribe is "ahk_exe Nuance.PowerScribe360.exe".')));
+  }
+
 
   function libEntry(f, known, places) {
     const v = libDraft.values[f.id];
@@ -1019,7 +1114,8 @@
           h('small', { class: 'libplaces' }, msym('donut_large'), places.length ? 'On the ring: ' + places.join('; ') : 'Not on a ring (add it in Rings: Library function)')),
         h('div', { class: 'libbtns' },
           h('button', { class: 'btn small', title: 'Runs it now with your SAVED settings', onclick: () => { api.runHelperAction('lib:' + f.id); toast('Sent to the helper: ' + f.name); } }, msym('play_arrow'), 'Try it'),
-          code ? h('button', { class: 'btn ghost small', onclick: () => { ui.libCode[f.id] = !showCode; render(); } }, msym('code'), showCode ? 'Hide code' : 'Code') : null)),
+          code ? h('button', { class: 'btn ghost small', onclick: () => { ui.libCode[f.id] = !showCode; render(); } }, msym('code'), showCode ? 'Hide code' : 'Code') : null,
+          f.target ? h('button', { class: 'btn ghost small', title: 'Start one of My functions from this one', onclick: () => copyAsCustom(f) }, msym('content_copy'), 'Copy') : null)),
       ctl,
       showCode && code ? h('pre', { class: 'libcode' }, code) : null);
   }
