@@ -94,7 +94,7 @@ async function waitFor(fn, ms, step = 200) {
     check('tray > Settings... opens the Settings window', !!win);
     await win.waitForFunction(() => window.__settingsReady === true, null, { timeout: 15000 });
     await win.setViewportSize({ width: 1200, height: 780 }).catch(() => {});
-    for (const tab of ['rings', 'ai', 'shortcuts', 'library', 'general', 'status']) {
+    for (const tab of ['rings', 'ai', 'shortcuts', 'functions', 'general', 'status']) {
       await win.click(`#nav button[data-tab="${tab}"]`);
       await sleep(350);
       const h1 = await win.textContent('main h1');
@@ -179,11 +179,11 @@ async function waitFor(fn, ms, step = 200) {
     // and record it, change the key a function presses in Sectra, set the
     // username, look at the code, save: it all lands in RadGesture.ini.
     const libDef = JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'library.json'), 'utf8'));
-    await win.click('#nav button[data-tab="library"]');
+    await win.click('#nav button[data-tab="functions"]');
     await sleep(350);
-    check('Library lists every function', (await win.$$('.libfn')).length === libDef.functions.length, `${(await win.$$('.libfn')).length} of ${libDef.functions.length}`);
-    check('Library opens with the "set the keys in Sectra first" note', !!(await win.$('#libSetup')) && /Sectra/.test(await win.textContent('#libSetup')));
-    check('Library shows where a function sits on the rings', /PACS › Window \/ level › Lung/.test(await win.textContent('#lib-PACS_WL_Lung')));
+    check('Functions lists every function', (await win.$$('.libfn')).length === libDef.functions.length, `${(await win.$$('.libfn')).length} of ${libDef.functions.length}`);
+    check('Functions opens with the "set the keys in Sectra first" note', !!(await win.$('#libSetup')) && /Sectra/.test(await win.textContent('#libSetup')));
+    check('Functions shows where a function sits on the rings', /PACS › Window \/ level › Lung/.test(await win.textContent('#lib-PACS_WL_Lung')));
     await win.click('#lib-LoginForget .libline .switch');
     await sleep(150);
     await win.click('#lib-LoginForget .recorder');
@@ -196,17 +196,40 @@ async function waitFor(fn, ms, step = 200) {
     await win.fill('#libUser', 'e2e-user');
     await win.click('#lib-PACS_Insert_Priors button:has-text("Code")');
     await sleep(200);
-    check('Library shows a function\'s code', /Lib_InsertPriors/.test(await win.textContent('#lib-PACS_Insert_Priors .libcode')));
+    check('Functions shows a function\'s code', /Lib_InsertPriors/.test(await win.textContent('#lib-PACS_Insert_Priors .libcode')));
     await win.$eval('#lib-PACS_Insert_Priors', (el) => el.scrollIntoView());
     await win.screenshot({ path: path.join(SHOTS, 'settings-library-code.png') });
     await win.click('#saveAll');
     await sleep(700);
     const ini3 = fs.readFileSync(path.join(userData, 'RadGesture.ini'), 'latin1');
-    check('Library saves a shortcut switched on and recorded', /\[Lib\.LoginForget\][^[]*On=1/.test(ini3) && /\[Lib\.LoginForget\][^[]*Hotkey=\^!\+F9/.test(ini3));
-    check('Library saves the key pressed in Sectra', /\[Lib\.PACS_WL_Lung\][^[]*Key=l/.test(ini3) && /\[Lib\.PACS_WL_Lung\][^[]*Target=sectra/.test(ini3));
-    check('Library saves the username (and no password anywhere)', /\[Library\][^[]*Username=e2e-user/.test(ini3) && !/password/i.test(ini3));
+    check('Functions saves a shortcut switched on and recorded', /\[Lib\.LoginForget\][^[]*On=1/.test(ini3) && /\[Lib\.LoginForget\][^[]*Hotkey=\^!\+F9/.test(ini3));
+    check('Functions saves the key pressed in Sectra', /\[Lib\.PACS_WL_Lung\][^[]*Key=l/.test(ini3) && /\[Lib\.PACS_WL_Lung\][^[]*Target=sectra/.test(ini3));
+    check('Functions saves the username (and no password anywhere)', /\[Library\][^[]*Username=e2e-user/.test(ini3) && !/password/i.test(ini3));
     await win.$eval('main', (el) => el.scrollTo(0, 0));
     await win.screenshot({ path: path.join(SHOTS, 'settings-library.png') });
+
+    // Search and filters.
+    await win.fill('#libSearch', 'ctrl+alt+p');
+    await sleep(250);
+    check('Functions: a typed shortcut finds its function', (await win.$$('.libfn')).length === 1 && !!(await win.$('#lib-PACS_Insert_Priors')), `${(await win.$$('.libfn')).length} shown`);
+    await win.fill('#libSearch', '');
+    await win.click('.fxchip[data-group="Logins"]');
+    await sleep(200);
+    check('Functions: a group filter shows only that group', (await win.$$('.libfn')).length === 4 && (await win.textContent('#fxCount')).startsWith('4 of'), await win.textContent('#fxCount'));
+    await win.click('#fxClear');
+    await win.click('#fnFilters button:text-is("Compact")');
+    await sleep(250);
+    check('Functions: the compact view is one line per function', (await win.$$('.fnrow')).length === libDef.functions.length, `${(await win.$$('.fnrow')).length} rows`);
+    await win.screenshot({ path: path.join(SHOTS, 'settings-functions-compact.png') });
+    await win.click('#lib-PACS_WL_Lung');
+    await sleep(200);
+    check('Functions: a compact line opens to the full entry', !!(await win.$('#lib-PACS_WL_Lung.libfn')));
+    await win.click('#fnFilters button:text-is("Detailed")');
+    await win.click('#fnFilters button:text-is("Not on one")');
+    await sleep(200);
+    check('Functions: "not on a ring" filter', !(await win.$('#lib-PACS_WL_Lung')) && !!(await win.$('#lib-PS_PasteIndication')));
+    await win.click('#fxClear');
+    await sleep(200);
 
     // My functions: write one, save: its script is in the functions folder.
     const marker = path.join(userData, 'my-function-ran.txt');
@@ -231,7 +254,7 @@ async function waitFor(fn, ms, step = 200) {
     await sleep(200);
     await win.click('.rings .card:nth-child(2) .lrow:has-text("Insert priors")');
     await sleep(200);
-    check('a PACS direction is a Library function in the ring editor', (await win.$eval('#libPick', (e) => e.value)) === 'PACS_Insert_Priors');
+    check('a PACS direction is a Function in the ring editor', (await win.$eval('#libPick', (e) => e.value)) === 'PACS_Insert_Priors');
     check('the ring editor says which key it presses in Sectra', /Presses Ctrl\+P/.test(await win.textContent('.editor')));
     await win.screenshot({ path: path.join(SHOTS, 'settings-rings-library.png') });
 
@@ -372,12 +395,24 @@ async function waitFor(fn, ms, step = 200) {
         check('My functions: a function you wrote runs (bundled AutoHotkey)', await waitFor(() => fs.existsSync(marker), 10000), (await ev()).slice(-4).join(' | '));
       }
       await runVia('lib:LoginForget');
-      check('a Library function runs in the helper', await waitFor(async () => (await ev()).some((e) => e === 'done lib:LoginForget'), 8000));
+      check('a Function runs in the helper', await waitFor(async () => (await ev()).some((e) => e === 'done lib:LoginForget'), 8000));
+      // The shipped shortcuts (Rad Optimizer's keys) are on from the first
+      // start, with nothing set up: the helper says how many, and a real
+      // Ctrl+Alt+2 reaches "Lung window".
+      const wanted = JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'library.json'), 'utf8')).functions.filter((f) => f.on && f.hotkey).length;
+      const reported = (await ev()).map((e) => /^done lib-hotkeys:(\d+):(.*)$/.exec(e)).filter(Boolean).pop();
+      check('the helper switched on every shipped function shortcut', reported && Number(reported[1]) >= wanted && !reported[2], reported ? reported[0] : 'no report');
+      if (process.env.AHK_EXE) {
+        const press2 = path.join(userData, 'press-ctrl-alt-2.ahk');
+        fs.writeFileSync(press2, '#NoTrayIcon\r\nSendLevel, 1\r\nSend, ^!2\r\nExitApp\r\n');
+        spawnSync(process.env.AHK_EXE, [press2], { timeout: 15000 });
+        check('a shipped shortcut works out of the box (Ctrl+Alt+2 = Lung window)', await waitFor(async () => (await ev()).some((e) => e === 'done lib-key:PACS_WL_Lung'), 8000), (await ev()).slice(-6).join(' | '));
+      }
       if (process.env.AHK_EXE) {
         const pressFile = path.join(userData, 'press-lib.ahk');
         fs.writeFileSync(pressFile, '#NoTrayIcon\r\nSendLevel, 1\r\nSend, ^!+{F9}\r\nExitApp\r\n');
         spawnSync(process.env.AHK_EXE, [pressFile], { timeout: 15000 });
-        check('a Library keyboard shortcut runs its function', await waitFor(async () => (await ev()).some((e) => e === 'done lib-key:LoginForget'), 8000), (await ev()).slice(-6).join(' | '));
+        check('a function\'s keyboard shortcut runs it', await waitFor(async () => (await ev()).some((e) => e === 'done lib-key:LoginForget'), 8000), (await ev()).slice(-6).join(' | '));
       }
 
       const ahk = process.env.AHK_EXE;

@@ -1,6 +1,6 @@
 # Adding functions to RadGesture
 
-RadGesture's **Library** (Settings > Library) is where Rad Optimizer's
+RadGesture's **function collection** (Settings > Functions) is where Rad Optimizer's
 functions live: one entry per function, with what it does, its keyboard
 shortcut, and the key it presses inside Sectra or PowerScribe. There are two
 ways to add to it.
@@ -15,7 +15,7 @@ ways to add to it.
 
 ## 1. My functions (in Settings)
 
-1. Settings > **Library**, scroll to **My functions**, press **New function**.
+1. Settings > **Functions**, scroll to **My functions**, press **New function**.
    (Or press **Copy** on any PACS / PowerScribe function to start from it.)
 2. Give it a **name** and a line on **what it does** (colleagues see this).
 3. Write its **AutoHotkey v1.1 code**. It runs top to bottom each time.

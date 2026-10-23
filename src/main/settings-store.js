@@ -104,7 +104,7 @@ const CODE_END = '; ---- end of your code ----';
 function wrapCustom(f) {
   const clean = (t) => String(t || '').replace(/[\r\n]+/g, ' ');
   return [
-    '; RadGesture: one of "My functions". Written by Settings > Library; edit it there.',
+    '; RadGesture: one of "My functions". Written by Settings > Functions; edit it there.',
     '; ' + clean(f.name) + (f.description ? ': ' + clean(f.description) : ''),
     '#NoEnv',
     '#NoTrayIcon',
@@ -178,6 +178,15 @@ function migrate(m, lib) {
     });
     m.categories.forEach((c) => walk(c.items));
     done.push('library');
+    changed = true;
+  }
+  if (!done.includes('reference-library')) {
+    // "Gallery" confused radiologists (Sina): the ring of reading material is
+    // the Reference library. Only the shipped name changes; a ring the person
+    // renamed keeps their name.
+    const g = m.categories.find((c) => c.id === 'gallery' && c.name === 'Gallery');
+    if (g) g.name = 'Reference library';
+    done.push('reference-library');
     changed = true;
   }
   if (changed) m.migrated = done;

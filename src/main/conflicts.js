@@ -31,7 +31,7 @@ function classify(procs, { selfExe, selfPids = [], libraryOn = false }) {
       out.push({ kind: 'old-radgesture', pid: p.ProcessId, path: p.ExecutablePath, label: 'Old RadGesture (Kando)', keys: 'Ctrl+CapsLock' });
       continue;
     }
-    const optimizerLabel = 'Rad Optimizer (its functions are now in RadGesture: Settings > Library)';
+    const optimizerLabel = 'Rad Optimizer (its functions are now in RadGesture: Settings > Functions)';
     if (!name.startsWith('autohotkey')) {
       // A compiled Rad Optimizer (Rad_Optimizer_5-8-26.exe).
       if (libraryOn && /optimizer/.test(name)) out.push({ kind: 'script', pid: p.ProcessId, label: optimizerLabel, keys: OPTIMIZER_KEYS, script: p.Name, optimizer: true });

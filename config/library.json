@@ -1,5 +1,5 @@
 {
-  "_about": "RadGesture's function library: Rad Optimizer's functions, built into the helper (LibRun in helper/RadGestureHelper.ahk). Defaults only: what a person changes lives in RadGesture.ini [Lib.<id>]. hotkey = the keyboard shortcut RadGesture listens for; a 'key' param = what the function presses inside Sectra or PowerScribe. 'target' functions just bring that program up and press Key.",
+  "_about": "RadGesture's function library: Rad Optimizer's functions, built into the helper (LibRun in helper/RadGestureHelper.ahk). Defaults only: what a person changes lives in RadGesture.ini [Lib.<id>]. hotkey = the keyboard shortcut RadGesture listens for; a 'key' param = what the function presses inside Sectra or PowerScribe. 'target' functions just bring that program up and press Key. 'uses' = the programs a function that is not a 'target' one works in (for the Functions page filters).",
   "version": 1,
   "groups": [
     "PACS (Sectra)",
@@ -34,6 +34,10 @@
           "label": "Presses in Sectra first (empty: skip)",
           "default": "{F8}"
         }
+      ],
+      "uses": [
+        "powerscribe",
+        "sectra"
       ]
     },
     {
@@ -83,7 +87,10 @@
       "hotkey": "^!g",
       "on": false,
       "icon": "content_paste",
-      "params": []
+      "params": [],
+      "uses": [
+        "powerscribe"
+      ]
     },
     {
       "id": "LungScreening2",
@@ -94,7 +101,10 @@
       "hotkey": "+!i",
       "on": true,
       "icon": "pulmonology",
-      "params": []
+      "params": [],
+      "uses": [
+        "powerscribe"
+      ]
     },
     {
       "id": "PACS_WL_SoftTissue",
@@ -530,6 +540,10 @@
           "label": "Presses in Sectra",
           "default": "^p"
         }
+      ],
+      "uses": [
+        "powerscribe",
+        "sectra"
       ]
     },
     {

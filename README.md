@@ -4,8 +4,8 @@ Sina's radiology tool hub. Hold **Ctrl+CapsLock** anywhere: a ring opens at the
 mouse. Flick toward a tool and let go, or tap and click.
 
 - **AI Tools**: Proofread, Impression, One-liner (4 flavors), Priors checklist
-- **PACS** and **Apps**: Rad Optimizer's functions, now built in (Settings > Library; Rad Optimizer is no longer needed), Lung-RADS
-- **Gallery**: reference links (Lung-RADS, Fleischner, LI-RADS, TI-RADS, ...), search copied text
+- **PACS** and **Apps**: Rad Optimizer's functions, now built in (Settings > Functions; Rad Optimizer is no longer needed), Lung-RADS
+- **Reference library** (was "Gallery"): reference links (Lung-RADS, Fleischner, LI-RADS, TI-RADS, ...), search copied text
 
 Scroll or click the center to switch rings.
 
@@ -32,7 +32,7 @@ icon's right-click menu: edit rings, change shortcuts, pause, start with Windows
 
 Their PACS has its own keys, so after installing:
 
-1. Settings > **Library** > **Copy the list**: the key each function presses
+1. Settings > **Functions** > **Copy the list**: the key each function presses
    in Sectra or PowerScribe (window/level, measure, layouts, insert priors...).
 2. In Sectra, give those tools keys (or keep Sectra's own), then in Library
    record the same key for each. Single keys are fine.
@@ -50,11 +50,10 @@ start with RadGesture), and its icon can be any of about 9,000 bundled icons
 
 ## Your own functions (like the Rad Optimizer website)
 
-Settings > **Library** holds every Rad Optimizer function, each with its
+Settings > **Functions** holds every Rad Optimizer function, each with its
 description, its keyboard shortcut and the key it presses in Sectra. At the
 bottom, **My functions** > **New function**: give it a name, write its
-AutoHotkey code, then put it on a ring (Rings > a direction > Library
-function) or give it a keyboard shortcut. **Copy** on a PACS or PowerScribe
+AutoHotkey code, then put it on a ring (Rings > a direction > Function) or give it a keyboard shortcut. **Copy** on a PACS or PowerScribe
 function starts one from it. Share them with Shortcuts > **Export**. Step by
 step, with examples: [docs/adding-functions.md](docs/adding-functions.md).
 

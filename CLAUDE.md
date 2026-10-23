@@ -233,7 +233,7 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
 - **Off by default** (Sina): Dictation on/off (F8 in Sectra, then F4 in
   PowerScribe), Paste indication (needs a selection made by hand; not on the
   ring), the logins. Everything else is on with Rad Optimizer's keys.
-- Settings > Library: the "set the keys in Sectra first" card (colleagues'
+- Settings > Functions: the "set the keys in Sectra first" card (colleagues'
   Sectra differs; Sina asked for that note), one entry per function
   (shortcut switch + recorder, the keys it presses, where it is on the
   rings, Try it, its code via `src/main/library-code.js`), username, websites.
@@ -248,7 +248,7 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   in `library-code.js` CODE_FUNCS. The tests fail until all are there.
   Step by step for people: `docs/adding-functions.md`.
 - **My functions** (Sina: "people can add new script functions, like Rad
-  Optimizer's website"): written in Settings > Library, stored as
+  Optimizer's website"): written in Settings > Functions, stored as
   `%APPDATA%\RadGesture\functions\<id>.ahk` (id `my[a-z0-9]+`, wrapped by
   `wrapCustom` with UTF-8 BOM) + `[Lib.<id>] Custom=1, Name, Description, On,
   Hotkey` and `[Library] Custom=id|id`. The helper runs each as its own
@@ -258,6 +258,26 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   function starts one from it. Export/Import carry them (`set.functions`,
   code included; import never runs them). The Windows e2e writes one and
   checks it ran.
+
+**Names people see** (Sina, 2026-10-23): this page is **Functions** ("the
+function collection"), never "Library": a library is reading material. The
+ring of reading material is the **Reference library** (it was "Gallery";
+migration `reference-library` renames the shipped ring). Internal names
+(`library.json`, `[Lib.<id>]`, `helper:lib:`, `[Library]`) stay, so saved
+settings never move.
+
+- **Search and filters** (`src/common/fnfilter.js`, tested): words ANDed
+  over name/description/kind/rings/keys/code; a typed shortcut ("ctrl+alt+p",
+  "alt+o", "F4") finds what listens for it or presses it; Find by key
+  (recorder); group chips with counts; kind; works in (Sectra / PowerScribe /
+  other, from `target` or `uses`); shortcut on/off/none; on a ring or not;
+  clashes; sort by group / A-Z / shortcut; Detailed or Compact view (one line
+  per function, opens in place). Clear filters keeps sort and view.
+- **Are the shortcuts working?** After every start and reload the helper
+  POSTs `lib-hotkeys:<count>:<failed>`; Functions and Status show it against
+  how many are switched on (Sina once had none working and no way to tell).
+  The Windows e2e checks the shipped ones are all on from the first start
+  and that a real Ctrl+Alt+2 reaches Lung window.
 
 ### Shortcuts page (made so colleagues can use RadGesture)
 

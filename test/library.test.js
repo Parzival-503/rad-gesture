@@ -181,7 +181,7 @@ test('a running Rad Optimizer is a clash once library shortcuts are on, not befo
   assert.deepStrictEqual(classify(procs, {}), []);
   const on = classify(procs, { libraryOn: true });
   assert.deepStrictEqual(on.map((c) => c.pid), [11, 12]);
-  assert.ok(on.every((c) => c.optimizer && /Library/.test(c.label)));
+  assert.ok(on.every((c) => c.optimizer && /Settings > Functions/.test(c.label)));
 });
 
 test('My functions: saved as their own AutoHotkey file, read back, deleted', () => {
@@ -224,4 +224,40 @@ test('the helper runs My functions with the AutoHotkey that ships next to it', (
   const wf = fs.readFileSync(path.join(root, '.github/workflows/build-windows.yml'), 'utf8');
   assert.ok(wf.includes('helper\\AutoHotkeyU64.exe'), 'CI puts AutoHotkey next to the helper');
   assert.ok(wf.includes('asset_name: RadGesture-portable.zip'), 'CI publishes the portable zip');
+});
+
+test('the Gallery ring becomes the Reference library, once, unless renamed', () => {
+  const m = { categories: [{ id: 'gallery', name: 'Gallery', items: [{ name: 'x', icon: 'x', action: 'url:https://a.example' }] }] };
+  migrate(m, lib);
+  assert.strictEqual(m.categories[0].name, 'Reference library');
+  const mine = { categories: [{ id: 'gallery', name: 'My links', items: [{ name: 'x', icon: 'x', action: 'url:https://a.example' }] }] };
+  migrate(mine, lib);
+  assert.strictEqual(mine.categories[0].name, 'My links');
+  assert.strictEqual(defaultMenu.categories.find((c) => c.id === 'gallery').name, 'Reference library');
+});
+
+test('Functions page filters: words, typed shortcuts, groups, programs, rings, clashes, sorting', () => {
+  const FF = require('../src/common/fnfilter');
+  const cards = lib.functions.map((f) => {
+    const v = { On: f.on ? '1' : '0', Hotkey: f.hotkey };
+    for (const p of f.params || []) v[p.name] = p.default;
+    return FF.card(f, v, f.id === 'PACS_WL_Lung' ? ['PACS > Window / level > Lung'] : [], f.id === 'PACS_MPR', '');
+  });
+  const ids = (fx) => FF.apply(cards, Object.assign(FF.fresh(), fx)).map((c) => c.id);
+  assert.deepStrictEqual(ids({ q: 'lung win' }), ['PACS_WL_Lung']);
+  assert.deepStrictEqual(ids({ q: 'ctrl+alt+p' }), ['PACS_Insert_Priors'], 'a typed shortcut finds what listens for it');
+  assert.deepStrictEqual(ids({ q: 'alt+o' }), ['PACS_Orthogonal'], 'and what presses it in Sectra');
+  assert.deepStrictEqual(ids({ key: '^p' }), ['PACS_Insert_Priors'], 'find by a recorded key');
+  assert.ok(ids({ groups: ['Logins'] }).every((id) => /^Login/.test(id)));
+  assert.deepStrictEqual(ids({ groups: ['PACS (Sectra)'], sub: 'Measure' }).length, 6);
+  assert.ok(ids({ program: 'sectra' }).includes('PS_ToggleDictation'), 'dictation works in Sectra too (F8)');
+  assert.ok(!ids({ program: 'powerscribe' }).includes('PACS_WL_Lung'));
+  assert.deepStrictEqual(ids({ shortcut: 'none' }), ['LoginU', 'LoginForget']);
+  assert.ok(ids({ shortcut: 'off' }).includes('PS_ToggleDictation'));
+  assert.deepStrictEqual(ids({ ring: 'on' }), ['PACS_WL_Lung']);
+  assert.deepStrictEqual(ids({ clash: true }), ['PACS_MPR']);
+  assert.strictEqual(ids({ sort: 'az' })[0], 'PACS_Arrow');
+  assert.strictEqual(FF.activeCount(Object.assign(FF.fresh(), { q: 'x', clash: true, sort: 'az' })), 2, 'sorting is not a filter');
+  assert.strictEqual(FF.typedKey('lung'), '', 'a plain word is a word');
+  assert.strictEqual(FF.typedKey('f4'), 'f4');
 });

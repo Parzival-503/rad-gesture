@@ -3511,7 +3511,7 @@ PS_SimulateDblClick(hCtrl, idx) {
 ; FUNCTION LIBRARY  (Rad Optimizer's functions, built in)
 ; ----------------------------------------------------------------------------
 ; config/library.json lists every function with its description and defaults;
-; Settings > Library is where a person turns a keyboard shortcut on or off,
+; Settings > Functions is where a person turns a keyboard shortcut on or off,
 ; changes it, and sets the key each function presses inside Sectra or
 ; PowerScribe. All of that lives in RadGesture.ini [Lib.<id>] (the hub fills
 ; in the defaults before the helper starts). Two ways in:
@@ -3533,7 +3533,7 @@ RegisterLibraryHotkeys() {
         try Hotkey, %hk%, Off
     g_LibBound := {}
     failed := ""
-    ; Built-in functions, then "My functions" (written in Settings > Library).
+    ; Built-in functions, then "My functions" (written in Settings > Functions).
     IniRead, mine, %INI_PATH%, Library, Custom, %A_Space%
     mine := Trim(mine)
     ids := LIB_IDS . (mine != "" ? "|" . mine : "")
@@ -3553,7 +3553,9 @@ RegisterLibraryHotkeys() {
         }
     }
     if (failed != "")
-        Toast("These library shortcuts could not be set: " . failed . ". Change them in Settings > Library.", "warn")
+        Toast("These function shortcuts could not be set: " . failed . ". Change them in Settings > Functions.", "warn")
+    ; Settings shows how many are really listening ("lib-hotkeys:<n>:<failed>").
+    HubRequest("POST", "/done?action=lib-hotkeys:" . g_LibBound.Count() . ":" . failed)
 }
 
 LibHotkey:
@@ -3613,14 +3615,14 @@ LibRun(id) {
 }
 
 ; "My functions": %APPDATA%\RadGesture\functions\<id>.ahk, written by
-; Settings > Library. Run as a separate AutoHotkey process (the AutoHotkey
+; Settings > Functions. Run as a separate AutoHotkey process (the AutoHotkey
 ; that ships next to the helper), so a mistake in it shows AutoHotkey's own
 ; error box and can never stop or freeze the helper.
 LibRunCustom(id) {
     global g_DataDir
     file := g_DataDir . "\functions\" . id . ".ahk"
     if !FileExist(file) {
-        Notify("This function's script is missing (Settings > Library)", 2500)
+        Notify("This function's script is missing (Settings > Functions)", 2500)
         return false
     }
     exe := LibAutoHotkey()
@@ -3659,7 +3661,7 @@ LibWindow(target) {
 LibPress(target, keys, id := "") {
     win := LibWindow(target)
     if (keys = "") {
-        Notify("No key set for " . id . " (Settings > Library)", 2500)
+        Notify("No key set for " . id . " (Settings > Functions)", 2500)
         return false
     }
     if !WinExist(win) {
@@ -3930,7 +3932,7 @@ Lib_DoubleClickIndex(hCtrl, idx) {
 }
 
 ; Rad Optimizer's LoginUandP / LoginP. Changes: no username or password in
-; the code. The username comes from Settings > Library; the password is asked
+; the code. The username comes from Settings > Functions; the password is asked
 ; once per session and kept only in memory (as in the merged Rad Optimizer).
 ; {Raw} so a password with ! + ^ # { is typed as it is, not as Alt/Shift/...
 Lib_Login(typeUser, typePass, tab, enter) {
@@ -3940,7 +3942,7 @@ Lib_Login(typeUser, typePass, tab, enter) {
         IniRead, user, %INI_PATH%, Library, Username, %A_Space%
         user := Trim(user)
         if (user = "") {
-            Notify("Set your username in Settings > Library first", 2500)
+            Notify("Set your username in Settings > Functions first", 2500)
             return false
         }
     }
@@ -4008,12 +4010,12 @@ Lib_ActivateTeams() {
 }
 
 ; Rad Optimizer's OpenChromeTabs. Change: the websites come from Settings >
-; Library (one list per person: no work links in the code), and the default
+; Functions (one list per person: no work links in the code), and the default
 ; browser opens them when Chrome is not installed. A URL is passed as a
 ; variable, so its % signs need no escaping.
 Lib_OpenTabs(urls) {
     if (urls = "") {
-        Notify("No websites set (Settings > Library)", 2000)
+        Notify("No websites set (Settings > Functions)", 2000)
         return false
     }
     Loop, Parse, urls, |

@@ -1,4 +1,4 @@
-// The AutoHotkey code behind each library function, for Settings > Library
+// The AutoHotkey code behind each library function, for Settings > Functions
 // ("Show the code"), the way the Rad Optimizer website showed each module.
 // Read from the helper script itself, so what is shown is what runs.
 

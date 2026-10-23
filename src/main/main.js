@@ -52,6 +52,7 @@ let paused = false;
 let hideTimer = null;
 let releaseSeq = 0;
 let lastConflicts = [];
+let libHotkeys = null; // { count, failed, at } from the helper, after each start / reload
 const releaseWaiters = new Map();
 const events = []; // recent bridge events, for Settings > Status and the tests
 
@@ -306,6 +307,9 @@ async function startBridge() {
     onPoll: () => supervisor && supervisor.notePoll(),
     onDone: (action) => {
       logEvent('done', action);
+      // The helper says how many function shortcuts it switched on.
+      const m = /^lib-hotkeys:(\d+):?(.*)$/.exec(action);
+      if (m) libHotkeys = { count: Number(m[1]), failed: m[2] ? m[2].split(', ') : [], at: Date.now() };
       supervisor && supervisor.noteDone(action);
     },
     onOpenSettings: (tab) => openSettings(tab || 'general'),
@@ -368,6 +372,8 @@ function fullStatus() {
     helper: supervisor.status(),
     paused,
     conflicts: lastConflicts,
+    libHotkeys,
+    libHotkeysWanted: libraryWanted(),
     startAtLogin: process.platform === 'win32' ? app.getLoginItemSettings().openAtLogin : false,
     dataFolder: userDir(),
     events: events.slice(-15),
@@ -413,6 +419,17 @@ function libraryHotkeysOn() {
     return Object.values(store.readLibrary().values).some((v) => v.On === '1' && v.Hotkey);
   } catch (_) {
     return false;
+  }
+}
+
+// How many function shortcuts are switched on in Settings (what the helper
+// should report back).
+function libraryWanted() {
+  try {
+    const v = store.readLibrary().values;
+    return new Set(Object.values(v).filter((x) => x.On === '1' && x.Hotkey).map((x) => x.Hotkey.toLowerCase())).size;
+  } catch (_) {
+    return 0;
   }
 }
 
