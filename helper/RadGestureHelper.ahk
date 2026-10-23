@@ -1984,7 +1984,7 @@ HtmlEscape(s) {
 ; way Ctrl+Alt+Q does in PowerScribe.
 ;
 ; Focus: both windows are WS_EX_NOACTIVATE (+E0x08000000) and always shown
-; with NoActivate, same as RadStopwatch's wellness card. Clicking their
+; with NoActivate. Clicking their
 ; buttons leaves the keyboard where it was, so dictation never lands in the
 ; wrong window. For the same reason there is no MsgBox anywhere in this mode:
 ; messages go through Notify() (a tooltip) or into the checklist window.
@@ -2444,8 +2444,7 @@ PriorListPaste() {
 }
 
 ; ----------------------------------------------------------------------------
-; Current exam title from PowerScribe. Copied from RadStopwatch's
-; ReadExamFromPS() - keep the two in step. It only reads control text with
+; Current exam title from PowerScribe. It only reads control text with
 ; ControlGetText; it sends nothing to the report editor (which crashes it).
 ; Returns "" if PowerScribe isn't open or shows no EXAMINATION line.
 ; ----------------------------------------------------------------------------
@@ -3346,7 +3345,7 @@ RunHubAction(a) {
         LibRun(SubStr(a, 5))
     } else if (SubStr(a, 1, 5) = "keys:") {
         hubKeys := SubStr(a, 6)
-        ; SendLevel 1 so another script's hotkeys (RadStopwatch's F4 / F12)
+        ; SendLevel 1 so another script's hotkeys (a timer's F4 / F12)
         ; react to these keys, as they would to the real ones.
         SendLevel, 1
         Send, %hubKeys%

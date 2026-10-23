@@ -28,8 +28,8 @@ test('bad menus are explained, not crashed on', () => {
   assert.match(validateMenu(tooMany).errors[0], /the most is 8/);
 });
 
-test('PowerScribe opens the AI ring first, anything else the first ring', () => {
-  assert.strictEqual(categoryForApp(menu, 'nuance.powerscribe360.exe'), 0);
+test('PowerScribe opens the AI ring first, anything else the first ring (PACS)', () => {
+  assert.strictEqual(categoryForApp(menu, 'nuance.powerscribe360.exe'), 1);
   assert.strictEqual(categoryForApp(menu, 'chrome.exe'), 0);
   const m = { categories: [{ name: 'A', items: [] }, { name: 'B', apps: ['Epic.exe'], items: [] }] };
   assert.strictEqual(categoryForApp(m, 'epic.exe'), 1);

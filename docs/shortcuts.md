@@ -15,7 +15,8 @@ and re-run it.
 | standalone RadProofread | Ctrl+Alt+Q | RadGesture helper (Proofread) |
 | standalone RadOneLiner | Ctrl+Alt+U | RadGesture helper (One-liner) |
 | standalone Lung-RADS | Alt+Shift+L | RadGesture helper (Lung-RADS) |
-| Rad Optimizer | Ctrl+Alt+F4 | RadStopwatch (~^!F4) |
+| Rad Optimizer | Ctrl+Alt+G | RadGesture helper (Function: Paste indication) |
+| Rad Optimizer | Ctrl+Alt+F4 | RadGesture helper (Function: Dictate (Sectra, then PowerScribe)) |
 | Rad Optimizer | Ctrl+Alt+F | RadGesture helper (Function: Next field) |
 | Rad Optimizer | Ctrl+Alt+V | RadGesture helper (Function: Previous field) |
 | Rad Optimizer | Ctrl+Alt+O | RadGesture helper (Function: Orthogonal) |
@@ -41,6 +42,8 @@ and re-run it.
 | Rad Optimizer | Ctrl+Alt+S | RadGesture helper (Function: MPR) |
 | Rad Optimizer | Ctrl+Alt+W | RadGesture helper (Function: Matrix) |
 | Rad Optimizer | Ctrl+Alt+N | RadGesture helper (Function: Image window) |
+| Rad Optimizer | Alt+Shift+U | RadGesture helper (Function: Log in (username + password)) |
+| Rad Optimizer | Alt+Shift+P | RadGesture helper (Function: Type password) |
 | Rad Optimizer | Alt+Shift+E | RadGesture helper (Function: Epic) |
 | Rad Optimizer | Alt+Shift+T | RadGesture helper (Function: Teams) |
 | Rad Optimizer | Alt+Shift+C | RadGesture helper (Function: Open my websites) |
@@ -49,7 +52,6 @@ and re-run it.
 
 ## Shared on purpose
 
-- **Ctrl+Alt+F4**: RadGesture's "Dictate" function (off by default: Sectra opens the exam in PowerScribe, then the microphone goes on) and RadStopwatch (~ passes the key through) starts the study timer: one press, both.
 
 ## RadGesture helper
 
@@ -61,8 +63,10 @@ and re-run it.
 | Alt+Shift+E | Function: Epic |
 | Alt+Shift+I | Function: Lung screening 2 |
 | Alt+Shift+L | Lung-RADS |
+| Alt+Shift+P | Function: Type password |
 | Alt+Shift+S | Function: Search selection |
 | Alt+Shift+T | Function: Teams |
+| Alt+Shift+U | Function: Log in (username + password) |
 | Ctrl+CapsLock | Open the ring (hold) |
 | Ctrl+Alt+1 | Function: Soft tissue window |
 | Ctrl+Alt+2 | Function: Lung window |
@@ -75,6 +79,8 @@ and re-run it.
 | Ctrl+Alt+D | Function: Distance |
 | Ctrl+Alt+E | Function: Enhance |
 | Ctrl+Alt+F | Function: Next field |
+| Ctrl+Alt+F4 | Function: Dictate (Sectra, then PowerScribe) |
+| Ctrl+Alt+G | Function: Paste indication |
 | Ctrl+Alt+H | Function: ROI |
 | Ctrl+Alt+I | Function: Next key image |
 | Ctrl+Alt+K | Function: Previous key image |
@@ -91,18 +97,6 @@ and re-run it.
 | Ctrl+Alt+V | Function: Previous field |
 | Ctrl+Alt+W | Function: Matrix |
 | Ctrl+Alt+X | Function: Crosshair |
-
-## RadStopwatch
-
-| Key | Does |
-|---|---|
-| . |  |
-| / |  |
-| F12 |  - key still reaches the app |
-| F4 |  - key still reaches the app |
-| WheelDown |  (MouseOverWidget()) |
-| WheelUp |  (MouseOverWidget()) |
-| Ctrl+Alt+F4 |  - key still reaches the app |
 
 ## Ring buttons that press keys
 
@@ -146,19 +140,8 @@ These run inside RadGesture (Rad Optimizer is not needed). The key is what the f
 | Apps > Chrome tabs | Open my websites | - |
 | Apps > Search selection | Search selection | - |
 
-## Functions off by default
-
-| Function | Shortcut when switched on |
-|---|---|
-| Dictate (Sectra, then PowerScribe) | Ctrl+Alt+F4 |
-| Paste indication | Ctrl+Alt+G |
-| Log in (username + password) | Alt+Shift+U |
-| Type username | (none) |
-| Type password | Alt+Shift+P |
-| Forget the password | (none) |
-
 ## Free for new tools
 
 Not used by any script above (Ctrl+Alt+letter is the family pattern):
 
-Ctrl+Alt+G, Ctrl+Alt+J, Ctrl+Alt+Y, Ctrl+Alt+Z
+Ctrl+Alt+J, Ctrl+Alt+Y, Ctrl+Alt+Z

@@ -152,8 +152,6 @@
   function knownHotkeys() {
     const out = [];
     for (const s of D.externalHotkeys.running || []) for (const hk of s.hotkeys) out.push({ key: hk.key, script: s.script, does: hk.does });
-    const sw = D.externalHotkeys.sibling_fallback;
-    if (sw) for (const hk of sw.hotkeys) if (!hk.context) out.push({ key: hk.key, script: sw.script, does: hk.does });
     for (const [k, label] of SHORTCUTS) if (scDraft[k]) out.push({ key: scDraft[k], script: 'RadGesture', does: label, field: k });
     for (const f of allFns()) {
       const v = libDraft.values[f.id];
@@ -513,7 +511,7 @@
       box.append(field('Keys to press', recorder(spec, (v) => { set('helper:keys:' + hotkeyToSend(v)); render(); }, { plain: true }),
         handlers.length ? `Handled by ${handlers.map((x) => `${x.script}: ${x.does}`).join('; ')}.` : 'No script of yours handles this; it goes straight to the active window.'));
     } else if (type === 'app') {
-      // A program, shortcut, AutoHotkey script or batch file (RadStopwatch,
+      // A program, shortcut, AutoHotkey script or batch file (a timer,
       // Epic...). The helper starts it, or brings its window
       // to the front when it is already open.
       box.append(field('Program', h('input', { type: 'text', id: 'appPath', value: a.value, placeholder: 'C:\\...\\Program.exe', oninput: (e) => set('app:' + e.target.value.trim()) }),
@@ -535,7 +533,7 @@
         'Scripts (.ahk) that are already running are left alone either way.'));
       box.append(field('Start it with RadGesture', h('div', { class: 'addrow', style: 'margin:0;align-items:center' },
         sw(!!it.startWithHub, (v) => { if (v) it.startWithHub = true; else delete it.startWithHub; markDirty('menu'); render(); }, 'Start it with RadGesture'),
-        h('span', { class: 'hint' }, 'Starts it (if it is not running) every time RadGesture starts, e.g. RadStopwatch or your shortcut script.'))));
+        h('span', { class: 'hint' }, 'Starts it (if it is not running) every time RadGesture starts, e.g. a timer or your own shortcut script.'))));
     } else if (type === 'ring') {
       box.append(h('div', { class: 'addrow' }, h('button', { class: 'btn', onclick: () => { ui.path.push(ui.sel); ui.sel = null; render(); } }, msym('subdirectory_arrow_right'), `Open it (${it.items.length} inside)`)));
     }
@@ -967,21 +965,27 @@
 
   function renderLibrary() {
     $main.append(h('h1', {}, 'Functions'),
-      h('p', { class: 'lede' }, 'The function collection: ready-made functions for Sectra, PowerScribe and your apps, plus your own. Each one works from the ring (Rings › a direction › Function) and, when switched on, from its own keyboard shortcut. A mouse button or macro pad that sends that shortcut works too.'));
+      h('p', { class: 'lede' }, 'Ready-made functions for Sectra, PowerScribe and your apps, plus your own. Run them from the ring or their keyboard shortcut.'));
     const optimizer = (D.status.conflicts || []).filter((c) => c.optimizer);
     $main.append(libHealth());
-    $main.append(h('div', { class: 'card setup', id: 'libSetup' },
-      h('h2', {}, msym('priority_high'), ' Before you use these'),
-      h('div', { class: 'steps3' },
+    if (optimizer.length) $main.append(h('div', { class: 'card libhealth warn slim', id: 'optimizerNote' },
+      h('div', { class: 'big' }, msym('warning'), h('p', {}, 'Rad Optimizer is running and fights RadGesture for these keys.'),
+        h('button', { class: 'btn small primary', id: 'closeOptimizer', onclick: async () => { D.status = await api.closeConflicts(); toast('Closed'); render(); } }, msym('close'), 'Close it now'))));
+    // "Read first": folded by default so the list starts near the top.
+    const open = !!ui.readFirst;
+    const setup = h('div', { class: 'card setup readfirst' + (open ? ' open' : ''), id: 'libSetup' },
+      h('button', { class: 'rfhead', id: 'readFirst', 'aria-expanded': String(open), onclick: () => { ui.readFirst = !open; render(); } },
+        msym('priority_high'), h('span', { class: 'rftitle' }, 'Read first: set the keys in Sectra'),
+        h('span', { class: 'rfhint' }, open ? 'Hide' : '3 short steps'), msym(open ? 'expand_less' : 'expand_more')));
+    if (open) setup.append(h('div', { class: 'steps3' },
         h('div', { class: 'step' }, h('div', { class: 'stepn' }, '1'), h('div', { class: 'stepb' }, h('b', {}, msym('settings_applications'), 'Keys in Sectra and PowerScribe'),
           h('p', {}, 'Most functions bring Sectra or PowerScribe up and press a key there ("Presses in Sectra"). That key must already do the job in your Sectra: set it in Sectra\'s keyboard settings, or record the key yours uses.'),
           h('div', { class: 'addrow' }, h('button', { class: 'btn small', id: 'copyLibKeys', onclick: copyLibKeys }, msym('content_copy'), 'Copy the list')))),
         h('div', { class: 'step' }, h('div', { class: 'stepn' }, '2'), h('div', { class: 'stepb' }, h('b', {}, msym('keyboard'), 'Your shortcuts'),
-          h('p', {}, 'Switch on the keyboard shortcuts you want, or record your own. A mouse button or macro pad set to send the same shortcut (e.g. Ctrl+Alt+P for Insert priors) works too.'))),
+          h('p', {}, 'Every shortcut starts switched on. Switch off the ones you don\'t want, or record your own. A mouse button or macro pad set to send the same shortcut (e.g. Ctrl+Alt+P for Insert priors) works too.'))),
         h('div', { class: 'step' }, h('div', { class: 'stepn' }, '3'), h('div', { class: 'stepb' }, h('b', {}, msym('block'), 'One program per key'),
-          h('p', {}, 'Another shortcut script that listens for the same keys would fight RadGesture for them. Status lists any it finds; close them and take them out of Windows startup.'),
-          optimizer.length ? h('div', { class: 'addrow' }, h('span', { class: 'chip warn' }, msym('warning'), 'Rad Optimizer is running'),
-            h('button', { class: 'btn small primary', id: 'closeOptimizer', onclick: async () => { D.status = await api.closeConflicts(); toast('Closed'); render(); } }, msym('close'), 'Close it now')) : null)))));
+          h('p', {}, 'Another shortcut script that listens for the same keys would fight RadGesture for them. Status lists any it finds; close them and take them out of Windows startup.')))));
+    $main.append(setup);
 
     const known = knownHotkeys();
     const places = libPlaces();
@@ -1028,17 +1032,15 @@
   function libHealth() {
     const s = D.status;
     const lh = s.libHotkeys;
-    const dict = libDraft.values.PS_ToggleDictation;
-    const dictNote = dict && dict.On !== '1' ? ' Dictate (Ctrl+Alt+F4: Sectra opens the exam in PowerScribe, then the microphone goes on) ships switched off: switch it on below if you want it.' : '';
     let kind, text;
     if (!s.helper.connected) { kind = 'bad'; text = 'The helper is not running, so no function shortcut works right now. See Status.'; }
     else if (!lh) { kind = 'warn'; text = 'The helper has not reported its shortcuts. If this stays, it is an older RadGesture: install the latest one.'; }
     else if (lh.failed.length) { kind = 'bad'; text = `${lh.count} function shortcuts work; these could not be set: ${lh.failed.join(', ')}.`; }
     else if (lh.count < s.libHotkeysWanted) { kind = 'warn'; text = `${lh.count} of ${s.libHotkeysWanted} function shortcuts work. Save once to reload them.`; }
     else { kind = 'good'; text = `All ${lh.count} function shortcuts are switched on and listening.`; }
-    return h('div', { class: 'card libhealth ' + kind, id: 'libHealth' },
-      h('div', { class: 'big' }, h('div', { class: 'orb ' + (kind === 'good' ? 'good' : 'bad') }, msym(kind === 'good' ? 'check_circle' : kind === 'warn' ? 'help' : 'error')),
-        h('div', {}, h('h3', {}, kind === 'good' ? 'Shortcuts are working' : 'Shortcuts need a look'), h('p', {}, text + dictNote))));
+    return h('div', { class: 'card libhealth slim ' + kind, id: 'libHealth' },
+      h('div', { class: 'big' }, h('span', { class: 'orb ' + (kind === 'good' ? 'good' : 'bad') }, msym(kind === 'good' ? 'check_circle' : kind === 'warn' ? 'help' : 'error')),
+        h('p', {}, text)));
   }
 
   function usernameRow() {

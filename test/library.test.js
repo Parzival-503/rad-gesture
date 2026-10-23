@@ -57,12 +57,12 @@ test('no two library functions share a default shortcut, and none takes a RadGes
   for (const own of ['^!q', '^!u', '!+l', '^CapsLock']) assert.ok(!seen.has(HK.pretty(own)), own);
 });
 
-test('defaults: Rad Optimizer keys, dictation / paste indication / logins off', () => {
+test('defaults: Rad Optimizer keys, every function on', () => {
   const f = (id) => lib.functions.find((x) => x.id === id);
   assert.strictEqual(f('PACS_WL_Lung').hotkey, '^!2');
   assert.strictEqual(f('PACS_Insert_Priors').hotkey, '^!p');
   assert.strictEqual(f('PACS_Insert_Priors').params[0].default, '^p');
-  for (const id of ['PS_ToggleDictation', 'PS_PasteIndication', 'LoginUandP', 'LoginP', 'LoginU']) assert.strictEqual(f(id).on, false, id);
+  for (const x of lib.functions) assert.strictEqual(x.on, true, x.id);
   assert.strictEqual(f('PS_ToggleDictation').params.find((p) => p.name === 'SectraKey').default, '{F8}');
 });
 
@@ -116,7 +116,7 @@ test('the INI gets every library default before the helper starts, and keeps wha
   assert.strictEqual(ini.get(s, 'Lib.PACS_WL_Lung', 'On'), '1');
   assert.strictEqual(ini.get(s, 'Lib.PACS_WL_Lung', 'Key'), '2');
   assert.strictEqual(ini.get(s, 'Lib.PACS_WL_Lung', 'Target'), 'sectra');
-  assert.strictEqual(ini.get(s, 'Lib.PS_ToggleDictation', 'On'), '0');
+  assert.strictEqual(ini.get(s, 'Lib.PS_ToggleDictation', 'On'), '1');
   assert.strictEqual(ini.get(s, 'Lib.PACS_Insert_Priors', 'Target', null), null);
   assert.strictEqual(store.syncLibrary(), false); // nothing missing now
 
@@ -176,7 +176,7 @@ test('a running Rad Optimizer is a clash once library shortcuts are on, not befo
   const procs = [
     { ProcessId: 11, Name: 'Rad_Optimizer_5-8-26.exe', ExecutablePath: 'C:\\x\\Rad_Optimizer_5-8-26.exe', CommandLine: '"C:\\x\\Rad_Optimizer_5-8-26.exe"' },
     { ProcessId: 12, Name: 'AutoHotkeyU64.exe', ExecutablePath: 'C:\\AHK\\AutoHotkeyU64.exe', CommandLine: '"C:\\AHK\\AutoHotkeyU64.exe" "C:\\x\\Rad_Optimizer_5-8-26.ahk"' },
-    { ProcessId: 13, Name: 'AutoHotkeyU64.exe', ExecutablePath: 'C:\\AHK\\AutoHotkeyU64.exe', CommandLine: '"C:\\AHK\\AutoHotkeyU64.exe" "C:\\x\\RadStopwatch.ahk"' },
+    { ProcessId: 13, Name: 'AutoHotkeyU64.exe', ExecutablePath: 'C:\\AHK\\AutoHotkeyU64.exe', CommandLine: '"C:\\AHK\\AutoHotkeyU64.exe" "C:\\x\\MyTimer.ahk"' },
   ];
   assert.deepStrictEqual(classify(procs, {}), []);
   const on = classify(procs, { libraryOn: true });
@@ -239,7 +239,7 @@ test('the Gallery ring becomes the Reference Library, once, unless renamed', () 
 test('Functions page filters: words, typed shortcuts, groups, programs, rings, clashes, sorting', () => {
   const FF = require('../src/common/fnfilter');
   const cards = lib.functions.map((f) => {
-    const v = { On: f.on ? '1' : '0', Hotkey: f.hotkey };
+    const v = { On: f.on && f.id !== 'PS_ToggleDictation' ? '1' : '0', Hotkey: f.hotkey };
     for (const p of f.params || []) v[p.name] = p.default;
     return FF.card(f, v, f.id === 'PACS_WL_Lung' ? ['PACS > Window / level > Lung'] : [], f.id === 'PACS_MPR', '');
   });
@@ -282,7 +282,7 @@ test('what ships carries no personal names or development history', () => {
   files.push('tools/external_hotkeys.json');
   for (const f of files) {
     const t = fs.readFileSync(path.join(root, f), 'utf8');
-    assert.ok(!/\bSina\b|3-16-26|5-8-26|; Change:|\bkp\.org\b/i.test(t), `${f} mentions a person or the project's history`);
+    assert.ok(!/\bSina\b|RadStopwatch|3-16-26|5-8-26|; Change:|\bkp\.org\b/i.test(t), `${f} mentions a person or the project's history`);
   }
 });
 

@@ -17,9 +17,9 @@
       "name": "Dictate (Sectra, then PowerScribe)",
       "group": "PowerScribe",
       "sub": "Dictation",
-      "description": "Two steps in one press. 1) In Sectra it presses the Dictate key (F8): Sectra opens the exam you are viewing in PowerScribe. 2) It brings that PowerScribe window to the front and presses the dictation key (F4), which switches the microphone on (or off). With the Sectra key empty it only toggles dictation in PowerScribe. Off by default; RadStopwatch also starts its timer on Ctrl+Alt+F4.",
+      "description": "Two steps in one press. 1) In Sectra it presses the Dictate key (F8): Sectra opens the exam you are viewing in PowerScribe. 2) It brings that PowerScribe window to the front and presses the dictation key (F4), which switches the microphone on (or off). With the Sectra key empty it only toggles dictation in PowerScribe.",
       "hotkey": "^!F4",
-      "on": false,
+      "on": true,
       "icon": "mic",
       "params": [
         {
@@ -83,9 +83,9 @@
       "name": "Paste indication",
       "group": "PowerScribe",
       "sub": "Fields",
-      "description": "Copies the text you highlighted, finds the Indication field in PowerScribe and pastes it there. Works only on a selection you make by hand, so it is not on the ring and its shortcut is off by default.",
+      "description": "Copies the text you highlighted, finds the Indication field in PowerScribe and pastes it there. Works only on a selection you make by hand, so it is not on the ring.",
       "hotkey": "^!g",
-      "on": false,
+      "on": true,
       "icon": "content_paste",
       "params": [],
       "uses": [
@@ -553,7 +553,7 @@
       "sub": "Logins",
       "description": "Types your username, Tab, your password, Enter. Your username is set below; the password is asked once per session and never saved.",
       "hotkey": "+!u",
-      "on": false,
+      "on": true,
       "icon": "login",
       "params": [
         {
@@ -577,7 +577,7 @@
       "sub": "Logins",
       "description": "Types only your username.",
       "hotkey": "",
-      "on": false,
+      "on": true,
       "icon": "person",
       "params": [
         {
@@ -595,7 +595,7 @@
       "sub": "Logins",
       "description": "Types only your password (asked once per session, never saved).",
       "hotkey": "+!p",
-      "on": false,
+      "on": true,
       "icon": "password",
       "params": [
         {
@@ -613,7 +613,7 @@
       "sub": "Logins",
       "description": "Forgets the password typed this session, so the next login asks again (for a typo).",
       "hotkey": "",
-      "on": false,
+      "on": true,
       "icon": "lock_reset",
       "params": []
     },

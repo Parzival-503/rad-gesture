@@ -183,7 +183,17 @@ async function waitFor(fn, ms, step = 200) {
     await sleep(350);
     check('Functions lists every function', (await win.$$('.libfn')).length === libDef.functions.length, `${(await win.$$('.libfn')).length} of ${libDef.functions.length}`);
     check('Functions opens with the "set the keys in Sectra first" note', !!(await win.$('#libSetup')) && /Sectra/.test(await win.textContent('#libSetup')));
+    check('"Read first" starts folded', !(await win.$('#copyLibKeys')));
+    await win.click('#readFirst');
+    await sleep(150);
+    check('"Read first" opens its steps', !!(await win.$('#copyLibKeys')) && /Keys in Sectra and PowerScribe/.test(await win.textContent('#libSetup')));
+    await win.screenshot({ path: path.join(SHOTS, 'functions-top.png') }).catch(() => {});
+    await win.click('#readFirst');
+    await sleep(150);
+    check('every function starts switched on', (await win.$$('.switch[aria-label^="Keyboard shortcut for"][aria-checked="false"]')).length === 0);
     check('Functions shows where a function sits on the rings', /PACS › Window \/ level › Lung/.test(await win.textContent('#lib-PACS_WL_Lung')));
+    await win.click('#lib-LoginForget .libline .switch');
+    await sleep(150);
     await win.click('#lib-LoginForget .libline .switch');
     await sleep(150);
     await win.click('#lib-LoginForget .recorder');

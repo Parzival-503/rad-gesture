@@ -230,10 +230,14 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   never stored** (asked once per session, in memory, `LibPassword`); no
   username, password or work link (kp.org, SharePoint, OneDrive) goes in the
   repo: this repo is public. `test/library.test.js` checks that.
-- **Off by default** (Sina): Dictate (F8 = Sectra's Dictate button, which opens
-  the exam in PowerScribe; then PowerScribe is brought up and F4 toggles the
-  microphone), Paste indication (needs a selection made by hand; not on the
-  ring), the logins. Everything else is on with Rad Optimizer's keys.
+- **Every function ships ON** (Sina, 2026-10-23), with Rad Optimizer's keys.
+  Earlier builds shipped Dictate, Paste indication and the logins off; the
+  INI migration `functions-on` turns those on once (`FUNCTIONS_NOW_ON`).
+  Dictate = F8 (Sectra's Dictate button, which opens the exam in
+  PowerScribe), then PowerScribe is brought up and F4 toggles the microphone.
+- The Functions page top is short on purpose (Sina: too much to scroll): one
+  line, a slim shortcut-status strip, and **Read first** (the 3 setup steps)
+  folded until clicked. A running Rad Optimizer shows its own line above it.
 - Settings > Functions: the "set the keys in Sectra first" card (colleagues'
   Sectra differs; Sina asked for that note), one entry per function
   (shortcut switch + recorder, the keys it presses, where it is on the
@@ -368,12 +372,13 @@ Kando gallery. Edited only through Settings.
 
 **Saved menus are migrated once** (`migrate()` in `settings-store.js`,
 recorded in `menu.migrated`): installing keeps `menu.json`, so a change to
-the default menu reaches existing users only through a step there. The
-first one removes v3.0's Stopwatch ring while it is still the shipped one;
-the second moves Orthogonal (a measuring tool) from Crosshair to Measure,
-next to Distance; the third drops Paste indication (Rad Optimizer's Ctrl+Alt+G
-only works on a selection made by hand, never from the ring); the fourth
-(`library`) turns Rad Optimizer key presses into Library functions.
+the default menu reaches existing users only through a step there. One
+moves Orthogonal (a measuring tool) from Crosshair to Measure,
+next to Distance; one drops Paste indication (Rad Optimizer's Ctrl+Alt+G
+only works on a selection made by hand, never from the ring); `library`
+turns Rad Optimizer key presses into Library functions; `pacs-first` puts
+the PACS ring first, then AI Tools (Sina, 2026-10-23; PowerScribe still opens
+on AI Tools through its `apps`).
 
 ### Helper notes
 
@@ -381,8 +386,8 @@ only works on a selection made by hand, never from the ring); the fourth
 - `--selftest` runs the whole startup then prints `SELFTEST OK` and exits
   (CI). `reload`, `suspend`/`resume` come from Settings.
 - `#Requires AutoHotkey v1.1.33+`; CI uses v1.1.37.02.
-- Stopwatch slices send keys with `SendLevel 1` so RadStopwatch's own hotkeys
-  (F4 start, F12 stop) see them.
+- "Press keys" directions send with `SendLevel 1` so other scripts' hotkeys
+  (e.g. a timer's F4 / F12) see them.
 - **Prior checklist** (ring: AI Tools > Priors): copy each prior report,
   **+ Add** (as many as needed), then **Checklist**; its window has
   **Insert into report** (pastes with Ctrl+V where the cursor is, then
@@ -427,8 +432,7 @@ only works on a selection made by hand, never from the ring); the fourth
 ### Shortcuts
 
 `tools/hotkey_audit.py` collects every hotkey on the workstation: the helper's
-INI defaults, RadStopwatch (from `../rad-stopwatch` when checked out, else a
-saved copy), the Library's default shortcuts (`config/library.json`) and
+INI defaults, the Library's default shortcuts (`config/library.json`) and
 retired scripts like Rad Optimizer (keys only, in `tools/external_hotkeys.json`,
 also bundled so Settings can warn about clashes). Fails on shared keys,
 swallowed keys, ring buttons pressing unhandled keys, Windows-reserved
@@ -483,8 +487,13 @@ standalone script is running.
   "Press keys" directions for F4 / F12.
 - **Rad Optimizer** is not needed any more: its functions are the Library
   (above). Its old script is not in any repo (it held a username and work
-  links). Ctrl+Alt+F4 (Library dictation, off by default) is shared with
-  RadStopwatch's timer on purpose.
+  links).
+- **No mention of RadStopwatch in anything that ships** (Sina, 2026-10-23:
+  it is his own app, not for colleagues). It is only "a program to open" in
+  his own settings. Not in the clash list, not in comments, not in tests;
+  `test/library.test.js` fails on "RadStopwatch" in shipped files. Its
+  Ctrl+Alt+F4 / F4 overlap with Dictate is fine on his PC (its hotkeys pass
+  the key through with `~`).
 
 <!-- BEGIN wrap-skill (synced by sync-wrap-skill.sh — do not hand-edit) -->
 ## Close working sessions with a wrap summary

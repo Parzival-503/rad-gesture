@@ -28,7 +28,7 @@ test('nonsense is reported, not run', () => {
 test('Open a program: the instruction the helper gets', () => {
   const { runSpec, resolveAction } = require('../src/main/actions');
   const env = { USERPROFILE: 'C:\\Users\\me' };
-  assert.strictEqual(runSpec({ action: 'app:%USERPROFILE%\\RadStopwatch.ahk' }, null, env), 'run:front|C:\\Users\\me\\RadStopwatch.ahk|');
+  assert.strictEqual(runSpec({ action: 'app:%USERPROFILE%\\MyTimer.ahk' }, null, env), 'run:front|C:\\Users\\me\\MyTimer.ahk|');
   assert.strictEqual(runSpec({ action: 'app:C:\\Epic\\epic.exe', args: '-x\r\n-y', ifRunning: 'new' }, null, env), 'run:new|C:\\Epic\\epic.exe|-x -y');
   assert.strictEqual(runSpec({ action: 'app:notepad.exe' }, 'start', env), 'run:start|notepad.exe|');
   assert.deepStrictEqual(resolveAction('app:%USERPROFILE%\\a.exe', { env }), { kind: 'app', value: 'C:\\Users\\me\\a.exe' });

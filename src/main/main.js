@@ -251,7 +251,7 @@ function openProgramDirect(file, args) {
   }
 }
 
-// Programs marked "Start it with RadGesture" (RadStopwatch, a shortcut
+// Programs marked "Start it with RadGesture" (a timer, a shortcut
 // script...): once the helper checks in, it starts each one that is not
 // already running. Without the helper after 15 s, they are started directly.
 function startWithHubItems() {

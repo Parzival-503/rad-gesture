@@ -9,110 +9,6 @@
   },
   "categories": [
     {
-      "id": "ai",
-      "name": "AI Tools",
-      "color": "#7aa2ff",
-      "icon": "stars",
-      "apps": [
-        "Nuance.PowerScribe360.exe"
-      ],
-      "items": [
-        {
-          "name": "Proofread",
-          "icon": "spellcheck",
-          "action": "helper:proofread"
-        },
-        {
-          "name": "Impression",
-          "icon": "summarize",
-          "action": "helper:impression"
-        },
-        {
-          "name": "One-liner",
-          "icon": "short_text",
-          "items": [
-            {
-              "name": "Full",
-              "icon": "notes",
-              "action": "helper:oneliner:full"
-            },
-            {
-              "name": "Oncologic",
-              "icon": "oncology",
-              "action": "helper:oneliner:oncologic"
-            },
-            {
-              "name": "Treatment",
-              "icon": "medication",
-              "action": "helper:oneliner:treatment"
-            },
-            {
-              "name": "Indication",
-              "icon": "assignment",
-              "action": "helper:oneliner:indication"
-            },
-            {
-              "name": "Add chart text",
-              "icon": "playlist_add",
-              "action": "helper:chart:add"
-            },
-            {
-              "name": "Clear chart",
-              "icon": "playlist_remove",
-              "action": "helper:chart:clear"
-            }
-          ]
-        },
-        {
-          "name": "Priors",
-          "icon": "history",
-          "items": [
-            {
-              "name": "Add copied prior",
-              "icon": "add",
-              "action": "helper:prior:add"
-            },
-            {
-              "name": "Checklist",
-              "icon": "checklist",
-              "action": "helper:prior:checklist"
-            },
-            {
-              "name": "Clear priors",
-              "icon": "delete_sweep",
-              "action": "helper:prior:clear"
-            },
-            {
-              "name": "Show toolbar",
-              "icon": "dock_to_left",
-              "action": "helper:prior:show"
-            }
-          ]
-        },
-        {
-          "name": "Settings",
-          "icon": "tune",
-          "items": [
-            {
-              "name": "AI settings",
-              "icon": "key",
-              "action": "helper:settings"
-            },
-            {
-              "name": "Proofread history",
-              "icon": "manage_search",
-              "action": "helper:history"
-            },
-            {
-              "name": "Edit this menu",
-              "icon": "edit",
-              "action": "hub:edit-menu"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "id": "pacs",
       "name": "PACS",
       "color": "#c79bff",
@@ -292,6 +188,110 @@
               "name": "Lung screening 2",
               "icon": "pulmonology",
               "action": "helper:lib:LungScreening2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai",
+      "name": "AI Tools",
+      "color": "#7aa2ff",
+      "icon": "stars",
+      "apps": [
+        "Nuance.PowerScribe360.exe"
+      ],
+      "items": [
+        {
+          "name": "Proofread",
+          "icon": "spellcheck",
+          "action": "helper:proofread"
+        },
+        {
+          "name": "Impression",
+          "icon": "summarize",
+          "action": "helper:impression"
+        },
+        {
+          "name": "One-liner",
+          "icon": "short_text",
+          "items": [
+            {
+              "name": "Full",
+              "icon": "notes",
+              "action": "helper:oneliner:full"
+            },
+            {
+              "name": "Oncologic",
+              "icon": "oncology",
+              "action": "helper:oneliner:oncologic"
+            },
+            {
+              "name": "Treatment",
+              "icon": "medication",
+              "action": "helper:oneliner:treatment"
+            },
+            {
+              "name": "Indication",
+              "icon": "assignment",
+              "action": "helper:oneliner:indication"
+            },
+            {
+              "name": "Add chart text",
+              "icon": "playlist_add",
+              "action": "helper:chart:add"
+            },
+            {
+              "name": "Clear chart",
+              "icon": "playlist_remove",
+              "action": "helper:chart:clear"
+            }
+          ]
+        },
+        {
+          "name": "Priors",
+          "icon": "history",
+          "items": [
+            {
+              "name": "Add copied prior",
+              "icon": "add",
+              "action": "helper:prior:add"
+            },
+            {
+              "name": "Checklist",
+              "icon": "checklist",
+              "action": "helper:prior:checklist"
+            },
+            {
+              "name": "Clear priors",
+              "icon": "delete_sweep",
+              "action": "helper:prior:clear"
+            },
+            {
+              "name": "Show toolbar",
+              "icon": "dock_to_left",
+              "action": "helper:prior:show"
+            }
+          ]
+        },
+        {
+          "name": "Settings",
+          "icon": "tune",
+          "items": [
+            {
+              "name": "AI settings",
+              "icon": "key",
+              "action": "helper:settings"
+            },
+            {
+              "name": "Proofread history",
+              "icon": "manage_search",
+              "action": "helper:history"
+            },
+            {
+              "name": "Edit this menu",
+              "icon": "edit",
+              "action": "hub:edit-menu"
             }
           ]
         }

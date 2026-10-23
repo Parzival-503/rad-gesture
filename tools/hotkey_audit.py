@@ -7,8 +7,6 @@ Collects every hotkey from:
     the ring trigger, and the optional blank ones),
   - the helper's Library (config/library.json: Rad Optimizer's functions,
     their default keyboard shortcuts and the keys they press into apps),
-  - RadStopwatch (../rad-stopwatch/RadStopwatch.ahk if checked out, else the
-    saved copy in tools/external_hotkeys.json),
   - scripts that are not in any repo (Rad Optimizer), from that JSON file,
 and checks:
   1. no two running scripts claim the same key combination,
@@ -169,20 +167,6 @@ def main():
     sends += lib_sends
     notes = []
 
-    sw = ext['sibling_fallback']
-    sw_path = os.path.join(ROOT, sw['file'])
-    sw_saved = sorted(combo(parse_key(h['key'])) for h in sw['hotkeys'])
-    if os.path.exists(sw_path):
-        found = ahk_hotkeys(sw_path, sw['script'])
-        running += found
-        sends += ahk_sends(sw_path, sw['script'])
-        if sorted(combo(h) for h in found) != sw_saved:
-            notes.append('RadStopwatch\'s hotkeys changed: update "sibling_fallback" in tools/external_hotkeys.json.')
-    else:
-        for h in sw['hotkeys']:
-            running.append(dict(script=sw['script'], spec=h['key'], does=h['does'], context=h.get('context'), **parse_key(h['key'])))
-        notes.append('RadStopwatch not checked out next to this repo: used its saved hotkey list.')
-
     for s in ext['running']:
         for h in s['hotkeys']:
             running.append(dict(script=s['script'], spec=h['key'], does=h['does'], context=h.get('context'), **parse_key(h['key'])))
@@ -299,9 +283,10 @@ def main():
             f = names.get(lid)
             keys = ', '.join(pretty(parse_send(p['default'])) for p in (f or {}).get('params', []) if p['type'] == 'key' and p['default'] and parse_send(p['default']))
             L.append('| %s | %s | %s |' % (name, f['name'] if f else '**missing: %s**' % lid, keys or '-'))
-        L += ['', '## Functions off by default', '', '| Function | Shortcut when switched on |', '|---|---|']
-        for f in lib['functions']:
-            if not f.get('on'):
+        off = [f for f in lib['functions'] if not f.get('on')]
+        if off:
+            L += ['', '## Functions off by default', '', '| Function | Shortcut when switched on |', '|---|---|']
+            for f in off:
                 L.append('| %s | %s |' % (f['name'], pretty(parse_key(f['hotkey'])) if f.get('hotkey') else '(none)'))
         L += ['', '## Free for new tools', '',
               'Not used by any script above (Ctrl+Alt+letter is the family pattern):', '']

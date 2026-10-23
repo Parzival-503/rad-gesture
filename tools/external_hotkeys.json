@@ -1,5 +1,5 @@
 {
-  "_about": "Shortcuts of scripts that are NOT in this repo, for tools/hotkey_audit.py and the Settings window's clash warnings. 'running' = scripts expected to run next to RadGesture (none now: RadStopwatch is read from its repo, with 'sibling_fallback' as the saved copy). 'retire' = scripts that must be closed because RadGesture took over their keys: Rad Optimizer's functions are RadGesture's Library now (config/library.json). Keys and actions only: no links or login variables. 'sends' = keys a script presses into an app.",
+  "_about": "Shortcuts of scripts that are NOT in this repo, for tools/hotkey_audit.py and the Settings window's clash warnings. 'running' = scripts expected to run next to RadGesture. 'retire' = scripts that must be closed because RadGesture took over their keys: Rad Optimizer's functions are RadGesture's Functions now (config/library.json). Keys and actions only: no links or login variables. 'sends' = keys a script presses into an app.",
   "running": [],
   "retire": [
     {
@@ -180,47 +180,5 @@
       ]
     }
   ],
-  "shared_on_purpose": [
-    {
-      "key": "^!F4",
-      "why": "RadGesture's \"Dictate\" function (off by default: Sectra opens the exam in PowerScribe, then the microphone goes on) and RadStopwatch (~ passes the key through) starts the study timer: one press, both."
-    }
-  ],
-  "sibling_fallback": {
-    "_about": "Used only when ../rad-stopwatch/RadStopwatch.ahk is not checked out next to this repo (e.g. on GitHub). The audit compares it with the real file when it is.",
-    "script": "RadStopwatch",
-    "file": "../rad-stopwatch/RadStopwatch.ahk",
-    "hotkeys": [
-      {
-        "key": "~^!F4",
-        "does": "start the study timer"
-      },
-      {
-        "key": "~F4",
-        "does": "start the study timer"
-      },
-      {
-        "key": "~F12",
-        "does": "stop / sign"
-      },
-      {
-        "key": "WheelUp",
-        "does": "par +",
-        "context": "mouse over the widget"
-      },
-      {
-        "key": "WheelDown",
-        "does": "par -",
-        "context": "mouse over the widget"
-      },
-      {
-        "key": "$/",
-        "does": "next exam type when the RadStopwatch widget is active; otherwise types / as normal"
-      },
-      {
-        "key": "$.",
-        "does": "previous exam type when the RadStopwatch widget is active; otherwise types . as normal"
-      }
-    ]
-  }
+  "shared_on_purpose": []
 }

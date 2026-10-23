@@ -40,7 +40,7 @@ test('old tools that clash are recognised, our own processes are not', () => {
     { ProcessId: 4, Name: 'AutoHotkey.exe', CommandLine: '"C:\\AHK\\AutoHotkey.exe" "C:\\tools\\RadProofread.ahk"' },
     { ProcessId: 5, Name: 'AutoHotkeyU64.exe', CommandLine: '"x" "C:\\tools\\Rad Optimizer.ahk"' },
     { ProcessId: 6, Name: 'AutoHotkey.exe', CommandLine: '"x" "C:\\tools\\LungRADS.ahk"' },
-    { ProcessId: 7, Name: 'AutoHotkey.exe', CommandLine: '"x" "C:\\tools\\RadStopwatch.ahk"' },
+    { ProcessId: 7, Name: 'AutoHotkey.exe', CommandLine: '"x" "C:\\tools\\MyTimer.ahk"' },
     { ProcessId: 8, Name: 'AutoHotkey.exe', CommandLine: '"x" "C:\\Program Files\\RadGesture\\resources\\helper\\RadGestureHelper.ahk"' },
   ];
   const found = classify(procs, { selfExe: 'C:\\new\\RadGesture.exe' });
@@ -111,26 +111,32 @@ test('settings store saves the cleaned key', () => {
   assert.match(fs.readFileSync(path.join(dir, 'RadGesture.ini'), 'latin1'), /ApiKey=sk-ant-api03-k1\r\n/);
 });
 
-test('an older menu loses the shipped Stopwatch ring once, a home-made one stays', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-mig-'));
+test('PACS is the first ring, then AI Tools; an older menu is reordered once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-order-'));
   const def = path.join(__dirname, '..', 'config', 'default-menu.json');
   const store = createStore({ userDir: () => dir, defaultMenuPath: def });
   const base = JSON.parse(fs.readFileSync(def, 'utf8'));
-  const shipped = { id: 'stopwatch', name: 'Stopwatch', color: '#5fd38d', icon: 'timer', items: [
-    { name: 'Start study (F4)', icon: 'play_arrow', action: 'helper:keys:{F4}' },
-    { name: 'Stop / sign (F12)', icon: 'stop', action: 'helper:keys:{F12}' }] };
-  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify({ ...base, categories: [...base.categories, shipped] }));
+  assert.deepStrictEqual(base.categories.slice(0, 2).map((c) => c.id), ['pacs', 'ai'], 'the default menu');
+  const old = [base.categories[1], base.categories[0], ...base.categories.slice(2)];
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify({ ...base, categories: old }));
   let m = store.readMenu();
-  assert.ok(!m.categories.some((c) => c.id === 'stopwatch'), 'the shipped Stopwatch ring is removed');
-  assert.ok(JSON.parse(fs.readFileSync(path.join(dir, 'menu.json'), 'utf8')).migrated.includes('no-stopwatch-ring'), 'and that is saved');
-  // Added back by hand afterwards: left alone.
-  m.categories.push(shipped);
+  assert.deepStrictEqual(m.categories.slice(0, 2).map((c) => c.id), ['pacs', 'ai']);
+  // Put back in another order on purpose afterwards: left alone.
+  m.categories.push(m.categories.shift());
   store.writeMenu(m);
-  assert.ok(store.readMenu().categories.some((c) => c.id === 'stopwatch'));
-  // A Stopwatch ring the person added to: never removed.
-  const mine = { ...shipped, items: [...shipped.items, { name: 'Open RadStopwatch', icon: 'timer', action: 'app:C:\\RadStopwatch\\RadStopwatch.ahk' }] };
-  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify({ ...base, categories: [...base.categories, mine] }));
-  assert.ok(store.readMenu().categories.some((c) => c.id === 'stopwatch'));
+  assert.strictEqual(store.readMenu().categories[0].id, 'ai');
+});
+
+test('functions that earlier builds saved off are switched on once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-on-'));
+  const store = createStore({ userDir: () => dir, defaultMenuPath: path.join(__dirname, '..', 'config', 'default-menu.json') });
+  fs.writeFileSync(path.join(dir, 'RadGesture.ini'), '[RadGesture]\r\nMigrated=prior-toolbar\r\n[Lib.PS_PasteIndication]\r\nOn=0\r\n[Lib.PS_ToggleDictation]\r\nOn=0\r\nHotkey=^!F4\r\n', 'latin1');
+  assert.strictEqual(store.migrateIni(), true);
+  const t = fs.readFileSync(path.join(dir, 'RadGesture.ini'), 'latin1');
+  assert.match(t, /\[Lib\.PS_PasteIndication\]\r\nOn=1/);
+  assert.match(t, /\[Lib\.PS_ToggleDictation\]\r\nOn=1\r\nHotkey=\^!F4/);
+  fs.writeFileSync(path.join(dir, 'RadGesture.ini'), t.replace('[Lib.PS_PasteIndication]\r\nOn=1', '[Lib.PS_PasteIndication]\r\nOn=0'), 'latin1');
+  assert.strictEqual(store.migrateIni(), false, 'turned off on purpose afterwards: stays off');
 });
 
 test('an older RadGesture.ini gets the Priors toolbar back once', () => {

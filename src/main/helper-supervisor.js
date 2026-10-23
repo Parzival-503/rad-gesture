@@ -69,7 +69,7 @@ function createSupervisor({ resourcesDir, ahkPathSetting, dataDir, onChange, log
   // reloaded from its own tray) is not ours to track, still shows its Priors
   // toolbar, and may be stuck. Clear them out before starting a fresh one.
   // Only the bundled exe: the AutoHotkey fallback shares AutoHotkey.exe with
-  // RadStopwatch and other scripts.
+  // other scripts.
   const clearStrays = killStrays || (() => {
     try {
       execFileSync('taskkill', ['/F', '/IM', 'RadGestureHelper.exe'], { timeout: 4000, stdio: 'ignore', windowsHide: true });

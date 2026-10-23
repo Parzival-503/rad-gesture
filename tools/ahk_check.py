@@ -2,8 +2,7 @@
 """
 Static structural checker for helper/RadGestureHelper.ahk (AutoHotkey v1.1).
 
-Copied from rad-stopwatch's tools/ahk_check.py (the accumulated memory of AHK
-bugs that reached Sina) via rad-proofread, and adapted. Helper-specific
+The accumulated memory of AHK v1 bugs that reached the workstation. Helper-specific
 additions are at the bottom: no secrets, no SendMessage, no-focus windows, Hotkey targets,
 pure ASCII.
 

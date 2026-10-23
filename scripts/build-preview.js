@@ -8,6 +8,10 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const menu = JSON.parse(read('config/default-menu.json'));
+// The scripted flows in preview.js drive the AI Tools ring, so the preview
+// opens on it (the shipped menu starts on PACS).
+const aiAt = menu.categories.findIndex((c) => c.id === 'ai');
+if (aiAt > 0) menu.categories.unshift(menu.categories.splice(aiAt, 1)[0]);
 const js = ['src/common/menu.js', 'src/common/themes.js', 'src/renderer/geometry.js', 'src/renderer/icons.js', 'src/renderer/ring.js', 'src/renderer/demo.js']
   .map((p) => `/* ${p} */\n${read(p)}`)
   .join('\n');

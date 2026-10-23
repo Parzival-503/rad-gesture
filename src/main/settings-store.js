@@ -53,6 +53,8 @@ const SHORTCUT_FIELDS = {
 // is not a setting, so it is always rewritten from the JSON. The username is
 // [Library] Username. The password is never stored (the helper asks for it).
 const LIB_SECTION = (id) => 'Lib.' + id;
+// Functions that earlier builds shipped off (migrateIni turns them on once).
+const FUNCTIONS_NOW_ON = ['PS_ToggleDictation', 'PS_PasteIndication', 'LoginUandP', 'LoginU', 'LoginP', 'LoginForget'];
 const M_MAX = 8; // directions per ring (menu.js MAX_ITEMS)
 function libraryDefaults(lib) {
   const out = {};
@@ -130,20 +132,9 @@ function unwrapCustom(text) {
 
 // One-time changes to a menu saved by an older version. Each runs once
 // (recorded in `migrated`), so something the person adds back stays.
-const OLD_STOPWATCH_KEYS = ['helper:keys:{F4}', 'helper:keys:{F12}'];
 function migrate(m, lib) {
   const done = Array.isArray(m.migrated) ? m.migrated : [];
   let changed = false;
-  if (!done.includes('no-stopwatch-ring')) {
-    // v3.0 shipped a Stopwatch ring; RadStopwatch is no longer part of
-    // RadGesture. Remove it only while it is still the shipped one (just the
-    // F4 / F12 keys), never a ring the person built up themselves.
-    const i = m.categories.findIndex((c) => c.id === 'stopwatch' &&
-      (c.items || []).every((it) => OLD_STOPWATCH_KEYS.includes(it.action)));
-    if (i >= 0 && m.categories.length > 1) m.categories.splice(i, 1);
-    done.push('no-stopwatch-ring');
-    changed = true;
-  }
   if (!done.includes('orthogonal-in-measure')) {
     // Orthogonal is a measuring tool: it moves from Crosshair to
     // Measure, right after Distance. Only when both are where we shipped them.
@@ -207,6 +198,14 @@ function migrate(m, lib) {
     const g = m.categories.find((c) => c.id === 'gallery' && c.name === 'Reference library');
     if (g) g.name = 'Reference Library';
     done.push('reference-library-title');
+    changed = true;
+  }
+  if (!done.includes('pacs-first')) {
+    // PACS is the first ring, then AI Tools.
+    const pi = m.categories.findIndex((c) => c.id === 'pacs');
+    const ai = m.categories.findIndex((c) => c.id === 'ai');
+    if (pi > 0 && ai >= 0 && ai < pi) m.categories.splice(ai, 0, m.categories.splice(pi, 1)[0]);
+    done.push('pacs-first');
     changed = true;
   }
   if (changed) m.migrated = done;
@@ -320,11 +319,22 @@ function createStore({ userDir, defaultMenuPath, libraryPath }) {
     if (!fs.existsSync(iniPath())) return false;
     const s = readIni();
     const done = String(ini.get(s, 'RadGesture', 'Migrated', '')).split(',').filter(Boolean);
-    if (done.includes('prior-toolbar')) return false;
-    // Some earlier builds hid the floating Priors toolbar by default and
-    // saved that; show it again once.
-    ini.set(s, 'Priors', 'ShowAtStartup', '1');
-    done.push('prior-toolbar');
+    let changed = false;
+    if (!done.includes('prior-toolbar')) {
+      // Some earlier builds hid the floating Priors toolbar by default and
+      // saved that; show it again once.
+      ini.set(s, 'Priors', 'ShowAtStartup', '1');
+      done.push('prior-toolbar');
+      changed = true;
+    }
+    if (!done.includes('functions-on')) {
+      // Every built-in function now ships with its shortcut on; earlier
+      // builds saved some of them off.
+      for (const id of FUNCTIONS_NOW_ON) if (ini.get(s, LIB_SECTION(id), 'On', null) !== null) ini.set(s, LIB_SECTION(id), 'On', '1');
+      done.push('functions-on');
+      changed = true;
+    }
+    if (!changed) return false;
     ini.set(s, 'RadGesture', 'Migrated', done.join(','));
     fs.writeFileSync(iniPath(), ini.serialize(s), 'latin1');
     return true;
