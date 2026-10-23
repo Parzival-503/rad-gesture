@@ -439,10 +439,10 @@ icons we shipped change.
   SendMessage, because only SendMessage returns an answer. `ahk_check.py`
   enforces exactly that.
 - **Lung-RADS (auto) and Lung screening 2 are not built in** (Sina,
-  2026-10-23: only useful to him). They are two of his "My functions"
-  (`mylungrads` Alt+Shift+L, `mylungscreen2` Shift+Alt+I), kept as an
-  importable `.rgkeys` in the private rad-proofread repo
-  (`my-functions/Lung functions.rgkeys`). Don't add them back here.
+  2026-10-23: only useful to him). Lung-RADS (auto) is one of his "My
+  functions" (`mylungrads`, Alt+Shift+L; Lung screening 2 was a weaker
+  subset and is dropped), kept as an importable `.rgkeys` in the private
+  rad-proofread repo (`my-functions/`). Don't add them back here.
 
 ### Shortcuts
 
