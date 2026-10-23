@@ -14,3 +14,6 @@ __pycache__/
 e2e-shots/
 helper/*.exe
 helper/*.interpreter
+# Old prior-checklist prototypes (tools/ahk, ahk): their local API key files
+tools/ahk/api-key.txt
+ahk/RadChecklist.ini
