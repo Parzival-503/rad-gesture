@@ -5,6 +5,10 @@ SPDX-License-Identifier: MIT
 
 # RadChecklist
 
+> **Superseded, kept for reference.** An early standalone prototype of the prior
+> checklist. The real one is built into RadGesture: ring > AI Tools > Priors
+> (see the root README). Nothing here is built or shipped.
+
 Paste in a prior report, get back a short tick-list of what to compare on today's
 study. Built for FDG PET/CT, where the prior can run to forty lines and it is
 easy to lose a finding to follow-up.

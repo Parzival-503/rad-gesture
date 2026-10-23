@@ -15,10 +15,13 @@ are meant to be developed together, usually in one Claude Code cloud project
 | `rad-gesture` | `RadGesture` | **The hub, where new tools go.** Our own radial menu (hold Ctrl+CapsLock) drawn by an Electron app, over an AutoHotkey helper that holds the AI tools (proofread, prior checklist, one-liner, impression) and does all PowerScribe work. Also the shortcut gallery | Electron + AutoHotkey **v1.1**, Windows |
 | `rad-proofread` | `RadProofread` | **Merged into RadGesture** (`helper/RadGestureHelper.ahk`). Keeps the last standalone script for reference | AutoHotkey **v1.1**, Windows only |
 | `rad-oneliner` | `RadOneLiner` | **Merged into RadGesture.** Keeps the original standalone one-liner script for reference | AutoHotkey **v1.1**, Windows only |
+| `rad-evidence` | `RadEvidence` | Guideline library (ACR RADS, Fleischner, incidental-findings white papers, SRU/SAR statements) with a Claude Q&A that answers only from it and cites document + page; a scheduled watcher proposes new guidelines as pull requests | Python, local web page (`python -m radev serve`); GitHub Actions for the watcher |
 
 `rad-gesture` used to be a fork of the Kando pie-menu app. Since v3 it is
 Sina's own code, inspired by Kando and DragShift but sharing no code with them
 (Kando's code stays in git history up to commit `a782b72`).
+(Planned, not built: an "Ask the guidelines" ring item in RadGesture that sends
+selected text to RadEvidence's local page, `http://127.0.0.1:8765/?q=...`.)
 
 ### Where the tools run
 

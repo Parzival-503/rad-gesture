@@ -5,6 +5,10 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Prior report → pre-read checklist
 
+> **Superseded, kept for reference.** An early standalone prototype of the prior
+> checklist. The real one is built into RadGesture: ring > AI Tools > Priors
+> (see the root README). Nothing here is built or shipped.
+
 Select a prior report, press **Ctrl+Alt+P**, and a small window pops up with a short
 checklist of what that prior obliges you to address on the exam you're about to read.
 
