@@ -101,6 +101,14 @@ global g_PriorBinShown   := false
 global g_PriorAtStartup  := 1    ; the floating Priors toolbar (Settings > AI tools can hide it)
 global g_PriorListText   := ""   ; the last checklist, for Insert / Copy
 
+; Chart bin for the one-liner: pieces of the chart copied one by one, turned
+; into one one-liner together, then emptied. Same idle expiry as the priors.
+global g_Chart           := []   ; each: {text, added (A_Now)}
+global g_ChartLast       := ""   ; A_Now of the last add
+global g_ChartAddHotkey  := ""   ; optional (Settings > Shortcuts)
+global g_BoundChartAdd   := ""
+global g_FromChart       := false ; the one-liner being made came from the bin
+
 ; One-liner and impression helper.
 global g_OneLinerHotkey  := "^!u" ; Ctrl+Alt+U
 global g_ImpHotkey       := ""    ; blank = toolbar button only
@@ -199,6 +207,8 @@ LoadSettings() {
     g_PriorAtStartup := v + 0
     IniRead, v, %INI_PATH%, OneLiner, Hotkey, ^!u
     g_OneLinerHotkey := Trim(v)
+    IniRead, v, %INI_PATH%, OneLiner, ChartAddHotkey, %A_Space%
+    g_ChartAddHotkey := Trim(v)
     IniRead, v, %INI_PATH%, Impression, Hotkey, %A_Space%
     g_ImpHotkey := Trim(v)
     IniRead, v, %INI_PATH%, LungRADS, Hotkey, !+l
@@ -2102,8 +2112,11 @@ ShowPriorBin() {
         Gui, PriorBin:Add, Button, x166 y28 w62 h24 gPriorBin_Clear, Clear
         Gui, PriorBin:Add, Button, x8 y56 w108 h24 gPriorBin_Imp, Impression
         Gui, PriorBin:Add, Button, x120 y56 w108 h24 gPriorBin_OneLiner, One-liner
+        Gui, PriorBin:Add, Text, x8 y88 w220 vChartBinCount, Chart for one-liner: 0
+        Gui, PriorBin:Add, Button, x8 y108 w108 h24 gPriorBin_ChartAdd, + Add chart text
+        Gui, PriorBin:Add, Button, x120 y108 w108 h24 gPriorBin_ChartClear, Clear chart
         priorBinX := A_ScreenWidth - 260
-        Gui, PriorBin:Show, x%priorBinX% y120 w236 h88 NoActivate, RadGesture
+        Gui, PriorBin:Show, x%priorBinX% y120 w236 h140 NoActivate, RadGesture
         g_PriorBinShown := true
     } else {
         Gui, PriorBin:Show, NoActivate
@@ -2112,9 +2125,11 @@ ShowPriorBin() {
 }
 
 UpdatePriorBin() {
-    global g_Priors, g_PriorLast, g_PriorBinShown
+    global g_Priors, g_PriorLast, g_PriorBinShown, g_Chart
     if (!g_PriorBinShown)
         return
+    ctxt := "Chart for one-liner: " . g_Chart.Length() . (g_Chart.Length() ? " piece" . (g_Chart.Length() = 1 ? "" : "s") . " (One-liner uses them)" : "")
+    GuiControl, PriorBin:, ChartBinCount, %ctxt%
     n := g_Priors.Length()
     txt := "Priors collected: " . n
     if (n > 0) {
@@ -2145,6 +2160,80 @@ PriorBin_OneLiner:
     if (!g_Busy)
         Trigger_OneLiner()
 return
+
+PriorBin_ChartAdd:
+    ChartAdd()
+return
+
+PriorBin_ChartClear:
+    ChartClear()
+return
+
+ChartAddHotkey:
+    ChartAdd()
+return
+
+; ---- Chart bin for the one-liner ----------------------------------------
+; Copy a part of the chart (note, path report, oncology history...), press
+; "+ Add chart text" (toolbar, ring or its shortcut); repeat for each part.
+; The next One-liner (any kind) is made from all of them together, in the
+; order added, and the bin then empties itself. Nothing is sent anywhere
+; until the one-liner is made.
+ChartExpireCheck() {
+    global g_Chart, g_ChartLast, g_PriorExpireMin
+    if (g_Chart.Length() = 0 || g_PriorExpireMin <= 0 || g_ChartLast = "")
+        return false
+    idle := A_Now
+    EnvSub, idle, %g_ChartLast%, Minutes
+    if (idle < g_PriorExpireMin)
+        return false
+    g_Chart := []
+    g_ChartLast := ""
+    UpdatePriorBin()
+    return true
+}
+
+ChartAdd() {
+    global g_Chart, g_ChartLast
+    expired := ChartExpireCheck()
+    text := Trim(Clipboard, " `t`r`n")
+    if (StrLen(text) < 10) {
+        Notify("Chart: nothing copied. Copy a part of the chart, then + Add chart text.", 3000)
+        return
+    }
+    for i, p in g_Chart {
+        if (p.text == text) {
+            Notify("Chart: that text is already in the bin (piece " . i . ").", 2500)
+            return
+        }
+    }
+    g_Chart.Push({ text: text, added: A_Now })
+    g_ChartLast := A_Now
+    PriorBinRefresh()
+    peek := SubStr(RegExReplace(text, "\s+", " "), 1, 60)
+    msg := "Chart piece " . g_Chart.Length() . " added: " . peek . "...`nOne-liner now uses all " . g_Chart.Length() . "."
+    if (expired)
+        msg := "Old chart pieces were cleared (idle too long).`n" . msg
+    Notify(msg, 3000)
+}
+
+ChartClear(quiet := false) {
+    global g_Chart, g_ChartLast
+    g_Chart := []
+    g_ChartLast := ""
+    UpdatePriorBin()
+    if (!quiet)
+        Notify("Chart bin cleared", 1200)
+}
+
+; All pieces as one text for the one-liner, in the order they were added.
+ChartText() {
+    global g_Chart
+    out := ""
+    for i, p in g_Chart
+        out .= (i > 1 ? "`n`n" : "") . "[Chart excerpt " . i . "]`n" . p.text
+    return out
+}
 
 ; Closing it (X on the title bar or in the window, or Esc) hides it and
 ; remembers that, so a restart of the helper doesn't bring it straight back.
@@ -2418,7 +2507,11 @@ ReadExamTitle() {
 ; ============================================================================
 
 RegisterToolHotkeys() {
-    global g_OneLinerHotkey, g_ImpHotkey, g_BoundOneLiner, g_BoundImp, g_LungHotkey, g_BoundLung
+    global g_OneLinerHotkey, g_ImpHotkey, g_BoundOneLiner, g_BoundImp, g_LungHotkey, g_BoundLung, g_ChartAddHotkey, g_BoundChartAdd
+    if (g_BoundChartAdd != "") {
+        try Hotkey, %g_BoundChartAdd%, Off
+        g_BoundChartAdd := ""
+    }
     if (g_BoundOneLiner != "") {
         try Hotkey, %g_BoundOneLiner%, Off
         g_BoundOneLiner := ""
@@ -2446,6 +2539,14 @@ RegisterToolHotkeys() {
             g_BoundImp := g_ImpHotkey
         } catch e {
             bad .= " " . g_ImpHotkey
+        }
+    }
+    if (g_ChartAddHotkey != "") {
+        try {
+            Hotkey, %g_ChartAddHotkey%, ChartAddHotkey, On
+            g_BoundChartAdd := g_ChartAddHotkey
+        } catch e {
+            bad .= " " . g_ChartAddHotkey
         }
     }
     if (g_LungHotkey != "") {
@@ -2487,6 +2588,22 @@ Trigger_OneLiner() {
         return
     }
     g_Busy := true
+
+    ; Chart pieces collected? Then the one-liner is made from them (no copy).
+    g_FromChart := false
+    ChartExpireCheck()
+    if (g_Chart.Length() > 0) {
+        g_SavedClip := ClipboardAll
+        g_PendingText := ChartText()
+        g_FromChart := true
+        Toast("One-liner from " . g_Chart.Length() . " chart piece" . (g_Chart.Length() = 1 ? "" : "s"), "info", 1400)
+        if (ol_direct != "") {
+            RunFlavor(ol_direct)
+            return
+        }
+        ShowFlavorPicker()
+        return
+    }
 
     ; Stash whatever's currently in the clipboard -- we'll use it as a fallback
     ; for Citrix/Epic where Ctrl+C injection is blocked.
@@ -2780,7 +2897,7 @@ PanicTeardown(reason := "") {
 }
 
 RunFlavor(flavor) {
-    global g_PendingText, g_SavedClip, g_Busy
+    global g_PendingText, g_SavedClip, g_Busy, g_FromChart
     Toast("Generating " . flavor . " one-liner...", "info", 0)  ; persistent toast
 
     ; Extraction only, no creative gap-filling with dates. (No temperature:
@@ -2797,7 +2914,13 @@ RunFlavor(flavor) {
 
     ; Success: replace clipboard with the one-liner
     Clipboard := StripPreamble(result.text)
-    Toast(Chr(0x2713) . " Copied (" . FlavorLabel(flavor) . ")", "ok")
+    if (g_FromChart) {
+        ; Made from the chart bin: empty it, so the next patient starts clean.
+        ChartClear(true)
+        g_FromChart := false
+        Toast(Chr(0x2713) . " Copied (" . FlavorLabel(flavor) . "); chart bin emptied", "ok")
+    } else
+        Toast(Chr(0x2713) . " Copied (" . FlavorLabel(flavor) . ")", "ok")
     g_Busy := false
     g_PendingText := ""
     g_SavedClip := ""  ; we kept the one-liner; don't restore old content later
@@ -3205,6 +3328,10 @@ RunHubAction(a) {
         PriorChecklist()
     } else if (a = "prior:clear") {
         PriorClear()
+    } else if (a = "chart:add") {
+        ChartAdd()
+    } else if (a = "chart:clear") {
+        ChartClear()
     } else if (a = "prior:show") {
         PriorBinSetWanted(true)
         ShowPriorBin()

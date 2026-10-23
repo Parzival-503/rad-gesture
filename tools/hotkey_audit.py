@@ -105,6 +105,7 @@ def helper_hotkeys(path):
         ('OneLiner', 'Hotkey'): 'One-liner',
         ('Impression', 'Hotkey'): 'Impression',
         ('Priors', 'AddHotkey'): 'Add prior',
+        ('OneLiner', 'ChartAddHotkey'): 'Add chart text (one-liner)',
         ('Priors', 'ChecklistHotkey'): 'Prior checklist',
         ('LungRADS', 'Hotkey'): 'Lung-RADS',
         ('Hub', 'Trigger'): 'Open the ring (hold)',

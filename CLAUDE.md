@@ -395,6 +395,15 @@ only works on a selection made by hand, never from the ring); the fourth
   (ring or tray) turns it on again. The Priors tools never pop it up on
   their own (an empty bin or nothing copied is a notification): Sina saw it
   appear "on Ctrl+CapsLock" and could not get rid of it.
+- **Chart bin for the one-liner** (Sina: "copy different parts of the chart,
+  then one one-liner"): `ChartAdd()` takes what is on the clipboard (Priors
+  toolbar "+ Add chart text", ring AI Tools > One-liner > Add chart text,
+  `helper:chart:add`, optional `[OneLiner] ChartAddHotkey`). While the bin
+  holds pieces, every one-liner (Ctrl+Alt+U, toolbar, ring flavours) is made
+  from all of them (`ChartText()`, "[Chart excerpt n]") instead of a fresh
+  copy, and **the bin empties itself after a successful one-liner** (kept on
+  an error or a cancelled picker). Idle expiry is the priors' setting.
+  Migration `chart-bin` adds the two ring buttons to saved One-liner rings.
 - **Impression** (`ImpressionPrompt()`): a high-level SYNTHESIS, not a
   summary (Sina: the first one just reworded the findings). Answers the
   clinical question first, merges related findings, leaves out chronic and

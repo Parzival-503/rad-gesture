@@ -38,6 +38,7 @@ const SHORTCUT_FIELDS = {
   trigger: ['Hub', 'Trigger', '^CapsLock'],
   proofread: ['Behavior', 'Hotkey', '^!q'],
   oneliner: ['OneLiner', 'Hotkey', '^!u'],
+  chartAdd: ['OneLiner', 'ChartAddHotkey', ''],
   lungrads: ['LungRADS', 'Hotkey', '!+l'],
   impression: ['Impression', 'Hotkey', ''],
   priorAdd: ['Priors', 'AddHotkey', ''],
@@ -52,6 +53,7 @@ const SHORTCUT_FIELDS = {
 // is not a setting, so it is always rewritten from the JSON. The username is
 // [Library] Username. The password is never stored (the helper asks for it).
 const LIB_SECTION = (id) => 'Lib.' + id;
+const M_MAX = 8; // directions per ring (menu.js MAX_ITEMS)
 function libraryDefaults(lib) {
   const out = {};
   for (const f of lib.functions) {
@@ -178,6 +180,18 @@ function migrate(m, lib) {
     });
     m.categories.forEach((c) => walk(c.items));
     done.push('library');
+    changed = true;
+  }
+  if (!done.includes('chart-bin')) {
+    // The one-liner's chart bin: "Add chart text" and "Clear chart" join the
+    // One-liner ring (when it has room).
+    const ai = m.categories.find((c) => c.id === 'ai');
+    const ol = ai && (ai.items || []).find((it) => it.name === 'One-liner' && Array.isArray(it.items));
+    if (ol && ol.items.length <= M_MAX - 2 && !ol.items.some((it) => it.action === 'helper:chart:add')) {
+      ol.items.push({ name: 'Add chart text', icon: 'playlist_add', action: 'helper:chart:add' });
+      ol.items.push({ name: 'Clear chart', icon: 'playlist_remove', action: 'helper:chart:clear' });
+    }
+    done.push('chart-bin');
     changed = true;
   }
   if (!done.includes('reference-library')) {

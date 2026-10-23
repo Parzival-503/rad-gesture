@@ -489,6 +489,29 @@ async function waitFor(fn, ms, step = 200) {
         const copied = fs.existsSync(copyOut) ? fs.readFileSync(copyOut, 'utf8') : 'nothing';
         check('a shortcut copies the highlighted text (as Paste indication does)', /bosniak IIF cyst/.test(copied), copied);
         try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe']); } catch (_) {}
+
+        // The one-liner's chart bin: two copied pieces show on the toolbar as
+        // "2 pieces"; Clear empties it.
+        const binText = async () => {
+          const out = path.join(userData, 'bin-text.txt');
+          try { fs.unlinkSync(out); } catch (_) {}
+          const f = path.join(userData, 'read-bin.ahk');
+          fs.writeFileSync(f, ['#NoTrayIcon', 'DetectHiddenText, On', 't := ""', 'WinGet, ids, List, RadGesture ahk_class AutoHotkeyGUI',
+            'Loop, %ids%', '{', '  id := ids%A_Index%', '  WinGetText, w, ahk_id %id%', '  t .= w', '}', 'FileAppend, %t%, ' + out, 'ExitApp', ''].join('\r\n'));
+          spawnSync(process.env.AHK_EXE, [f], { timeout: 15000 });
+          return fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : '';
+        };
+        for (const piece of ['Oncology note: invented example, stage II, started chemo.', 'Path report: invented example, margins negative.']) {
+          await app.evaluate(({ clipboard }, t) => clipboard.writeText(t), piece);
+          await runVia('chart:add');
+          await waitFor(async () => (await ev()).filter((e) => e === 'done chart:add').length >= 1, 5000);
+          await sleep(500);
+        }
+        const bin2 = await binText();
+        check('the one-liner chart bin collects copied pieces', /Chart for one-liner: 2 pieces/.test(bin2), bin2.replace(/\s+/g, ' ').slice(0, 160));
+        await runVia('chart:clear');
+        await sleep(800);
+        check('Clear chart empties it', /Chart for one-liner: 0/.test(await binText()));
       }
 
       const ahk = process.env.AHK_EXE;

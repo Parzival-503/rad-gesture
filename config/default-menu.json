@@ -50,6 +50,16 @@
               "name": "Indication",
               "icon": "assignment",
               "action": "helper:oneliner:indication"
+            },
+            {
+              "name": "Add chart text",
+              "icon": "playlist_add",
+              "action": "helper:chart:add"
+            },
+            {
+              "name": "Clear chart",
+              "icon": "playlist_remove",
+              "action": "helper:chart:clear"
             }
           ]
         },

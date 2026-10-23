@@ -38,6 +38,8 @@
     ['prior:checklist', 'Prior checklist'],
     ['prior:clear', 'Clear the priors'],
     ['prior:show', 'Show the priors toolbar'],
+    ['chart:add', 'One-liner: add the copied chart text'],
+    ['chart:clear', 'One-liner: clear the chart bin'],
     ['history', 'Proofread history'],
   ];
   const SEARCHES = [
@@ -58,6 +60,7 @@
     ['impression', 'Impression', 'Optional. Also on the ring.'],
     ['priorAdd', 'Add prior', 'Optional. Also on the ring.'],
     ['priorChecklist', 'Prior checklist', 'Optional. Also on the ring.'],
+    ['chartAdd', 'Add chart text (one-liner)', 'Optional. Adds what you copied to the one-liner\'s chart bin. Also on the ring and toolbar.'],
   ];
 
   // ------------------------------------------------------------------ utils

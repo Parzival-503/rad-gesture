@@ -285,3 +285,17 @@ test('what ships carries no personal names or development history', () => {
     assert.ok(!/\bSina\b|3-16-26|5-8-26|; Change:|\bkp\.org\b/i.test(t), `${f} mentions a person or the project's history`);
   }
 });
+
+test('the one-liner\'s chart bin: on the One-liner ring, and added to saved rings once', () => {
+  const ai = defaultMenu.categories.find((c) => c.id === 'ai');
+  const ol = ai.items.find((it) => it.name === 'One-liner');
+  assert.ok(ol.items.some((it) => it.action === 'helper:chart:add') && ol.items.some((it) => it.action === 'helper:chart:clear'));
+  const old = { categories: [{ id: 'ai', name: 'AI Tools', items: [{ name: 'One-liner', icon: 'x', items: [
+    { name: 'Full', icon: 'x', action: 'helper:oneliner:full' }, { name: 'Oncologic', icon: 'x', action: 'helper:oneliner:oncologic' }] }] }] };
+  migrate(old, lib);
+  assert.deepStrictEqual(old.categories[0].items[0].items.map((i) => i.action).slice(2), ['helper:chart:add', 'helper:chart:clear']);
+  migrate(old, lib);
+  assert.strictEqual(old.categories[0].items[0].items.length, 4, 'once');
+  assert.ok(ahk.includes('ChartClear(true)'), 'the bin empties itself after a one-liner');
+  assert.ok(/ChartExpireCheck\(\)\s*\n\s*if \(g_Chart\.Length\(\) > 0\)/.test(ahk), 'and expires when idle, like the priors');
+});

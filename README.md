@@ -3,7 +3,7 @@
 Sina's radiology tool hub. Hold **Ctrl+CapsLock** anywhere: a ring opens at the
 mouse. Flick toward a tool and let go, or tap and click.
 
-- **AI Tools**: Proofread, Impression, One-liner (4 flavors), Priors checklist
+- **AI Tools**: Proofread, Impression, One-liner (4 flavors; collect several parts of a chart first with **Add chart text**, the bin empties itself after), Priors checklist
 - **PACS** and **Apps**: Rad Optimizer's functions, now built in (Settings > Functions; Rad Optimizer is no longer needed), Lung-RADS
 - **Reference Library** (was "Gallery"): reference links (Lung-RADS, Fleischner, LI-RADS, TI-RADS, ...), search copied text
 
