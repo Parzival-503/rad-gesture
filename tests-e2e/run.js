@@ -518,10 +518,19 @@ async function waitFor(fn, ms, step = 200) {
           await sleep(500);
         }
         const bin2 = await binText();
-        check('the one-liner chart bin collects copied pieces', /Chart for one-liner: 2 pieces/.test(bin2), bin2.replace(/\s+/g, ' ').slice(0, 160));
+        check('the one-liner chart bin collects copied pieces', /2 pieces: the next One-liner uses them/.test(bin2), bin2.replace(/\s+/g, ' ').slice(0, 200));
         await runVia('chart:clear');
         await sleep(800);
-        check('Clear chart empties it', /Chart for one-liner: 0/.test(await binText()));
+        check('Empty chart text empties it', /One-liner chart text\s*Nothing added yet/.test(await binText()));
+        // The prior checklist has its own heading and count on the toolbar.
+        await app.evaluate(({ clipboard }, t) => clipboard.writeText(t), 'CT CHEST, invented prior report: 6 mm nodule right upper lobe, follow-up advised.');
+        await runVia('prior:add');
+        await sleep(800);
+        const bin3 = await binText();
+        check('Add copied prior counts it under Prior checklist', /1 prior added/.test(bin3), bin3.replace(/\s+/g, ' ').slice(0, 200));
+        await runVia('prior:clear');
+        await sleep(800);
+        check('Empty the list empties the prior checklist', /No priors added yet/.test(await binText()));
       }
 
       const ahk = process.env.AHK_EXE;

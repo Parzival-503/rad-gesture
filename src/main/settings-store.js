@@ -39,7 +39,6 @@ const SHORTCUT_FIELDS = {
   proofread: ['Behavior', 'Hotkey', '^!q'],
   oneliner: ['OneLiner', 'Hotkey', '^!u'],
   chartAdd: ['OneLiner', 'ChartAddHotkey', ''],
-  lungrads: ['LungRADS', 'Hotkey', '!+l'],
   impression: ['Impression', 'Hotkey', ''],
   priorAdd: ['Priors', 'AddHotkey', ''],
   priorChecklist: ['Priors', 'ChecklistHotkey', ''],
@@ -206,6 +205,56 @@ function migrate(m, lib) {
     const ai = m.categories.findIndex((c) => c.id === 'ai');
     if (pi > 0 && ai >= 0 && ai < pi) m.categories.splice(ai, 0, m.categories.splice(pi, 1)[0]);
     done.push('pacs-first');
+    changed = true;
+  }
+  if (!done.includes('no-lung')) {
+    // Lung-RADS and Lung screening 2 are no longer built in (they can be
+    // added back as one of "My functions"). Their directions go, and a
+    // smaller ring left empty goes with them.
+    const gone = new Set(['helper:lungrads', 'helper:lib:LungScreening2']);
+    const prune = (items) => (items || []).filter((it) => {
+      if (gone.has(it.action)) return false;
+      if (Array.isArray(it.items)) {
+        const had = it.items.length;
+        it.items = prune(it.items);
+        return !(had && !it.items.length);
+      }
+      return true;
+    });
+    m.categories.forEach((c) => { c.items = prune(c.items); });
+    done.push('no-lung');
+    changed = true;
+  }
+  if (!done.includes('nav-names')) {
+    // Each previous/next pair has its own pair of icons (layouts: skip,
+    // key images: fast-forward/rewind, fields: tab), "Link crosshair" is
+    // Link priors, and the Prior checklist's buttons say what they do. Only
+    // names and icons we shipped change; ones the person chose stay.
+    const icons = {
+      'helper:lib:PACS_Prev_Layout': 'skip_previous', 'helper:lib:PACS_Next_Layout': 'skip_next',
+      'helper:lib:PACS_Prev_Key_Image': 'fast_rewind', 'helper:lib:PACS_Next_Key_Image': 'fast_forward',
+      'helper:lib:PS_PrevField': 'keyboard_tab_rtl', 'helper:lib:PS_NextField': 'keyboard_tab',
+    };
+    const oldIcons = ['arrow_back', 'arrow_forward', 'field', 'text_fields'];
+    const names = {
+      'helper:lib:PACS_LinkCrosshair': ['Link crosshair', 'Link priors'],
+      'helper:prior:checklist': ['Checklist', 'Make checklist'],
+      'helper:prior:clear': ['Clear priors', 'Empty the list'],
+      'helper:chart:clear': ['Clear chart', 'Empty chart text'],
+    };
+    const walk = (items) => (items || []).forEach((it) => {
+      if (Array.isArray(it.items)) {
+        walk(it.items);
+        if (it.name === 'Crosshair' && it.items.some((x) => x.action === 'helper:lib:PACS_LinkCrosshair')) it.name = 'Crosshair & link';
+        if (it.name === 'Priors' && it.items.some((x) => /^helper:prior:/.test(x.action || ''))) it.name = 'Prior checklist';
+        return;
+      }
+      if (icons[it.action] && oldIcons.includes(it.icon)) it.icon = icons[it.action];
+      const n = names[it.action];
+      if (n && it.name === n[0]) it.name = n[1];
+    });
+    m.categories.forEach((c) => walk(c.items));
+    done.push('nav-names');
     changed = true;
   }
   if (changed) m.migrated = done;

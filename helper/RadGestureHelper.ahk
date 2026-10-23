@@ -116,8 +116,6 @@ global g_ImpRules        := "Keep it very short. No measurements or other number
 global g_ImpMaxTokens    := 400
 global g_ImpModel        := ""    ; "" = same model as the other tools; or claude-opus-5-5
 global g_BoundOneLiner   := ""
-global g_LungHotkey      := "!+l"  ; Alt+Shift+L
-global g_BoundLung       := ""
 global g_BoundImp        := ""
 global g_ImpLastFindings := ""
 global g_ImpLastText     := ""
@@ -131,7 +129,7 @@ global g_DirectFlavor    := ""    ; set by the ring: skip the flavor picker
 
 ; Function collection (section at the bottom). Every id
 ; must be in config/library.json and the other way round.
-global LIB_IDS := "PS_ToggleDictation|PS_NextField|PS_PrevField|PS_PasteIndication|LungScreening2"
+global LIB_IDS := "PS_ToggleDictation|PS_NextField|PS_PrevField|PS_PasteIndication"
     . "|PACS_WL_SoftTissue|PACS_WL_Lung|PACS_WL_Bone|PACS_WL_Brain|PACS_WL_Stroke|PACS_Enhance|PACS_Sharpen"
     . "|PACS_Distance|PACS_Orthogonal|PACS_ROI|PACS_Arrow|PACS_Circle|PACS_Insert_Measurement"
     . "|PACS_Crosshair|PACS_LinkCrosshair|PACS_Prev_Key_Image|PACS_Next_Key_Image"
@@ -211,8 +209,6 @@ LoadSettings() {
     g_ChartAddHotkey := Trim(v)
     IniRead, v, %INI_PATH%, Impression, Hotkey, %A_Space%
     g_ImpHotkey := Trim(v)
-    IniRead, v, %INI_PATH%, LungRADS, Hotkey, !+l
-    g_LungHotkey := Trim(v)
     IniRead, v, %INI_PATH%, Impression, ExtraRules, %g_ImpRules%
     g_ImpRules := Trim(v)
     IniRead, v, %INI_PATH%, Impression, Model, %A_Space%
@@ -233,7 +229,6 @@ SaveExtraSettings() {
     IniWrite, %g_PriorAtStartup%,  %INI_PATH%, Priors, ShowAtStartup
     IniWrite, %g_OneLinerHotkey%,  %INI_PATH%, OneLiner, Hotkey
     IniWrite, %g_ImpHotkey%,       %INI_PATH%, Impression, Hotkey
-    IniWrite, %g_LungHotkey%,      %INI_PATH%, LungRADS, Hotkey
     IniWrite, %g_ImpRules%,        %INI_PATH%, Impression, ExtraRules
     IniWrite, %g_HubTrigger%,      %INI_PATH%, Hub, Trigger
 }
@@ -2067,12 +2062,12 @@ PriorAdd() {
     text := Trim(text, " `t`r`n")
 
     if (StrLen(text) < 20) {
-        Notify("Priors: nothing copied. Select the prior report, Copy it, then + Add.", 3000)
+        Notify("Prior checklist: nothing copied. Copy the prior report first, then + Add prior.", 3000)
         return
     }
     for i, p in g_Priors {
         if (p.text == text) {
-            Notify("Priors: that report is already in the bin as P" . i . ".", 2500)
+            Notify("Prior checklist: that report is already in the list as P" . i . ".", 2500)
             return
         }
     }
@@ -2083,7 +2078,7 @@ PriorAdd() {
 
     ; Echo the start of what was captured so a wrong clipboard is obvious.
     peek := SubStr(RegExReplace(text, "\s+", " "), 1, 60)
-    msg := "Prior P" . g_Priors.Length() . " added: " . peek . "..."
+    msg := "Prior checklist: P" . g_Priors.Length() . " added: " . peek . "...`nAdd more, or Checklist when done."
     if (expired)
         msg := "Old priors were cleared (idle too long).`n" . msg
     Notify(msg, 2500)
@@ -2094,7 +2089,7 @@ PriorClear() {
     g_Priors := []
     g_PriorLast := ""
     UpdatePriorBin()
-    Notify("Priors cleared", 1200)
+    Notify("Prior checklist: list emptied", 1200)
 }
 
 ; The small always-on-top bin window. Assume-global: it adds a v-named control.
@@ -2105,18 +2100,30 @@ ShowPriorBin() {
         Gui, PriorBin:+AlwaysOnTop +ToolWindow +E0x08000000 -DPIScale
         Gui, PriorBin:Color, 1e1e1e
         Gui, PriorBin:Font, s9 cE8E8E8, Segoe UI
-        Gui, PriorBin:Add, Text, x8 y6 w196 vPriorBinCount, Priors collected: 0
+        ; Three parts, each with its own heading: the prior checklist (copy
+        ; a prior report, + Add prior, then Checklist), the one-liner's
+        ; chart text, and the two report tools.
+        Gui, PriorBin:Font, s9 Bold cE8E8E8, Segoe UI
+        Gui, PriorBin:Add, Text, x8 y6 w196, Prior checklist
+        Gui, PriorBin:Font, s9 Norm cE8E8E8, Segoe UI
         Gui, PriorBin:Add, Button, x210 y3 w20 h20 gPriorBin_Hide, X
-        Gui, PriorBin:Add, Button, x8 y28 w70 h24 gPriorBin_Add, + Add
-        Gui, PriorBin:Add, Button, x82 y28 w80 h24 gPriorBin_List, Checklist
-        Gui, PriorBin:Add, Button, x166 y28 w62 h24 gPriorBin_Clear, Clear
-        Gui, PriorBin:Add, Button, x8 y56 w108 h24 gPriorBin_Imp, Impression
-        Gui, PriorBin:Add, Button, x120 y56 w108 h24 gPriorBin_OneLiner, One-liner
-        Gui, PriorBin:Add, Text, x8 y88 w220 vChartBinCount, Chart for one-liner: 0
-        Gui, PriorBin:Add, Button, x8 y108 w108 h24 gPriorBin_ChartAdd, + Add chart text
-        Gui, PriorBin:Add, Button, x120 y108 w108 h24 gPriorBin_ChartClear, Clear chart
+        Gui, PriorBin:Add, Text, x8 y24 w220 vPriorBinCount, No priors added yet
+        Gui, PriorBin:Add, Button, x8 y44 w78 h24 gPriorBin_Add, + Add prior
+        Gui, PriorBin:Add, Button, x90 y44 w76 h24 gPriorBin_List, Checklist
+        Gui, PriorBin:Add, Button, x170 y44 w58 h24 gPriorBin_Clear, Empty
+        Gui, PriorBin:Font, s9 Bold cE8E8E8, Segoe UI
+        Gui, PriorBin:Add, Text, x8 y80 w220, One-liner chart text
+        Gui, PriorBin:Font, s9 Norm cE8E8E8, Segoe UI
+        Gui, PriorBin:Add, Text, x8 y98 w220 vChartBinCount, Nothing added yet
+        Gui, PriorBin:Add, Button, x8 y118 w158 h24 gPriorBin_ChartAdd, + Add copied chart text
+        Gui, PriorBin:Add, Button, x170 y118 w58 h24 gPriorBin_ChartClear, Empty
+        Gui, PriorBin:Font, s9 Bold cE8E8E8, Segoe UI
+        Gui, PriorBin:Add, Text, x8 y154 w220, Write
+        Gui, PriorBin:Font, s9 Norm cE8E8E8, Segoe UI
+        Gui, PriorBin:Add, Button, x8 y172 w108 h24 gPriorBin_Imp, Impression
+        Gui, PriorBin:Add, Button, x120 y172 w108 h24 gPriorBin_OneLiner, One-liner
         priorBinX := A_ScreenWidth - 260
-        Gui, PriorBin:Show, x%priorBinX% y120 w236 h140 NoActivate, RadGesture
+        Gui, PriorBin:Show, x%priorBinX% y120 w236 h204 NoActivate, RadGesture toolbar
         g_PriorBinShown := true
     } else {
         Gui, PriorBin:Show, NoActivate
@@ -2128,13 +2135,14 @@ UpdatePriorBin() {
     global g_Priors, g_PriorLast, g_PriorBinShown, g_Chart
     if (!g_PriorBinShown)
         return
-    ctxt := "Chart for one-liner: " . g_Chart.Length() . (g_Chart.Length() ? " piece" . (g_Chart.Length() = 1 ? "" : "s") . " (One-liner uses them)" : "")
+    c := g_Chart.Length()
+    ctxt := c ? c . " piece" . (c = 1 ? "" : "s") . ": the next One-liner uses " . (c = 1 ? "it" : "them") : "Nothing added yet"
     GuiControl, PriorBin:, ChartBinCount, %ctxt%
     n := g_Priors.Length()
-    txt := "Priors collected: " . n
+    txt := "No priors added yet"
     if (n > 0) {
         FormatTime, t, %g_PriorLast%, HH:mm
-        txt .= "   (last added " . t . ")"
+        txt := n . " prior" . (n = 1 ? "" : "s") . " added (last at " . t . ")"
     }
     GuiControl, PriorBin:, PriorBinCount, %txt%
 }
@@ -2203,7 +2211,7 @@ ChartAdd() {
     }
     for i, p in g_Chart {
         if (p.text == text) {
-            Notify("Chart: that text is already in the bin (piece " . i . ").", 2500)
+            Notify("Chart: that text is already added (piece " . i . ").", 2500)
             return
         }
     }
@@ -2223,7 +2231,7 @@ ChartClear(quiet := false) {
     g_ChartLast := ""
     UpdatePriorBin()
     if (!quiet)
-        Notify("Chart bin cleared", 1200)
+        Notify("Chart text emptied", 1200)
 }
 
 ; All pieces as one text for the one-liner, in the order they were added.
@@ -2237,13 +2245,13 @@ ChartText() {
 
 ; Closing it (X on the title bar or in the window, or Esc) hides it and
 ; remembers that, so a restart of the helper doesn't bring it straight back.
-; Ring > AI Tools > Priors > Show toolbar (or the tray) turns it on again.
+; Ring > AI Tools > Prior checklist > Show toolbar (or the tray) turns it on again.
 PriorBin_Hide:
 PriorBinGuiClose:
 PriorBinGuiEscape:
     PriorBinSetWanted(false)
     Gui, PriorBin:Hide
-    Notify("Priors toolbar hidden. Bring it back: ring > AI Tools > Priors > Show toolbar.", 3500)
+    Notify("Toolbar hidden. Bring it back: ring > AI Tools > Prior checklist > Show toolbar.", 3500)
 return
 
 PriorBinSetWanted(on) {
@@ -2270,12 +2278,12 @@ PriorChecklist() {
         return
     }
     if (PriorExpireCheck()) {
-        Notify("Priors were cleared (idle too long). Add them again.", 3000)
+        Notify("Prior checklist: the list was emptied (idle too long). Add the priors again.", 3000)
         return
     }
     n := g_Priors.Length()
     if (n = 0) {
-        Notify("Priors: the bin is empty. Copy a prior report, then + Add.", 3000)
+        Notify("Prior checklist: no priors yet. Copy a prior report, then + Add prior.", 3000)
         return
     }
 
@@ -2506,7 +2514,7 @@ ReadExamTitle() {
 ; ============================================================================
 
 RegisterToolHotkeys() {
-    global g_OneLinerHotkey, g_ImpHotkey, g_BoundOneLiner, g_BoundImp, g_LungHotkey, g_BoundLung, g_ChartAddHotkey, g_BoundChartAdd
+    global g_OneLinerHotkey, g_ImpHotkey, g_BoundOneLiner, g_BoundImp, g_ChartAddHotkey, g_BoundChartAdd
     if (g_BoundChartAdd != "") {
         try Hotkey, %g_BoundChartAdd%, Off
         g_BoundChartAdd := ""
@@ -2518,10 +2526,6 @@ RegisterToolHotkeys() {
     if (g_BoundImp != "") {
         try Hotkey, %g_BoundImp%, Off
         g_BoundImp := ""
-    }
-    if (g_BoundLung != "") {
-        try Hotkey, %g_BoundLung%, Off
-        g_BoundLung := ""
     }
     bad := ""
     if (g_OneLinerHotkey != "") {
@@ -2548,14 +2552,6 @@ RegisterToolHotkeys() {
             bad .= " " . g_ChartAddHotkey
         }
     }
-    if (g_LungHotkey != "") {
-        try {
-            Hotkey, %g_LungHotkey%, LungRADSHotkey, On
-            g_BoundLung := g_LungHotkey
-        } catch e {
-            bad .= " " . g_LungHotkey
-        }
-    }
     if (bad != "")
         TrayTip, RadGesture, Could not bind hotkey(s):%bad%, 5, 2
 }
@@ -2570,10 +2566,6 @@ ImpressionHotkey:
     if (g_Busy)
         return
     ImpressionRun()
-return
-
-LungRADSHotkey:
-    LungScreening()
 return
 
 Trigger_OneLiner() {
@@ -3319,8 +3311,6 @@ RunHubAction(a) {
             g_DirectFlavor := SubStr(a, 10)
             Trigger_OneLiner()
         }
-    } else if (a = "lungrads") {
-        LungScreening()
     } else if (a = "prior:add") {
         PriorAdd()
     } else if (a = "prior:checklist") {
@@ -3362,215 +3352,14 @@ HubAutoResume:
 return
 
 ; ============================================================================
-; LUNG-RADS
+; POWERSCRIBE PICK LISTS
 ; ----------------------------------------------------------------------------
-; Alt+Shift+L (or the ring: PACS > PowerScribe > Lung-RADS). In the open
-; PowerScribe report: reads the Micronodule field; "None" means Lung-RADS 1,
-; anything else 2. Then sets the "Chest Screening LungRADS" field and the
-; Impression field to that value.
-;
-; How it talks to PowerScribe, and why this is allowed here:
-;   - Every CHANGE (select a field, pick a value, click) goes by PostMessage,
-;     which never makes PowerScribe stop and answer mid-action. That is the
-;     rule that matters (SendMessage there gave RPC_E_CANTCALLOUT_ININPUTSYNCCALL).
-;   - Read-only QUESTIONS to the pick lists (LB_FINDSTRINGEXACT, LB_GETCOUNT,
-;     LB_GETCURSEL, LB_GETITEMRECT) use SendMessage, because only it returns an
-;     answer.
-;   - Nothing is ever sent to the report editor (RichEdit) itself.
-; tools/ahk_check.py allows SendMessage for those four queries only.
+; Finds an entry in one of PowerScribe's pick lists (Insert priors and Paste
+; indication use it to find the Comparison / Indication field). A read-only
+; question, so it goes by SendMessage, the only way to get an answer; every
+; change to PowerScribe goes by PostMessage. tools/ahk_check.py allows
+; SendMessage for read-only list questions only.
 ; ============================================================================
-
-LungScreening()
-{
-    static psExe := "Nuance.PowerScribe360.exe"
-    static fieldLungRADS := "Chest Screening LungRADS"
-    static fieldImpression := "Impression"
-    static fieldMicronodule := "Micronodule"
-    psWin := "ahk_exe " . psExe
-
-    if !WinExist(psWin)
-    {
-        Notify("PowerScribe not found", 2000)
-        return false
-    }
-    WinActivate, %psWin%
-    WinWaitActive, %psWin%, , 1.5
-    if !WinActive(psWin)
-    {
-        Notify("Could not activate PowerScribe", 2000)
-        return false
-    }
-
-    ; Step 1: Check Micronodule field
-    choice := "2"
-    if (PS_NavigateToField(psWin, fieldMicronodule))
-    {
-        Sleep 300
-        if (PS_IsFieldValue(psWin, "None"))
-            choice := "1"
-    }
-
-    ; Step 2: Set CSL field
-    if (!PS_SetFieldValue(psWin, fieldLungRADS, choice))
-    {
-        Notify("Failed to set CSL", 2000)
-        return false
-    }
-
-    Sleep 300
-
-    ; Step 3: Set Impression field (same value)
-    if (!PS_SetFieldValue(psWin, fieldImpression, choice))
-    {
-        Notify("Failed to set Impression", 2000)
-        return false
-    }
-
-    return true
-}
-
-; Navigate to a field, find its pick-list, select the value, and double-click
-PS_SetFieldValue(psWin, fieldName, choice) {
-    if (!PS_NavigateToField(psWin, fieldName))
-        return false
-    Sleep 800
-
-    ctrl := ""
-    hCtrl := 0
-    idxFound := -1
-    if (!PS_FindPickListControl(psWin, choice, fieldName, ctrl, hCtrl, idxFound))
-        return false
-
-    PS_SelectItem(hCtrl, idxFound)
-    Sleep 200
-
-    return PS_SimulateDblClick(hCtrl, idxFound)
-}
-
-PS_IsFieldValue(psWin, checkValue) {
-    static LB_GETCURSEL := 0x188
-    static LB_GETCOUNT := 0x18B
-
-    bestHwnd := 0
-    bestCount := 999999
-
-    WinGet, list, ControlList, %psWin%
-    Loop, Parse, list, `n
-    {
-        ctrl := A_LoopField
-        if (ctrl = "")
-            continue
-        if !InStr(ctrl, "LISTBOX")
-            continue
-
-        ControlGet, hCtrl, Hwnd,, %ctrl%, %psWin%
-        if (!hCtrl)
-            continue
-
-        count := DllCall("SendMessage", "Ptr", hCtrl, "UInt", LB_GETCOUNT, "Ptr", 0, "Ptr", 0, "Ptr")
-        if (count <= 0)
-            continue
-
-        targetIdx := PS_LB_FindExact(hCtrl, checkValue)
-        if (targetIdx < 0)
-            continue
-
-        if (count < bestCount)
-        {
-            bestCount := count
-            bestHwnd := hCtrl
-        }
-    }
-
-    if (!bestHwnd)
-        return false
-
-    targetIdx := PS_LB_FindExact(bestHwnd, checkValue)
-    curSel := DllCall("SendMessage", "Ptr", bestHwnd, "UInt", LB_GETCURSEL, "Ptr", 0, "Ptr", 0, "Ptr")
-
-    return (curSel >= 0 && curSel = targetIdx)
-}
-
-PS_NavigateToField(psWin, fieldName) {
-    static LB_SETCURSEL := 0x186
-    static LBN_SELCHANGE := 1
-    static WM_COMMAND := 0x111
-
-    WinGet, list, ControlList, %psWin%
-    Loop, Parse, list, `n
-    {
-        ctrl := A_LoopField
-        if (ctrl = "")
-            continue
-        if !InStr(ctrl, "LISTBOX")
-            continue
-
-        ControlGet, hCtrl, Hwnd,, %ctrl%, %psWin%
-        if (!hCtrl)
-            continue
-
-        idx := PS_LB_FindExact(hCtrl, fieldName)
-        if (idx < 0)
-            continue
-
-        ControlFocus, %ctrl%, %psWin%
-        Sleep 30
-
-        DllCall("PostMessage", "Ptr", hCtrl, "UInt", LB_SETCURSEL, "Ptr", idx, "Ptr", 0)
-        Sleep 50
-
-        dlgCtrlId := DllCall("GetDlgCtrlID", "Ptr", hCtrl)
-        parentHwnd := DllCall("GetParent", "Ptr", hCtrl)
-        wParam := (LBN_SELCHANGE << 16) | (dlgCtrlId & 0xFFFF)
-        DllCall("PostMessage", "Ptr", parentHwnd, "UInt", WM_COMMAND, "Ptr", wParam, "Ptr", hCtrl)
-
-        return true
-    }
-    return false
-}
-
-PS_SelectItem(hCtrl, idx) {
-    static LB_SETCURSEL := 0x186
-    static LBN_SELCHANGE := 1
-    static WM_COMMAND := 0x111
-
-    DllCall("PostMessage", "Ptr", hCtrl, "UInt", LB_SETCURSEL, "Ptr", idx, "Ptr", 0)
-    Sleep 30
-
-    dlgCtrlId := DllCall("GetDlgCtrlID", "Ptr", hCtrl)
-    parentHwnd := DllCall("GetParent", "Ptr", hCtrl)
-    wParam := (LBN_SELCHANGE << 16) | (dlgCtrlId & 0xFFFF)
-    DllCall("PostMessage", "Ptr", parentHwnd, "UInt", WM_COMMAND, "Ptr", wParam, "Ptr", hCtrl)
-}
-
-PS_FindPickListControl(psWin, choice, fieldName, ByRef outCtrl, ByRef outHwnd, ByRef outIdx) {
-    WinGet, list, ControlList, %psWin%
-    Loop, Parse, list, `n
-    {
-        ctrl := A_LoopField
-        if (ctrl = "")
-            continue
-        if !InStr(ctrl, "LISTBOX")
-            continue
-
-        ControlGet, hCtrl, Hwnd,, %ctrl%, %psWin%
-        if (!hCtrl)
-            continue
-
-        navCheck := PS_LB_FindExact(hCtrl, fieldName)
-        if (navCheck >= 0)
-            continue
-
-        idx := PS_LB_FindExact(hCtrl, choice)
-        if (idx >= 0) {
-            outCtrl := ctrl
-            outHwnd := hCtrl
-            outIdx  := idx
-            return true
-        }
-    }
-    return false
-}
 
 PS_LB_FindExact(hCtrl, text) {
     static LB_FINDSTRINGEXACT := 0x1A2
@@ -3582,49 +3371,6 @@ PS_LB_FindExact(hCtrl, text) {
         , "Ptr", -1
         , "Ptr", &wText
         , "Ptr")
-}
-
-PS_SimulateDblClick(hCtrl, idx) {
-    static LB_GETITEMRECT := 0x198
-    static LB_ERR := -1
-    static WM_LBUTTONDOWN := 0x201
-    static WM_LBUTTONUP := 0x202
-    static WM_LBUTTONDBLCLK := 0x203
-    static MK_LBUTTON := 0x0001
-
-    VarSetCapacity(rc, 16, 0)
-    result := DllCall("SendMessage"
-        , "Ptr", hCtrl
-        , "UInt", LB_GETITEMRECT
-        , "Ptr", idx
-        , "Ptr", &rc
-        , "Ptr")
-
-    if (result = LB_ERR)
-    {
-        Notify("LB_GETITEMRECT failed", 2000)
-        return false
-    }
-
-    left   := NumGet(rc, 0, "Int")
-    top    := NumGet(rc, 4, "Int")
-    right  := NumGet(rc, 8, "Int")
-    bottom := NumGet(rc, 12, "Int")
-
-    cx := left + ((right - left) // 2)
-    cy := top  + ((bottom - top) // 2)
-
-    lParam := (cy << 16) | (cx & 0xFFFF)
-
-    DllCall("PostMessage", "Ptr", hCtrl, "UInt", WM_LBUTTONDOWN, "Ptr", MK_LBUTTON, "Ptr", lParam)
-    Sleep, 30
-    DllCall("PostMessage", "Ptr", hCtrl, "UInt", WM_LBUTTONUP, "Ptr", 0, "Ptr", lParam)
-    Sleep, 50
-    DllCall("PostMessage", "Ptr", hCtrl, "UInt", WM_LBUTTONDBLCLK, "Ptr", MK_LBUTTON, "Ptr", lParam)
-    Sleep, 30
-    DllCall("PostMessage", "Ptr", hCtrl, "UInt", WM_LBUTTONUP, "Ptr", 0, "Ptr", lParam)
-
-    return true
 }
 
 ; ============================================================================
@@ -3706,8 +3452,6 @@ LibRun(id) {
         return Lib_ToggleDictation(LibParam(id, "Key", "{F4}"), LibParam(id, "SectraKey"))
     if (id = "PS_PasteIndication")
         return Lib_PasteIndication()
-    if (id = "LungScreening2")
-        return Lib_LungScreening2()
     if (id = "PACS_Insert_Priors")
         return Lib_InsertPriors(LibParam(id, "Key", "^p"))
     if (id = "LoginUandP")
@@ -4019,125 +3763,6 @@ Lib_PasteIndication() {
     ; Step 5: Restore original clipboard after a brief delay
     Sleep, 300
     Clipboard := ClipSaved
-    return true
-}
-
-; Lung screening 2: go to the last field of the report, pick "2" in its list
-; and double-click it. Uses the same PS_LB_FindExact as Lung-RADS above
-; (read-only question).
-Lib_LungScreening2() {
-    static cachedHwnd := 0
-    static cachedCtrl := ""
-    static psExe := "Nuance.PowerScribe360.exe"
-
-    choice := "2"
-    psWin  := "ahk_exe " . psExe
-
-    if !WinExist(psWin) {
-        Notify("PowerScribe is not open", 2000)
-        return false
-    }
-    WinActivate, %psWin%
-    WinWaitActive, %psWin%, , 1.5
-    if !WinActive(psWin)
-        return false
-
-    Send ^{End}
-    Sleep 60
-    Send +{Tab}
-    Sleep 80
-
-    if (cachedHwnd && DllCall("IsWindow", "Ptr", cachedHwnd)) {
-        idx := PS_LB_FindExact(cachedHwnd, choice)
-        if (idx >= 0) {
-            if (cachedCtrl != "") {
-                ControlFocus, %cachedCtrl%, %psWin%
-                Sleep 30
-                Control, ChooseString, %choice%, %cachedCtrl%, %psWin%
-                Sleep 40
-            }
-            return Lib_DoubleClickIndex(cachedHwnd, idx)
-        }
-        cachedHwnd := 0
-        cachedCtrl := ""
-    }
-
-    ctrl := ""
-    hCtrl := 0
-    idxFound := -1
-    if (!Lib_FindPickListControl_Fast(psWin, choice, ctrl, hCtrl, idxFound)) {
-        Notify("No list with ""2"" in the last field", 2000)
-        return false
-    }
-
-    cachedHwnd := hCtrl
-    cachedCtrl := ctrl
-
-    ControlFocus, %ctrl%, %psWin%
-    Sleep 30
-    Control, ChooseString, %choice%, %ctrl%, %psWin%
-    Sleep 40
-
-    return Lib_DoubleClickIndex(hCtrl, idxFound)
-}
-
-Lib_FindPickListControl_Fast(psWin, choice, ByRef outCtrl, ByRef outHwnd, ByRef outIdx) {
-    WinGet, list, ControlList, %psWin%
-
-    Loop, Parse, list, `n
-    {
-        ctrl := A_LoopField
-        if (ctrl = "")
-            continue
-
-        if !InStr(ctrl, "LISTBOX")
-            continue
-
-        ControlGet, hCtrl, Hwnd,, %ctrl%, %psWin%
-        if (!hCtrl)
-            continue
-
-        idx := PS_LB_FindExact(hCtrl, choice)
-        if (idx >= 0) {
-            outCtrl := ctrl
-            outHwnd := hCtrl
-            outIdx  := idx
-            return true
-        }
-    }
-    return false
-}
-
-; A real double-click (the mouse moves there) on a list item.
-; LB_GETITEMRECT is a read-only question.
-Lib_DoubleClickIndex(hCtrl, idx) {
-    static LB_GETITEMRECT := 0x198
-
-    VarSetCapacity(rc, 16, 0)
-    ok := DllCall("SendMessage"
-        , "Ptr", hCtrl
-        , "UInt", LB_GETITEMRECT
-        , "Ptr", idx
-        , "Ptr", &rc
-        , "Ptr")
-    if (!ok)
-        return false
-
-    left   := NumGet(rc, 0, "Int")
-    top    := NumGet(rc, 4, "Int")
-    right  := NumGet(rc, 8, "Int")
-    bottom := NumGet(rc, 12, "Int")
-
-    cx := left + ((right - left) // 2)
-    cy := top  + ((bottom - top) // 2)
-
-    VarSetCapacity(pt, 8, 0)
-    NumPut(cx, pt, 0, "Int")
-    NumPut(cy, pt, 4, "Int")
-    DllCall("ClientToScreen", "Ptr", hCtrl, "Ptr", &pt)
-
-    MouseMove, % NumGet(pt, 0, "Int"), % NumGet(pt, 4, "Int"), 0
-    Click, 2
     return true
 }
 

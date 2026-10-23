@@ -33,7 +33,6 @@ function functionSource(src, name) {
 const CODE_FUNCS = {
   PS_ToggleDictation: ['Lib_ToggleDictation'],
   PS_PasteIndication: ['Lib_PasteIndication'],
-  LungScreening2: ['Lib_LungScreening2', 'Lib_FindPickListControl_Fast', 'Lib_DoubleClickIndex'],
   PACS_Insert_Priors: ['Lib_InsertPriors'],
   LoginUandP: ['Lib_Login', 'LibPassword'],
   LoginU: ['Lib_Login'],

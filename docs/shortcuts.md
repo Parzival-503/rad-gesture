@@ -14,7 +14,6 @@ and re-run it.
 | old RadGesture (Kando) | Ctrl+CapsLock | RadGesture helper (Open the ring (hold)) |
 | standalone RadProofread | Ctrl+Alt+Q | RadGesture helper (Proofread) |
 | standalone RadOneLiner | Ctrl+Alt+U | RadGesture helper (One-liner) |
-| standalone Lung-RADS | Alt+Shift+L | RadGesture helper (Lung-RADS) |
 | Rad Optimizer | Ctrl+Alt+G | RadGesture helper (Function: Paste indication) |
 | Rad Optimizer | Ctrl+Alt+F4 | RadGesture helper (Function: Dictate (Sectra, then PowerScribe)) |
 | Rad Optimizer | Ctrl+Alt+F | RadGesture helper (Function: Next field) |
@@ -26,8 +25,8 @@ and re-run it.
 | Rad Optimizer | Ctrl+Alt+C | RadGesture helper (Function: Circle) |
 | Rad Optimizer | Ctrl+Alt+M | RadGesture helper (Function: Insert measurement) |
 | Rad Optimizer | Ctrl+Alt+X | RadGesture helper (Function: Crosshair) |
-| Rad Optimizer | Ctrl+Alt+L | RadGesture helper (Function: Link crosshair) |
-| Rad Optimizer | Ctrl+Alt+P | RadGesture helper (Function: Insert priors) |
+| Rad Optimizer | Ctrl+Alt+L | RadGesture helper (Function: Link priors) |
+| Rad Optimizer | Ctrl+Alt+P | RadGesture helper (Function: Insert priors into Comparison) |
 | Rad Optimizer | Ctrl+Alt+K | RadGesture helper (Function: Previous key image) |
 | Rad Optimizer | Ctrl+Alt+I | RadGesture helper (Function: Next key image) |
 | Rad Optimizer | Ctrl+Alt+R | RadGesture helper (Function: Previous layout) |
@@ -48,7 +47,6 @@ and re-run it.
 | Rad Optimizer | Alt+Shift+T | RadGesture helper (Function: Teams) |
 | Rad Optimizer | Alt+Shift+C | RadGesture helper (Function: Open my websites) |
 | Rad Optimizer | Alt+Shift+S | RadGesture helper (Function: Search selection) |
-| Rad Optimizer | Alt+Shift+I | RadGesture helper (Function: Lung screening 2) |
 
 ## Shared on purpose
 
@@ -61,8 +59,6 @@ and re-run it.
 | Esc | Close the ring (only while the ring is open) |
 | Alt+Shift+C | Function: Open my websites |
 | Alt+Shift+E | Function: Epic |
-| Alt+Shift+I | Function: Lung screening 2 |
-| Alt+Shift+L | Lung-RADS |
 | Alt+Shift+P | Function: Type password |
 | Alt+Shift+S | Function: Search selection |
 | Alt+Shift+T | Function: Teams |
@@ -84,11 +80,11 @@ and re-run it.
 | Ctrl+Alt+H | Function: ROI |
 | Ctrl+Alt+I | Function: Next key image |
 | Ctrl+Alt+K | Function: Previous key image |
-| Ctrl+Alt+L | Function: Link crosshair |
+| Ctrl+Alt+L | Function: Link priors |
 | Ctrl+Alt+M | Function: Insert measurement |
 | Ctrl+Alt+N | Function: Image window |
 | Ctrl+Alt+O | Function: Orthogonal |
-| Ctrl+Alt+P | Function: Insert priors |
+| Ctrl+Alt+P | Function: Insert priors into Comparison |
 | Ctrl+Alt+Q | Proofread |
 | Ctrl+Alt+R | Function: Previous layout |
 | Ctrl+Alt+S | Function: MPR |
@@ -120,8 +116,8 @@ These run inside RadGesture (Rad Optimizer is not needed). The key is what the f
 | PACS > Measure > Arrow | Arrow | Alt+A |
 | PACS > Measure > Circle | Circle | Alt+C |
 | PACS > Measure > Insert measurement | Insert measurement | Alt+M |
-| PACS > Crosshair > Crosshair | Crosshair | X |
-| PACS > Crosshair > Link crosshair | Link crosshair | Alt+X |
+| PACS > Crosshair & link > Crosshair | Crosshair | X |
+| PACS > Crosshair & link > Link priors | Link priors | Alt+X |
 | PACS > Layout > Previous layout | Previous layout | [ |
 | PACS > Layout > Next layout | Next layout | ] |
 | PACS > Layout > MPR | MPR | Ctrl+M |
@@ -131,10 +127,9 @@ These run inside RadGesture (Rad Optimizer is not needed). The key is what the f
 | PACS > Key images > Next key image | Next key image | ' |
 | PACS > Enhance > Enhance | Enhance | Alt+E |
 | PACS > Enhance > Sharpen | Sharpen | Alt+B |
-| PACS > Insert priors | Insert priors | Ctrl+P |
-| PACS > PowerScribe > Next field | Next field | Tab |
+| PACS > Insert priors | Insert priors into Comparison | Ctrl+P |
 | PACS > PowerScribe > Previous field | Previous field | Shift+Tab |
-| PACS > PowerScribe > Lung screening 2 | Lung screening 2 | - |
+| PACS > PowerScribe > Next field | Next field | Tab |
 | Apps > Epic | Epic | - |
 | Apps > Teams | Teams | - |
 | Apps > Chrome tabs | Open my websites | - |

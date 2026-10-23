@@ -82,7 +82,7 @@
           ]
         },
         {
-          "name": "Crosshair",
+          "name": "Crosshair & link",
           "icon": "my_location",
           "items": [
             {
@@ -91,7 +91,7 @@
               "action": "helper:lib:PACS_Crosshair"
             },
             {
-              "name": "Link crosshair",
+              "name": "Link priors",
               "icon": "link",
               "action": "helper:lib:PACS_LinkCrosshair"
             }
@@ -103,12 +103,12 @@
           "items": [
             {
               "name": "Previous layout",
-              "icon": "arrow_back",
+              "icon": "skip_previous",
               "action": "helper:lib:PACS_Prev_Layout"
             },
             {
               "name": "Next layout",
-              "icon": "arrow_forward",
+              "icon": "skip_next",
               "action": "helper:lib:PACS_Next_Layout"
             },
             {
@@ -134,12 +134,12 @@
           "items": [
             {
               "name": "Previous key image",
-              "icon": "arrow_back",
+              "icon": "fast_rewind",
               "action": "helper:lib:PACS_Prev_Key_Image"
             },
             {
               "name": "Next key image",
-              "icon": "arrow_forward",
+              "icon": "fast_forward",
               "action": "helper:lib:PACS_Next_Key_Image"
             }
           ]
@@ -170,24 +170,14 @@
           "icon": "mic",
           "items": [
             {
-              "name": "Lung-RADS (auto)",
-              "icon": "pulmonology",
-              "action": "helper:lungrads"
-            },
-            {
-              "name": "Next field",
-              "icon": "arrow_forward",
-              "action": "helper:lib:PS_NextField"
-            },
-            {
               "name": "Previous field",
-              "icon": "arrow_back",
+              "icon": "keyboard_tab_rtl",
               "action": "helper:lib:PS_PrevField"
             },
             {
-              "name": "Lung screening 2",
-              "icon": "pulmonology",
-              "action": "helper:lib:LungScreening2"
+              "name": "Next field",
+              "icon": "keyboard_tab",
+              "action": "helper:lib:PS_NextField"
             }
           ]
         }
@@ -242,14 +232,14 @@
               "action": "helper:chart:add"
             },
             {
-              "name": "Clear chart",
+              "name": "Empty chart text",
               "icon": "playlist_remove",
               "action": "helper:chart:clear"
             }
           ]
         },
         {
-          "name": "Priors",
+          "name": "Prior checklist",
           "icon": "history",
           "items": [
             {
@@ -258,12 +248,12 @@
               "action": "helper:prior:add"
             },
             {
-              "name": "Checklist",
+              "name": "Make checklist",
               "icon": "checklist",
               "action": "helper:prior:checklist"
             },
             {
-              "name": "Clear priors",
+              "name": "Empty the list",
               "icon": "delete_sweep",
               "action": "helper:prior:clear"
             },

@@ -30,15 +30,6 @@
       ]
     },
     {
-      "script": "standalone Lung-RADS",
-      "hotkeys": [
-        {
-          "key": "!+l",
-          "does": "Lung-RADS"
-        }
-      ]
-    },
-    {
       "script": "Rad Optimizer",
       "hotkeys": [
         {

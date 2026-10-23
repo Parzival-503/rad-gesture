@@ -569,7 +569,7 @@ def check_no_sendmessage(lines):
     and raw EM_* messages to the report editor crash it.
 
     Allowed: DllCall SendMessage for the four read-only pick-list questions in
-    SENDMESSAGE_READ_ONLY (Lung-RADS has used exactly these daily). The whole
+    SENDMESSAGE_READ_ONLY (PowerScribe has answered exactly these daily for years). The whole
     statement is read, including `, ...` continuation lines, and must name one
     of them. The SendMessage command and EM_* are never allowed."""
     problems = []

@@ -3,7 +3,7 @@
 Shortcut audit for everything that runs on the reading workstation.
 
 Collects every hotkey from:
-  - the RadGesture helper (its INI defaults: proofread, one-liner, Lung-RADS,
+  - the RadGesture helper (its INI defaults: proofread, one-liner,
     the ring trigger, and the optional blank ones),
   - the helper's Library (config/library.json: Rad Optimizer's functions,
     their default keyboard shortcuts and the keys they press into apps),
@@ -105,7 +105,6 @@ def helper_hotkeys(path):
         ('Priors', 'AddHotkey'): 'Add prior',
         ('OneLiner', 'ChartAddHotkey'): 'Add chart text (one-liner)',
         ('Priors', 'ChecklistHotkey'): 'Prior checklist',
-        ('LungRADS', 'Hotkey'): 'Lung-RADS',
         ('Hub', 'Trigger'): 'Open the ring (hold)',
     }
     out = []

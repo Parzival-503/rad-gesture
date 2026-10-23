@@ -1,6 +1,6 @@
 // Finds old tools still running that would fight RadGesture for its keys:
 // the old Kando-based RadGesture (Ctrl+CapsLock), the standalone
-// RadProofread / RadOneLiner / Lung-RADS scripts, and Rad Optimizer (as a
+// RadProofread / RadOneLiner scripts, and Rad Optimizer (as a
 // script or compiled .exe) once its functions run from RadGesture's library
 // with their keyboard shortcuts on.
 
@@ -46,7 +46,6 @@ function classify(procs, { selfExe, selfPids = [], libraryOn = false }) {
     if (/radgesturehelper\.ahk/.test(script)) continue; // ours (fallback mode)
     if (/radproofread\.ahk/.test(script)) out.push({ kind: 'script', pid: p.ProcessId, label: 'RadProofread (standalone)', keys: 'Ctrl+Alt+Q', script });
     else if (/radoneliner\.ahk/.test(script)) out.push({ kind: 'script', pid: p.ProcessId, label: 'RadOneLiner (standalone)', keys: 'Ctrl+Alt+U', script });
-    else if (/lung/.test(script) && !/optimizer/.test(script)) out.push({ kind: 'script', pid: p.ProcessId, label: `Lung-RADS (standalone: ${script})`, keys: 'Alt+Shift+L', script });
   }
   return out;
 }

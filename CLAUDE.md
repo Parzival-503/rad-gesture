@@ -68,7 +68,7 @@ Two parts, each doing what it is best at:
 | Part | Where | Job |
 |---|---|---|
 | **Hub** | `src/` (Electron, plain JS, no bundler) | The ring, the tray, the Settings window, links/files, keeps the helper alive |
-| **Helper** | `helper/RadGestureHelper.ahk` (AutoHotkey v1.1), shipped **compiled** as `RadGestureHelper.exe` | Owns Ctrl+CapsLock, does all typing / copying / PowerScribe work, holds the AI tools and Lung-RADS |
+| **Helper** | `helper/RadGestureHelper.ahk` (AutoHotkey v1.1), shipped **compiled** as `RadGestureHelper.exe` | Owns Ctrl+CapsLock, does all typing / copying / PowerScribe work, holds the AI tools |
 
 They talk over `http://127.0.0.1:<port>` with a token (`src/main/bridge.js`,
 "HUB BRIDGE" in the helper). The hub writes `%APPDATA%\RadGesture\bridge.ini`;
@@ -222,7 +222,7 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   functions are `target` functions (`sectra` = "Image Window", `powerscribe` =
   `ahk_exe Nuance.PowerScribe360.exe`): bring it up, press `Key`
   (`LibPress`; says so instead of typing into the wrong window when the
-  program is closed). Insert priors / Paste indication / Lung screening 2 /
+  program is closed). Insert priors / Paste indication /
   dictation / logins / Epic / Teams / websites / search are their own code.
 - **Settings**: `RadGesture.ini [Lib.<id>]` On, Hotkey, params; `Target` is
   rewritten from the JSON every start (`syncLibrary()`, before the helper
@@ -378,7 +378,13 @@ next to Distance; one drops Paste indication (Rad Optimizer's Ctrl+Alt+G
 only works on a selection made by hand, never from the ring); `library`
 turns Rad Optimizer key presses into Library functions; `pacs-first` puts
 the PACS ring first, then AI Tools (Sina, 2026-10-23; PowerScribe still opens
-on AI Tools through its `apps`).
+on AI Tools through its `apps`); `no-lung` drops Lung-RADS and Lung screening 2
+(and a smaller ring left empty); `nav-names` gives each previous/next pair its
+own icons (layouts `skip_*`, key images `fast_*`, fields `keyboard_tab*`; the
+saved fields showed `field` = `text_fields`, which Sina read as "TT"),
+renames Link crosshair to **Link priors** (Rad Optimizer's name: it links
+the study to its priors) and the Prior checklist buttons. Only names and
+icons we shipped change.
 
 ### Helper notes
 
@@ -388,8 +394,12 @@ on AI Tools through its `apps`).
 - `#Requires AutoHotkey v1.1.33+`; CI uses v1.1.37.02.
 - "Press keys" directions send with `SendLevel 1` so other scripts' hotkeys
   (e.g. a timer's F4 / F12) see them.
-- **Prior checklist** (ring: AI Tools > Priors): copy each prior report,
-  **+ Add** (as many as needed), then **Checklist**; its window has
+- **Prior checklist** (ring: AI Tools > Prior checklist; it was "Priors",
+  which Sina confused with PACS > Insert priors, a different thing that fills
+  PowerScribe's Comparison field): copy each prior report,
+  **+ Add prior** (as many as needed), then **Checklist**; **Empty** starts
+  over. The toolbar has three headed parts: Prior checklist, One-liner chart
+  text, Write (Impression, One-liner). The checklist window has
   **Insert into report** (pastes with Ctrl+V where the cursor is, then
   restores the clipboard; the window never takes focus) and Copy. The
   floating Priors toolbar shows at startup, as in RadProofread: the first v3
@@ -423,11 +433,16 @@ on AI Tools through its `apps`).
   that case as a wrong/right example because the first synthesis prompt
   still listed negatives, atelectasis and coronary calcification.
 - `WinHttp.SetProxy(1)`: a hospital WinHTTP proxy must not swallow localhost.
-- **Lung-RADS** (Alt+Shift+L, ring: PACS > PowerScribe) is Sina's standalone
-  script merged unchanged. It CHANGES PowerScribe only by PostMessage, and asks
-  the pick lists read-only questions (LB_FINDSTRINGEXACT, LB_GETCOUNT,
-  LB_GETCURSEL, LB_GETITEMRECT) by SendMessage, because only SendMessage
-  returns an answer. `ahk_check.py` enforces exactly that.
+- **PowerScribe pick lists**: the helper CHANGES PowerScribe only by
+  PostMessage, and asks the pick lists read-only questions
+  (LB_FINDSTRINGEXACT, LB_GETCOUNT, LB_GETCURSEL, LB_GETITEMRECT) by
+  SendMessage, because only SendMessage returns an answer. `ahk_check.py`
+  enforces exactly that.
+- **Lung-RADS (auto) and Lung screening 2 are not built in** (Sina,
+  2026-10-23: only useful to him). They are two of his "My functions"
+  (`mylungrads` Alt+Shift+L, `mylungscreen2` Shift+Alt+I), kept as an
+  importable `.rgkeys` in the private rad-proofread repo
+  (`my-functions/Lung functions.rgkeys`). Don't add them back here.
 
 ### Shortcuts
 

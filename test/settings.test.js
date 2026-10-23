@@ -39,12 +39,12 @@ test('old tools that clash are recognised, our own processes are not', () => {
     { ProcessId: 3, Name: 'radgesture.exe', ExecutablePath: 'C:\\Users\\s\\AppData\\Local\\radgesture\\app-2.3.0\\radgesture.exe', CommandLine: '--type=gpu' },
     { ProcessId: 4, Name: 'AutoHotkey.exe', CommandLine: '"C:\\AHK\\AutoHotkey.exe" "C:\\tools\\RadProofread.ahk"' },
     { ProcessId: 5, Name: 'AutoHotkeyU64.exe', CommandLine: '"x" "C:\\tools\\Rad Optimizer.ahk"' },
-    { ProcessId: 6, Name: 'AutoHotkey.exe', CommandLine: '"x" "C:\\tools\\LungRADS.ahk"' },
+    { ProcessId: 6, Name: 'AutoHotkey.exe', CommandLine: '"x" "C:\\tools\\SomeOther.ahk"' },
     { ProcessId: 7, Name: 'AutoHotkey.exe', CommandLine: '"x" "C:\\tools\\MyTimer.ahk"' },
     { ProcessId: 8, Name: 'AutoHotkey.exe', CommandLine: '"x" "C:\\Program Files\\RadGesture\\resources\\helper\\RadGestureHelper.ahk"' },
   ];
   const found = classify(procs, { selfExe: 'C:\\new\\RadGesture.exe' });
-  assert.deepStrictEqual(found.map((f) => f.pid), [2, 4, 6]);
+  assert.deepStrictEqual(found.map((f) => f.pid), [2, 4]);
   assert.strictEqual(found[0].kind, 'old-radgesture');
 });
 
@@ -159,7 +159,8 @@ test('an older menu gets Orthogonal moved next to Distance, once', () => {
   const m = JSON.parse(fs.readFileSync(def, 'utf8'));
   const pacs = m.categories.find((c) => c.id === 'pacs');
   const meas = pacs.items.find((i) => i.name === 'Measure');
-  const cross = pacs.items.find((i) => i.name === 'Crosshair');
+  const cross = pacs.items.find((i) => i.name === 'Crosshair & link');
+  cross.name = 'Crosshair'; // as older builds named it
   const names = (b) => b.items.map((i) => i.name);
   assert.deepStrictEqual(names(meas).slice(0, 2), ['Distance', 'Orthogonal'], 'the default menu already has it there');
   // An older saved menu: Orthogonal still under Crosshair, pressing Rad Optimizer's key.
@@ -167,7 +168,44 @@ test('an older menu gets Orthogonal moved next to Distance, once', () => {
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
   const got = store.readMenu().categories.find((c) => c.id === 'pacs');
   assert.deepStrictEqual(names(got.items.find((i) => i.name === 'Measure')).slice(0, 2), ['Distance', 'Orthogonal']);
-  assert.ok(!names(got.items.find((i) => i.name === 'Crosshair')).includes('Orthogonal'));
+  assert.ok(!names(got.items.find((i) => i.name === 'Crosshair & link')).includes('Orthogonal'));
+});
+
+test('an older menu loses Lung-RADS, gets paired icons and clearer names, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-nav-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const sub = (menu, ring, name) => menu.categories.find((c) => c.id === ring).items.find((i) => i.name === name);
+  // As an older build saved it.
+  const ps = sub(m, 'pacs', 'PowerScribe');
+  ps.items.unshift({ name: 'Lung-RADS (auto)', icon: 'pulmonology', action: 'helper:lungrads' });
+  ps.items.push({ name: 'Lung screening 2', icon: 'pulmonology', action: 'helper:lib:LungScreening2' });
+  ps.items.forEach((i) => { if (/Field/.test(i.action)) i.icon = 'field'; });
+  const cross = sub(m, 'pacs', 'Crosshair & link');
+  cross.name = 'Crosshair';
+  cross.items[1].name = 'Link crosshair';
+  sub(m, 'pacs', 'Layout').items[0].icon = 'arrow_back';
+  const pri = sub(m, 'ai', 'Prior checklist');
+  pri.name = 'Priors';
+  pri.items[1].name = 'Checklist';
+  pri.items[2].name = 'Clear priors';
+  // One the person set themselves stays.
+  sub(m, 'pacs', 'Key images').items[1].icon = 'star';
+  sub(m, 'pacs', 'Key images').items[0].icon = 'arrow_back';
+  // A ring holding only Lung-RADS goes with it.
+  m.categories.find((c) => c.id === 'apps').items.push({ name: 'Lung', icon: 'pulmonology', items: [{ name: 'Lung-RADS', icon: 'pulmonology', action: 'helper:lungrads' }] });
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const got = store.readMenu();
+  const flat = [];
+  (function w(a) { for (const x of a) { flat.push(x); if (x.items) w(x.items); } })(got.categories.flatMap((c) => c.items));
+  assert.ok(!flat.some((i) => /lungrads|LungScreening2/.test(i.action || '')), 'no Lung-RADS left');
+  assert.ok(!flat.some((i) => i.name === 'Lung' && Array.isArray(i.items)), 'the empty smaller ring is gone');
+  assert.deepStrictEqual(sub(got, 'pacs', 'PowerScribe').items.map((i) => i.icon), ['keyboard_tab_rtl', 'keyboard_tab']);
+  assert.deepStrictEqual(sub(got, 'pacs', 'Crosshair & link').items.map((i) => i.name), ['Crosshair', 'Link priors']);
+  assert.strictEqual(sub(got, 'pacs', 'Layout').items[0].icon, 'skip_previous');
+  assert.deepStrictEqual(sub(got, 'pacs', 'Key images').items.map((i) => i.icon), ['fast_rewind', 'star']);
+  assert.deepStrictEqual(sub(got, 'ai', 'Prior checklist').items.map((i) => i.name), ['Add copied prior', 'Make checklist', 'Empty the list', 'Show toolbar']);
 });
 
 test('an older menu loses Paste indication from the ring, once', () => {
