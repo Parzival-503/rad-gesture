@@ -10,12 +10,14 @@
 //   GET  /poll            helper: "action:<id>" (queued) | "open" | "closed"
 //                         (also the heartbeat: it proves the helper is alive)
 //   POST /done?action=<id> helper: finished running an action
+//   POST /proofread       helper: proofread results (JSON body) -> "ok" when shown
+//   POST /proofread-toast helper: a short message for the proofread window (body)
 //
 // Plain-text replies, because the helper is AutoHotkey v1 and has no JSON.
 
 const http = require('http');
 
-function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {}, onQuit = () => {}, onOpenSettings = () => {} }) {
+function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {}, onQuit = () => {}, onOpenSettings = () => {}, onProofread = () => 'no', onProofToast = () => {} }) {
   const queue = [];
 
   const server = http.createServer(async (req, res) => {
@@ -25,6 +27,18 @@ function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () 
     };
     if (req.headers['x-rg-token'] !== token) return reply(403, 'bad token');
     const url = new URL(req.url, 'http://127.0.0.1');
+    // The request body, for the two that carry one (at most 2 MB).
+    const body = () => new Promise((resolve, reject) => {
+      let size = 0;
+      const parts = [];
+      req.on('data', (c) => {
+        size += c.length;
+        if (size > 2e6) return reject(new Error('too big'));
+        parts.push(c);
+      });
+      req.on('end', () => resolve(Buffer.concat(parts).toString('utf8')));
+      req.on('error', reject);
+    });
     try {
       switch (url.pathname) {
         case '/show':
@@ -41,6 +55,19 @@ function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () 
           onPoll();
           if (queue.length) return reply(200, 'action:' + queue.shift());
           return reply(200, isOpen() ? 'open' : 'closed');
+        case '/proofread': {
+          if (req.method !== 'POST') return reply(405, 'POST only');
+          let data;
+          try {
+            data = JSON.parse(await body());
+          } catch (_) {
+            return reply(400, 'bad json');
+          }
+          return reply(200, (await onProofread(data)) || 'no');
+        }
+        case '/proofread-toast':
+          onProofToast(await body());
+          return reply(200, 'ok');
         case '/ping':
           return reply(200, 'radgesture');
         case '/open-settings':

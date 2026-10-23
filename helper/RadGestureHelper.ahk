@@ -1444,6 +1444,9 @@ global g_PopupHwnd  := 0    ; HWND of the PowerScribe window we copied from
 global g_FindBusy   := false ; true while a Find action is in progress
 global g_ResolvedMap := {}  ; idx -> bool, tracks user "resolved" checkbox state
 global g_PopupReport := ""  ; report text for the currently-open popup (for logging on close)
+global g_ProofHub := false  ; true while RadGesture's own proofread window shows the results
+global g_ProofSeq := 0      ; which proofread the hub window shows (its messages carry it)
+global g_ProofSessions := {} ; seq -> {report, flags}, until the hub says the window closed
 
 ShowProofreadPopup(reportText, flags) {
     global IE  ; ActiveX control variable must be global/static inside a function
@@ -1454,6 +1457,11 @@ ShowProofreadPopup(reportText, flags) {
     g_PopupReport := reportText
     ; Capture the window we copied the report from -- used for "Find in report"
     g_PopupHwnd := WinExist("A")  ; current active window (PowerScribe)
+
+    ; RadGesture's own window shows the results when it is running; this
+    ; built-in window is the fallback.
+    if (ProofreadToHub(reportText, flags))
+        return
 
     htmlReport := BuildHighlightedHtml(reportText, flags)
 
@@ -1617,6 +1625,69 @@ ProofGuiGuiEscape:
 return
 }
 
+; Hands the results to RadGesture's proofread window. True when it shows them.
+ProofreadToHub(reportText, flags) {
+    global g_ProofHub, g_ProofSeq, g_ProofSessions, g_RingOpen
+    seq := g_ProofSeq + 1
+    json := "{""seq"":" . seq . ",""report"":" . JsonAscii(reportText) . ",""flags"":["
+    for i, f in flags
+        json .= (i > 1 ? "," : "") . "{""phrase"":" . JsonAscii(f.phrase) . ",""reason"":" . JsonAscii(f.reason)
+            . ",""replacement"":" . JsonAscii(f.replacement) . ",""advice"":" . JsonAscii(f.advice) . "}"
+    json .= "]}"
+    if (HubRequest("POST", "/proofread", 2500, json) != "ok")
+        return false
+    g_ProofSeq := seq
+    g_ProofSessions[seq] := { report: reportText, flags: flags }
+    g_ProofHub := true
+    ; Answer the window's buttons quickly while it is open.
+    if (!g_RingOpen)
+        SetTimer, HubPoll, 150
+    return true
+}
+
+; JsonStr with every non-ASCII character as \uXXXX, so the body is plain
+; ASCII whatever encoding the request goes out in.
+JsonAscii(s) {
+    s := JsonStr(s)
+    out := ""
+    Loop, Parse, s
+    {
+        c := Ord(A_LoopField)
+        out .= (c > 126) ? Format("\u{:04x}", c) : A_LoopField
+    }
+    return out
+}
+
+; A message from RadGesture's proofread window, by the ring's action queue:
+;   proof:find:<seq>:<i>        find finding <i> in PowerScribe
+;   proof:closed:<seq>:<i,i>    the window closed; these were ticked off
+ProofHubAction(a) {
+    global g_ProofHub, g_ProofSeq, g_ProofSessions, g_LogHistory, g_RingOpen
+    parts := StrSplit(a, ":")
+    seq := parts[3] + 0
+    if (parts[2] = "find") {
+        if (seq = g_ProofSeq)
+            HandleFlagAction("find", parts[4] + 0)
+        return
+    }
+    if (parts[2] != "closed")
+        return
+    sess := g_ProofSessions[seq]
+    g_ProofSessions.Delete(seq)
+    if (seq = g_ProofSeq) {
+        g_ProofHub := false
+        if (!g_RingOpen)
+            SetTimer, HubPoll, 750
+    }
+    if (!IsObject(sess) || !g_LogHistory || sess.flags.Length() = 0)
+        return
+    resolved := {}
+    Loop, Parse, % parts[4], `,
+        if (A_LoopField != "")
+            resolved[A_LoopField + 0] := true
+    LogHistorySession(sess.report, sess.flags, resolved)
+}
+
 ; ----------------------------------------------------------------------------
 ; IE event handler: intercept "rp:" pseudo-URL navigations from button clicks
 ; URL formats:
@@ -1703,7 +1774,7 @@ HandleFlagAction(action, idx, arg := "") {
 ;   - No raw messages to the editor -> can't crash PowerScribe
 ; ----------------------------------------------------------------------------
 DoFindInSource(phrase, replacement := "") {
-    global g_PopupHwnd
+    global g_PopupHwnd, g_ProofHub
 
     ; --- Step 1: Activate PowerScribe main window ---
     WinActivate, ahk_id %g_PopupHwnd%
@@ -1771,7 +1842,8 @@ DoFindInSource(phrase, replacement := "") {
 
     JsToast(replacement != "" ? "Ready: Find What and Replace With filled" : "Ready: Find What filled")
     Sleep, 150
-    Gui, ProofGui:Show, NoActivate
+    if (!g_ProofHub)
+        Gui, ProofGui:Show, NoActivate
 }
 
 ; ----------------------------------------------------------------------------
@@ -1809,7 +1881,11 @@ FindEditByYPosition(dlgHwnd, which) {
 
 ; Inject a toast call into the popup's JS
 JsToast(msg) {
-    global IE
+    global IE, g_ProofHub
+    if (g_ProofHub) {
+        HubRequest("POST", "/proofread-toast", 400, msg)
+        return
+    }
     try {
         ; Escape the message for JS string literal
         m := StrReplace(msg, "\", "\\")
@@ -3233,10 +3309,10 @@ HubPoll:
 return
 
 HubRingClosed() {
-    global g_RingOpen
+    global g_RingOpen, g_ProofHub
     g_RingOpen := false
     try Hotkey, Esc, Off
-    SetTimer, HubPoll, 750
+    SetTimer, HubPoll, % g_ProofHub ? 150 : 750
 }
 
 HubReadBridge() {
@@ -3249,7 +3325,7 @@ HubReadBridge() {
 }
 
 ; Returns the reply text, or "" if the hub isn't there or said no.
-HubRequest(method, path, timeoutMs := 400) {
+HubRequest(method, path, timeoutMs := 400, body := "") {
     global g_HubPort, g_HubToken
     if (g_HubToken = "")
         HubReadBridge()
@@ -3261,7 +3337,11 @@ HubRequest(method, path, timeoutMs := 400) {
         http.Open(method, "http://127.0.0.1:" . g_HubPort . path, false)
         http.SetRequestHeader("X-RG-Token", g_HubToken)
         http.SetTimeouts(200, 200, timeoutMs, timeoutMs)
-        http.Send()
+        if (body != "") {
+            http.SetRequestHeader("Content-Type", "text/plain; charset=utf-8")
+            http.Send(body)
+        } else
+            http.Send()
         st := http.Status
         if (st = 200)
             return http.ResponseText
@@ -3329,6 +3409,8 @@ RunHubAction(a) {
         OpenAiSettings()
     } else if (a = "history") {
         ShowHistoryViewer()
+    } else if (SubStr(a, 1, 6) = "proof:") {
+        ProofHubAction(a)
     } else if (SubStr(a, 1, 4) = "run:") {
         RunProgram(SubStr(a, 5))
     } else if (SubStr(a, 1, 4) = "lib:") {

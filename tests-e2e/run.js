@@ -334,6 +334,65 @@ async function waitFor(fn, ms, step = 200) {
     }
     check('Esc closes the viewer', !app.windows().some((w) => w.url().includes('viewer')));
 
+    // Proofread: the helper hands its results to the hub's window. Findings
+    // come in a different order than they sit in the report, and one is not
+    // in the text: every click must still land on its own mark.
+    {
+      const http = require('http');
+      const ini = fs.readFileSync(path.join(userData, 'bridge.ini'), 'utf8');
+      const port = Number(/Port=(\d+)/.exec(ini)[1]);
+      const tok = /Token=(\S+)/.exec(ini)[1];
+      const call = (method, p, body) => new Promise((resolve) => {
+        const req = http.request({ host: '127.0.0.1', port, path: p, method, headers: { 'X-RG-Token': tok } }, (res) => {
+          let s = '';
+          res.on('data', (c) => (s += c));
+          res.on('end', () => resolve(s));
+        });
+        req.on('error', () => resolve(''));
+        req.end(body || undefined);
+      });
+      // Invented report text (no patient data).
+      const report = 'FINDINGS:\nThe left lobe has a 4 mm nodule.\nThe right lobe is clear.\nThere is no plural effusion.\n\nIMPRESSION:\nNo acute findings.';
+      const flags = [
+        { phrase: 'plural effusion', reason: 'Likely misheard word.', replacement: 'pleural effusion', advice: '' },
+        { phrase: 'the hilum shows', reason: 'Not in the text.', replacement: '', advice: 'Check the dictation.' },
+        { phrase: 'left lobe', reason: 'Lobe without upper / lower.', replacement: '', advice: 'Say which lobe.' },
+      ];
+      const shown = await call('POST', '/proofread', JSON.stringify({ seq: 7, report, flags }));
+      check('the helper\'s proofread results open RadGesture\'s proofread window', shown === 'ok', shown);
+      const pw = await waitFor(async () => app.windows().find((w) => w.url().includes('proofread')), 8000);
+      if (pw) await pw.waitForSelector('.card[data-i="3"]', { timeout: 8000 }).catch(() => {});
+      const marks = pw ? await pw.$$eval('mark', (ms) => ms.map((m) => m.dataset.i + ':' + m.textContent.replace(/\d+$/, ''))) : [];
+      check('each finding is marked at its own place in the report', marks.join('|') === '3:left lobe|1:plural effusion', marks.join('|'));
+      check('a finding not in the text says so', pw ? /Not found word for word/.test(await pw.textContent('.card[data-i="2"]')) : false);
+      if (pw) await pw.click('.card[data-i="3"] .reason');
+      const selMark = pw ? await pw.$eval('mark.sel', (m) => m.dataset.i).catch(() => '') : '';
+      check('clicking finding 3 selects mark 3 in the report', selMark === '3', selMark);
+      if (pw) await pw.click('mark[data-i="1"]');
+      const selCard = pw ? await pw.$eval('.card.sel', (c) => c.dataset.i).catch(() => '') : '';
+      check('clicking a mark selects its finding', selCard === '1', selCard);
+      if (pw) await pw.keyboard.press('Space');
+      const pill = pw ? await pw.textContent('#count') : '';
+      check('Space ticks the finding off (count updates)', /2 to check . 1 resolved/.test(pill), pill);
+      // Whatever earlier steps queued for the helper (none runs here).
+      const drain = async () => { const got = []; for (let r = await call('GET', '/poll'); r.startsWith('action:'); r = await call('GET', '/poll')) got.push(r); return got; };
+      await drain();
+      if (pw) await pw.click('.card[data-i="1"] [data-act="find"]');
+      const q1 = (await drain()).join(' ');
+      check('Find asks the helper to find that finding in PowerScribe', q1 === 'action:proof:find:7:1', q1);
+      await call('POST', '/proofread-toast', 'Ready: Find What filled');
+      const tst = pw ? await waitFor(async () => /Find What filled/.test(await pw.textContent('#toast')), 3000) : false;
+      check('the helper\'s messages show in the window', !!tst);
+      if (pw) await pw.screenshot({ path: path.join(SHOTS, 'proofread.png') });
+      const stillOpen = pw && !pw.isClosed();
+      check('the window stays open while you work in it', stillOpen);
+      if (stillOpen) await pw.keyboard.press('Escape').catch(() => {}); // the window closes mid-press
+      await sleep(500);
+      const q2 = (await drain()).join(' ');
+      check('closing it tells the helper what was resolved (for the history)', q2 === 'action:proof:closed:7:1', q2);
+      check('Esc closes the proofread window', !app.windows().some((w) => w.url().includes('proofread')));
+    }
+
     // The ring editor offers Library functions, with the key note.
     await win.click('#nav button[data-tab="rings"]');
     await sleep(300);

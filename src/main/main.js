@@ -46,6 +46,9 @@ let overlayReady = false;
 let pendingOpen = null;
 let settingsWin = null;
 let viewerWin = null;
+let proofWin = null;
+let proofData = null; // the proofread results on show: { seq, report, flags }
+let proofDone = []; // which of them are ticked off (1-based)
 let tray = null;
 let bridge = null;
 let supervisor = null;
@@ -354,6 +357,8 @@ async function startBridge() {
       supervisor && supervisor.noteDone(action);
     },
     onOpenSettings: (tab) => openSettings(tab || 'general'),
+    onProofread: (d) => openProofread(d),
+    onProofToast: (msg) => { if (proofWin && !proofWin.isDestroyed()) proofWin.webContents.send('rgp:toast', String(msg).slice(0, 300)); },
     onQuit: () => {
       logEvent('quit', 'asked by Setup');
       setTimeout(() => app.quit(), 50); // before-quit stops the helper
@@ -441,6 +446,81 @@ function openReference(id) {
     viewerWin.focus();
   }
   logEvent('ref-open', id);
+}
+
+// ---------------------------------------------------------------- proofread window
+// The helper proofreads (it holds the AI call and PowerScribe) and hands the
+// results here to show. Find goes back to it as "proof:find:<seq>:<i>"; closing
+// tells it what was ticked off ("proof:closed:<seq>:<i,i>") for the history.
+function cleanProof(d) {
+  const s = (v, n) => String(v == null ? '' : v).slice(0, n);
+  const flags = Array.isArray(d && d.flags) ? d.flags.slice(0, 200) : [];
+  return {
+    seq: Number(d && d.seq) || 0,
+    report: s(d && d.report, 400000),
+    flags: flags.map((f) => ({ phrase: s(f && f.phrase, 2000), reason: s(f && f.reason, 4000), replacement: s(f && f.replacement, 2000), advice: s(f && f.advice, 4000) })),
+  };
+}
+
+function openProofread(d) {
+  // A new proofread while the window still shows the last one: the last one
+  // is finished (the helper logs it to the history).
+  if (proofData && bridge) bridge.enqueue(`proof:closed:${proofData.seq}:${proofDone.join(',')}`);
+  proofData = cleanProof(d);
+  proofDone = [];
+  const payload = Object.assign({ theme: menu && menu.theme }, proofData);
+  if (proofWin && !proofWin.isDestroyed()) {
+    proofWin.webContents.send('rgp:show', payload);
+    if (proofWin.isMinimized()) proofWin.restore();
+    proofWin.show();
+  } else {
+    const pt = screen.getCursorScreenPoint();
+    const area = screen.getDisplayNearestPoint(pt).workArea;
+    const w = Math.min(1120, area.width - 40), h = Math.min(720, area.height - 40);
+    proofWin = new BrowserWindow({
+      width: w,
+      height: h,
+      minWidth: 720,
+      minHeight: 420,
+      x: Math.round(area.x + (area.width - w) / 2),
+      y: Math.round(area.y + (area.height - h) / 2),
+      show: false,
+      title: 'Proofread',
+      backgroundColor: '#111318',
+      icon: path.join(ROOT, 'assets', 'icon.png'),
+      autoHideMenuBar: true,
+      alwaysOnTop: true,
+      webPreferences: { preload: path.join(__dirname, '..', 'proofread', 'preload.js'), contextIsolation: true, sandbox: false },
+    });
+    const win = proofWin;
+    win.on('closed', () => {
+      if (proofWin === win) proofWin = null;
+      if (proofData && bridge) bridge.enqueue(`proof:closed:${proofData.seq}:${proofDone.join(',')}`);
+      proofData = null;
+    });
+    win.once('ready-to-show', () => win.show());
+    win.loadFile(path.join(__dirname, '..', 'proofread', 'index.html'));
+  }
+  proofWin.focus();
+  logEvent('proofread', `${proofData.flags.length} findings`);
+  return 'ok';
+}
+
+function registerProofreadIpc() {
+  const current = (seq) => proofData && proofData.seq === seq;
+  ipcMain.handle('rgp:get', () => (proofData ? Object.assign({ theme: menu && menu.theme }, proofData) : null));
+  ipcMain.handle('rgp:find', (_e, seq, i) => {
+    if (!current(seq)) return { ok: false, error: 'These results are out of date.' };
+    if (!(supervisor && supervisor.status().connected) && !E2E) return { ok: false, error: 'RadGesture’s helper is not running (see Settings > Status).' };
+    bridge.enqueue(`proof:find:${seq}:${Number(i) || 0}`);
+    return { ok: true };
+  });
+  ipcMain.handle('rgp:copy', (_e, text) => { clipboard.writeText(String(text || '')); return true; });
+  ipcMain.handle('rgp:resolved', (_e, seq, list) => {
+    if (current(seq) && Array.isArray(list)) proofDone = list.map(Number).filter((n) => n > 0);
+    return true;
+  });
+  ipcMain.handle('rgp:close', () => { if (proofWin && !proofWin.isDestroyed()) proofWin.close(); });
 }
 
 function registerViewerIpc() {
@@ -845,6 +925,7 @@ app.whenReady().then(async () => {
   const bridgeInfo = await startBridge();
   registerSettingsIpc();
   registerViewerIpc();
+  registerProofreadIpc();
   buildTray();
   setInterval(updateTray, 2000); // helper connected/disconnected shows in the tray
   if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: menu.startAtLogin !== false });

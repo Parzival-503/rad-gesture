@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:">
+  <title>Proofread</title>
+  <link rel="stylesheet" href="../settings/settings.css">
+  <link rel="stylesheet" href="proofread.css">
+</head>
+<body class="proof">
+  <header class="pbar">
+    <span class="msym picon">spellcheck</span>
+    <h1>Proofread</h1>
+    <span class="pill" id="count"></span>
+    <span class="grow"></span>
+    <label class="tgl" id="hideWrap" title="Hide findings you have ticked off">
+      <input type="checkbox" id="hideResolved"><span>Hide resolved</span>
+    </label>
+    <button class="btn ghost small" id="close" title="Close (Esc)"><span class="msym">close</span></button>
+  </header>
+  <div class="panes">
+    <section class="report-pane">
+      <div class="pane-head"><span class="msym">description</span>Report</div>
+      <div class="report" id="report"></div>
+    </section>
+    <section class="find-pane">
+      <div class="pane-head"><span class="msym">flag</span>Findings</div>
+      <div class="cards" id="cards"></div>
+    </section>
+  </div>
+  <footer class="keys" id="keys">
+    <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> move</span>
+    <span><kbd>Enter</kbd> find in PowerScribe</span>
+    <span><kbd>C</kbd> copy fix</span>
+    <span><kbd>Space</kbd> resolve</span>
+    <span><kbd>Esc</kbd> close</span>
+  </footer>
+  <div id="toast" role="status"></div>
+  <script src="../common/themes.js"></script>
+  <script src="../common/proofmatch.js"></script>
+  <script src="proofread.js"></script>
+</body>
+</html>

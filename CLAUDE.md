@@ -455,6 +455,20 @@ icons we shipped change.
   list of answered negatives, and gets no closing line; the prompt carries
   that case as a wrong/right example because the first synthesis prompt
   still listed negatives, atelectasis and coronary calcification.
+- **Proofread results show in the hub's window** (`src/proofread/`, Settings
+  look, always on top): the helper POSTs `/proofread` (JSON body, ASCII via
+  `JsonAscii`, with a `seq`) and only when that fails falls back to its old
+  IE window (`ShowProofreadPopup`'s ActiveX page). Sina: the old one was
+  haphazard, clicks did nothing (IE ran the page in an old mode with errors
+  hidden) and findings did not match the left side (finding *i* scrolled to
+  the *i*-th highlight in report order). Now `src/common/proofmatch.js`
+  (tested) ties each finding to its own place by index; a phrase not found
+  says so. Buttons go back through the ring queue: `proof:find:<seq>:<i>`
+  (`ProofHubAction` -> `HandleFlagAction`) and, on close,
+  `proof:closed:<seq>:<i,i>` (history logged with what was ticked off). The
+  helper polls every 150 ms while the window is open so Find feels instant.
+  Helper toasts go to `/proofread-toast`. Keys: arrows, Enter = Find,
+  C = copy fix, Space = resolve, Esc. The e2e drives it over the bridge.
 - `WinHttp.SetProxy(1)`: a hospital WinHTTP proxy must not swallow localhost.
 - **PowerScribe pick lists**: the helper CHANGES PowerScribe only by
   PostMessage, and asks the pick lists read-only questions
