@@ -281,6 +281,18 @@ settings never move.
   other, from `target` or `uses`); shortcut on/off/none; on a ring or not;
   clashes; sort by group / A-Z / shortcut; Detailed or Compact view (one line
   per function, opens in place). Clear filters keeps sort and view.
+- **Copying the highlighted text from a shortcut** (Paste indication, Search
+  selection) goes through `LibCopySelection()`: release Ctrl/Alt/Shift/Win
+  first (a mouse button or macro pad is still holding them when the shortcut
+  fires, so a plain ^c became Ctrl+Alt+C), then ^c / SendEvent / ControlSend
+  / low-level, then the window under the mouse. Paste indication worked in
+  Rad Optimizer and not here until this (Sina, 2026-10-23). The Windows e2e
+  highlights text in Notepad, presses Alt+Shift+S like a mouse button and
+  reads what was copied.
+- **Administrator mismatch**: if PowerScribe or Sectra runs elevated and the
+  helper does not, Windows silently drops its keys. `LibCheckAccess()` warns
+  once per program (`LibIsElevated()`: token elevation, or an unreadable
+  token).
 - **Are the shortcuts working?** After every start and reload the helper
   POSTs `lib-hotkeys:<count>:<failed>`; Functions and Status show it against
   how many are switched on (Sina once had none working and no way to tell).

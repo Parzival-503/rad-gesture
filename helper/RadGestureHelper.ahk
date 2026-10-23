@@ -3637,6 +3637,86 @@ LibAutoHotkey() {
     return ""
 }
 
+; Copy the highlighted text, reliably, from inside a keyboard shortcut.
+; The shortcut's own Ctrl / Alt may still be held (a mouse button or macro
+; pad releases them a moment later), which turns Ctrl+C into Ctrl+Alt+C, and
+; some programs (Epic, Citrix) ignore the first kind of copy. So: let go of
+; the modifiers, then try the ways the One-liner uses, and finally the window
+; under the mouse (where the highlighted text is). Returns the text, or ""
+; when nothing was highlighted. The clipboard is put back as it was.
+LibCopySelection() {
+    saved := ClipboardAll
+    Clipboard := ""
+    Send, {Ctrl up}{Alt up}{Shift up}{LWin up}{RWin up}
+    Sleep, 60
+    Send, ^c
+    ClipWait, 1
+    if (ErrorLevel) {
+        SendEvent, ^c
+        ClipWait, 0.8
+    }
+    if (ErrorLevel) {
+        focused := ""
+        ControlGetFocus, focused, A
+        if (focused != "") {
+            ControlSend, %focused%, ^c, A
+            ClipWait, 0.8
+        }
+    }
+    if (ErrorLevel) {
+        SendCtrlC_LowLevel()
+        ClipWait, 1
+    }
+    if (ErrorLevel) {
+        MouseGetPos, , , underMouse
+        if (underMouse && !WinActive("ahk_id " . underMouse)) {
+            WinActivate, ahk_id %underMouse%
+            WinWaitActive, ahk_id %underMouse%, , 1
+            Send, ^c
+            ClipWait, 1
+        }
+    }
+    text := ErrorLevel ? "" : Clipboard
+    Clipboard := saved
+    return text
+}
+
+; Windows blocks a program from typing into one that runs as administrator
+; unless it runs as administrator too, and does it silently: the keys just
+; vanish. Say so (once per program per session) instead of failing quietly.
+LibCheckAccess(win, label) {
+    static warned := {}
+    if (A_IsAdmin || warned.HasKey(label))
+        return
+    if (LibIsElevated(win) = 1) {
+        warned[label] := true
+        Toast(label . " runs as administrator, so Windows may block RadGesture from typing into it. If nothing happens, quit RadGesture and start it with ""Run as administrator"".", "warn", 9000)
+    }
+}
+
+; 1 = the window's program runs as administrator (or its token can't be
+; read, which for a program on this desktop means the same), 0 = it doesn't,
+; -1 = unknown.
+LibIsElevated(win) {
+    WinGet, pid, PID, %win%
+    if (!pid)
+        return -1
+    hProc := DllCall("OpenProcess", "UInt", 0x1000, "Int", 0, "UInt", pid, "Ptr")
+    if (!hProc)
+        return -1
+    tok := 0
+    if !DllCall("advapi32\OpenProcessToken", "Ptr", hProc, "UInt", 0x0008, "Ptr*", tok) {
+        DllCall("CloseHandle", "Ptr", hProc)
+        return 1
+    }
+    VarSetCapacity(elev, 4, 0)
+    got := 0
+    ok := DllCall("advapi32\GetTokenInformation", "Ptr", tok, "Int", 20, "Ptr", &elev, "UInt", 4, "UInt*", got)
+    DllCall("CloseHandle", "Ptr", tok)
+    DllCall("CloseHandle", "Ptr", hProc)
+    return ok ? (NumGet(elev, 0, "UInt") ? 1 : 0) : -1
+}
+
 LibWindow(target) {
     if (target = "sectra")
         return "Image Window"
@@ -3659,6 +3739,7 @@ LibPress(target, keys, id := "") {
         Notify((target = "sectra" ? "Sectra's image window" : target = "powerscribe" ? "PowerScribe" : win) . " is not open", 2000)
         return false
     }
+    LibCheckAccess(win, target = "sectra" ? "Sectra" : target = "powerscribe" ? "PowerScribe" : win)
     WinActivate, %win%
     WinWaitActive, %win%, , 1
     Send, %keys%
@@ -3675,6 +3756,7 @@ LibPress(target, keys, id := "") {
 ; Sectra not open, it only toggles dictation in PowerScribe.
 Lib_ToggleDictation(psKey, sectraKey) {
     if (sectraKey != "" && WinExist("Image Window")) {
+        LibCheckAccess("Image Window", "Sectra")
         WinActivate, Image Window
         WinWaitActive, Image Window, , 1
         Send, %sectraKey%
@@ -3706,6 +3788,7 @@ Lib_InsertPriors(sectraKey) {
         Notify("PowerScribe is not open", 2000)
         return false
     }
+    LibCheckAccess(ps, "PowerScribe")
     WinActivate, %ps%
     WinWaitActive, %ps%, , 1.5
     if !WinActive(ps) {
@@ -3755,28 +3838,26 @@ Lib_PasteIndication() {
     ps := "ahk_exe Nuance.PowerScribe360.exe"
     fieldName := "Indication"
 
-    ; Step 1: Capture currently highlighted/selected text
-    ClipSaved := ClipboardAll
-    Clipboard := ""
-    Send ^c
-    ClipWait, 1
-    if (Clipboard = "") {
-        Clipboard := ClipSaved
-        Notify("Highlight the indication first", 2000)
+    ; Step 1: copy the highlighted text (see LibCopySelection)
+    selectedText := LibCopySelection()
+    if (selectedText = "") {
+        Notify("Paste indication: highlight the indication first", 2500)
         return false
     }
-    selectedText := Clipboard
-    Clipboard := ClipSaved
+    ClipSaved := ClipboardAll
 
     ; Step 2: Activate PowerScribe window
     if !WinExist(ps) {
         Notify("PowerScribe is not open", 2000)
         return false
     }
+    LibCheckAccess(ps, "PowerScribe")
     WinActivate, %ps%
     WinWaitActive, %ps%, , 1.5
-    if !WinActive(ps)
+    if !WinActive(ps) {
+        Notify("Could not bring up PowerScribe", 2000)
         return false
+    }
 
     ; Step 3: Scan all controls for a ListBox containing "Indication"
     WinGet, list, ControlList, %ps%
@@ -3800,7 +3881,7 @@ Lib_PasteIndication() {
     }
 
     if (!found) {
-        Notify("No Indication field in this report", 2000)
+        Notify("Paste indication: no Indication field in this report", 2500)
         return false
     }
 
@@ -4036,18 +4117,12 @@ Lib_OpenTabs(urls) {
 ; can't collide with the helper's; Esc closes it.
 Lib_SearchRadiopaediaGoogle() {
     global g_LibSearchTerm
-    ClipSaved := ClipboardAll
-    Clipboard := ""
-    Send ^c
-    ClipWait, 1
-    if (Clipboard = "") {
-        Clipboard := ClipSaved
+    term := Trim(LibCopySelection())
+    if (term = "") {
         Notify("Highlight some text first", 1500)
         return false
     }
-    term := Trim(Clipboard)
     g_LibSearchTerm := term
-    Clipboard := ClipSaved
 
     ; Grab active window position before doing anything else
     WinGetPos, wx, wy, ww, wh, A

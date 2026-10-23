@@ -471,6 +471,24 @@ async function waitFor(fn, ms, step = 200) {
         fs.writeFileSync(pressFile, '#NoTrayIcon\r\nSendLevel, 1\r\nSend, ^!+{F9}\r\nExitApp\r\n');
         spawnSync(process.env.AHK_EXE, [pressFile], { timeout: 15000 });
         check('a function\'s keyboard shortcut runs it', await waitFor(async () => (await ev()).some((e) => e === 'done lib-key:LoginForget'), 8000), (await ev()).slice(-6).join(' | '));
+        // Copying the highlighted text from inside a shortcut (Paste indication
+        // and Search selection share it): highlight text in Notepad, press
+        // Alt+Shift+S the way a mouse button or macro pad does, and read what
+        // RadGesture's Search window says it copied.
+        const copyOut = path.join(userData, 'copy-result.txt');
+        const copyAhk = path.join(userData, 'press-search.ahk');
+        fs.writeFileSync(copyAhk, [
+          '#NoTrayIcon', 'SetTitleMatchMode, 2',
+          'Run, notepad.exe', 'WinWait, ahk_exe notepad.exe, , 8', 'WinActivate', 'WinWaitActive, ahk_exe notepad.exe, , 5',
+          'Sleep, 500', 'SendInput, bosniak IIF cyst', 'Sleep, 200', 'SendInput, ^a', 'Sleep, 300',
+          'SendLevel, 1', 'Send, {Alt down}{Shift down}s', 'Sleep, 150', 'Send, {Shift up}{Alt up}',
+          'WinWait, Search ahk_class AutoHotkeyGUI, , 8',
+          'if ErrorLevel', '  FileAppend, NO WINDOW, ' + copyOut, 'else {', '  ControlGetText, t, Static1, Search ahk_class AutoHotkeyGUI', '  FileAppend, %t%, ' + copyOut, '  WinClose, Search ahk_class AutoHotkeyGUI', '}',
+          'ExitApp', ''].join('\r\n'));
+        spawnSync(process.env.AHK_EXE, [copyAhk], { timeout: 30000 });
+        const copied = fs.existsSync(copyOut) ? fs.readFileSync(copyOut, 'utf8') : 'nothing';
+        check('a shortcut copies the highlighted text (as Paste indication does)', /bosniak IIF cyst/.test(copied), copied);
+        try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe']); } catch (_) {}
       }
 
       const ahk = process.env.AHK_EXE;
