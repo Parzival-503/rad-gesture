@@ -154,6 +154,17 @@ const shots = path.join(__dirname, 'shots');
     await page.keyboard.press('Escape');
   }
 
+  // 10. The gear at the end of the dock opens Settings.
+  await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.up();
+  const gear = await page.$('.dock .dset');
+  assert.ok(gear, 'the dock has a Settings button');
+  const gb = await gear.boundingBox();
+  await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2);
+  assert.strictEqual(await page.evaluate(() => document.querySelector('.dock .dname').textContent), 'Settings', 'its name shows on hover');
+  await shot('10-dock-settings');
+  const picked = await page.evaluate(() => new Promise((res) => { window.RGRing.hooks.select = (it) => res(it.action); document.querySelector('.dock .dset').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 1, clientY: 1 })); setTimeout(() => res(null), 1000); }));
+  assert.strictEqual(picked, 'hub:settings', 'the gear opens Settings');
+
   assert.deepStrictEqual(errors, [], 'no page errors');
   await browser.close();
   console.log('PASS preview flows; screenshots in scripts/shots/');

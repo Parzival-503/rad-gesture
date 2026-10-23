@@ -29,6 +29,7 @@
   const EDGE = 190; // keep the ring this far from the screen edge
   const LABEL_PAUSE_MS = 650; // labels fade in after this long without a choice
   const DRAG_PX = 6; // the center moves this far under a pressed button = a drag, not a click
+  const DOCK_SETTINGS = -2; // dockHover while on the gear
   const DOCK_GAP = 104; // dock sits this far past the directions (unscaled)
   const PASS_DWELL_MS = 120; // ring left open (after a tap): stay past a direction this long to open it
 
@@ -272,16 +273,20 @@
   // ------------------------------------------------------------ the dock
   // One small button per ring under the ring itself: any ring is one click
   // away, and you can see which rings there are without cycling through them.
+  // The gear at the end opens Settings.
 
   function buildDock() {
     if (st.dock) st.dock.remove();
     st.dock = null;
     const cats = st.menu.categories;
-    if (cats.length < 2 || st.menu.dock === false) return;
+    if (st.menu.dock === false) return;
     const d = el('dock');
+    const chips = cats.length > 1
+      ? cats.map((c, i) => `<button class="dchip" data-cat="${i}" style="--c:${escapeHtml(catColor(i))}" title="${escapeHtml(c.name)}">${I.icon(c.icon || 'circle')}</button>`).join('') + '<span class="dsep"></span>'
+      : '';
     d.innerHTML =
-      '<div class="dchips">' +
-      cats.map((c, i) => `<button class="dchip" data-cat="${i}" style="--c:${escapeHtml(catColor(i))}" title="${escapeHtml(c.name)}">${I.icon(c.icon || 'circle')}</button>`).join('') +
+      '<div class="dchips">' + chips +
+      `<button class="dchip dset" data-act="settings" title="RadGesture settings">${I.icon('settings')}</button>` +
       '</div><div class="dname"></div><div class="dhint">drag the middle to move</div>';
     st.dock = d;
     st.dockName = d.querySelector('.dname');
@@ -293,6 +298,11 @@
   function paintDock() {
     if (!st.dock) return;
     st.dock.querySelectorAll('.dchip').forEach((b, i) => b.classList.toggle('on', i === st.cat));
+    if (st.dockHover === DOCK_SETTINGS) {
+      st.dockName.textContent = 'Settings';
+      st.dockName.classList.add('hot');
+      return;
+    }
     const i = st.dockHover >= 0 ? st.dockHover : st.cat;
     st.dockName.textContent = st.menu.categories[i].name;
     st.dockName.classList.toggle('hot', st.dockHover >= 0 && st.dockHover !== st.cat);
@@ -731,12 +741,13 @@
     st.px = e.clientX;
     st.py = e.clientY;
     const chip = e.target.closest && e.target.closest('[data-cat]');
-    const dh = chip ? Number(chip.dataset.cat) : -1;
+    const gear = e.target.closest && e.target.closest('[data-act="settings"]');
+    const dh = chip ? Number(chip.dataset.cat) : gear ? DOCK_SETTINGS : -1;
     if (st.dock && dh !== st.dockHover) {
       st.dockHover = dh;
       paintDock();
     }
-    if (dh >= 0) {
+    if (dh !== -1) {
       if (st.hover !== -1) {
         st.hover = -1;
         paintHover();
@@ -767,6 +778,11 @@
     if (!st || st.closing || e.button !== 0) return;
     st.px = e.clientX;
     st.py = e.clientY;
+    if (e.target.closest && e.target.closest('[data-act="settings"]')) {
+      finish(() => {});
+      hooks.select({ name: 'Settings', action: 'hub:settings' });
+      return;
+    }
     const chip = e.target.closest && e.target.closest('[data-cat]');
     if (chip) {
       st.kept = true;

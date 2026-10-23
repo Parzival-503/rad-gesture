@@ -254,6 +254,25 @@ async function waitFor(fn, ms, step = 200) {
     const myId = fnFiles.length ? fnFiles[0].replace(/\.ahk$/, '') : '';
     check('My functions: a new function is saved as its own script', fnFiles.length === 1 && fs.readFileSync(path.join(fnDir, fnFiles[0]), 'utf8').includes('FileAppend, ran, '), fnFiles.join(','));
     check('My functions: listed for the helper', new RegExp('Custom=' + myId).test(fs.readFileSync(path.join(userData, 'RadGesture.ini'), 'latin1')));
+
+    // Functions page: Export my functions / Import functions (same file
+    // format as Shortcuts, only My functions inside).
+    const fnFile = path.join(userData, 'my-functions.rgkeys');
+    await app.evaluate(({ dialog }, f) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: f }); dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [f] }); }, fnFile);
+    await win.click('#exportFunctions');
+    await sleep(500);
+    let fnSet = null;
+    try { fnSet = JSON.parse(fs.readFileSync(fnFile, 'utf8')); } catch (_) {}
+    check('Functions: Export my functions writes only my functions', !!fnSet && fnSet.functions.length === 1 && fnSet.functions[0].id === myId && fnSet.keys.length === 0, fnSet ? `${fnSet.functions.length} functions, ${fnSet.keys.length} keys` : 'no file');
+    fnSet.functions = [{ id: 'mye2eimport', name: 'E2E imported', description: 'from a file', code: 'Sleep, 10' }];
+    fnSet.library = { mye2eimport: { On: '0', Hotkey: '' } };
+    fs.writeFileSync(fnFile, JSON.stringify(fnSet));
+    await win.click('#importFunctions');
+    await sleep(400);
+    check('Functions: Import functions adds it to My functions', !!(await win.$('#myFunctions #lib-mye2eimport')));
+    await win.click('#saveAll');
+    await sleep(700);
+    check('Functions: an imported function is saved as its own script', fs.existsSync(path.join(fnDir, 'mye2eimport.ahk')));
     await win.$eval('#myFunctions', (el) => el.scrollIntoView());
     await win.screenshot({ path: path.join(SHOTS, 'settings-library-mine.png') });
 
@@ -419,7 +438,7 @@ async function waitFor(fn, ms, step = 200) {
     const c1 = await ringPage.evaluate(() => { const s = window.RGRing.state(); return s && { x: s.x, y: s.y, cat: s.cat }; });
     check('dragging the center moves the ring (and keeps it open)', c1 && Math.abs(c1.x - (c0.x - 200)) < 3 && c1.cat === 3, JSON.stringify(c1));
     await ringPage.screenshot({ path: path.join(SHOTS, 'ring-dragged.png') });
-    const lastCat = (await ringPage.$$('.dchip')).length - 1;
+    const lastCat = (await ringPage.$$('.dchip[data-cat]')).length - 1;
     await (await ringPage.$(`.dchip[data-cat="${lastCat}"]`)).click();
     await sleep(400);
     check('the ring draws a picture icon', (await ringPage.$$('.node img.imgic')).length > 0);

@@ -672,21 +672,24 @@ function registerSettingsIpc() {
     return r.canceled ? '' : r.filePaths[0];
   });
   // Shortcut sets: a small file a colleague can import (Settings > Shortcuts).
-  ipcMain.handle('rgs:export-keys', async (_e, set) => {
+  // kind 'functions': the same file format, holding only My functions.
+  ipcMain.handle('rgs:export-keys', async (_e, set, kind) => {
+    const fn = kind === 'functions';
     const r = await dialog.showSaveDialog(settingsWin, {
-      title: 'Save your RadGesture shortcuts',
-      defaultPath: path.join(app.getPath('documents'), 'RadGesture shortcuts.rgkeys'),
-      filters: [{ name: 'RadGesture shortcuts', extensions: ['rgkeys'] }],
+      title: fn ? 'Save your functions' : 'Save your RadGesture shortcuts',
+      defaultPath: path.join(app.getPath('documents'), fn ? 'My RadGesture functions.rgkeys' : 'RadGesture shortcuts.rgkeys'),
+      filters: [{ name: fn ? 'RadGesture functions' : 'RadGesture shortcuts', extensions: ['rgkeys'] }],
     });
     if (r.canceled || !r.filePath) return { ok: false, canceled: true };
     fs.writeFileSync(r.filePath, JSON.stringify(set, null, 2));
     logEvent('keys-exported', path.basename(r.filePath));
     return { ok: true, file: r.filePath };
   });
-  ipcMain.handle('rgs:import-keys', async () => {
+  ipcMain.handle('rgs:import-keys', async (_e, kind) => {
+    const fn = kind === 'functions';
     const r = await dialog.showOpenDialog(settingsWin, {
-      title: 'Import RadGesture shortcuts',
-      filters: [{ name: 'RadGesture shortcuts', extensions: ['rgkeys', 'json'] }],
+      title: fn ? 'Import functions' : 'Import RadGesture shortcuts',
+      filters: [{ name: fn ? 'RadGesture functions' : 'RadGesture shortcuts', extensions: ['rgkeys', 'json'] }],
       properties: ['openFile'],
     });
     if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };

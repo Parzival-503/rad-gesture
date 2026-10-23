@@ -257,6 +257,21 @@ function migrate(m, lib) {
     done.push('nav-names');
     changed = true;
   }
+  if (!done.includes('ai-settings')) {
+    // RadGesture's own Settings is the gear on the ring's bottom bar; the AI
+    // ring's "Settings" holds only the AI tools' key, model and history.
+    const ai = m.categories.find((c) => c.id === 'ai');
+    const s = ai && (ai.items || []).find((it) => it.name === 'Settings' && Array.isArray(it.items) && it.items.some((x) => x.action === 'helper:settings'));
+    if (s) {
+      s.name = 'AI settings';
+      for (const it of s.items) {
+        if (it.action === 'helper:settings' && it.name === 'AI settings') it.name = 'Key and model';
+        if (it.action === 'hub:edit-menu' && it.name === 'Edit this menu') it.name = 'Edit rings';
+      }
+    }
+    done.push('ai-settings');
+    changed = true;
+  }
   if (changed) m.migrated = done;
   return changed;
 }

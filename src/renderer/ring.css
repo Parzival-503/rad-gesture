@@ -222,6 +222,8 @@ svg.wedges .hl { opacity: 0; } /* fill + soft edge set per level in ring.js */
 .dock .dchip:hover { background: rgba(255, 255, 255, 0.08); color: var(--c); transform: scale(1.12); }
 .dock .dchip.on { background: var(--c); color: #0b0e14; }
 .dock .dchip.on .msym { font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24; }
+.dock .dsep { width: 1px; margin: 6px 1px; background: var(--edge); }
+.dock .dset { --c: var(--ink); color: var(--ink-dim); }
 .dock .dname, .dock .dhint {
   position: absolute; left: 0; transform: translateX(-50%);
   white-space: nowrap; text-align: center; pointer-events: none;

@@ -265,11 +265,11 @@
           ]
         },
         {
-          "name": "Settings",
+          "name": "AI settings",
           "icon": "tune",
           "items": [
             {
-              "name": "AI settings",
+              "name": "Key and model",
               "icon": "key",
               "action": "helper:settings"
             },
@@ -279,7 +279,7 @@
               "action": "helper:history"
             },
             {
-              "name": "Edit this menu",
+              "name": "Edit rings",
               "icon": "edit",
               "action": "hub:edit-menu"
             }

@@ -67,8 +67,8 @@ body.ring-open .card { opacity: .25; }
   <ul>
     <li><b>Hold</b> the mouse button (or <kbd>Space</kbd>, or a finger) anywhere, <b>flick</b> toward a tool, let go.</li>
     <li><b>Tap</b> instead and the ring stays open: click a tool.</li>
-    <li>Flick past <b>One-liner</b>, <b>Priors</b> or a Reference Library section to open its smaller ring.</li>
-    <li>Switch rings with the <b>buttons under the ring</b> (one click), or <b>scroll</b>, or click the center (right-click: back one).</li>
+    <li>Flick past <b>One-liner</b>, <b>Prior checklist</b> or a Reference Library section to open its smaller ring.</li>
+    <li>Switch rings with the <b>buttons under the ring</b> (one click; the gear at the end opens Settings), or <b>scroll</b>, or click the center (right-click: back one).</li>
     <li><b>Drag the center</b> to move the ring out of the way.</li>
   </ul>
 </div>

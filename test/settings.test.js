@@ -208,6 +208,22 @@ test('an older menu loses Lung-RADS, gets paired icons and clearer names, once',
   assert.deepStrictEqual(sub(got, 'ai', 'Prior checklist').items.map((i) => i.name), ['Add copied prior', 'Make checklist', 'Empty the list', 'Show toolbar']);
 });
 
+test('an older menu: the AI ring\'s Settings becomes AI settings, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-ais-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const ai = (menu) => menu.categories.find((c) => c.id === 'ai');
+  const s = ai(m).items.find((i) => i.name === 'AI settings');
+  s.name = 'Settings';
+  s.items[0].name = 'AI settings';
+  s.items[2].name = 'Edit this menu';
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const got = ai(store.readMenu()).items.find((i) => i.name === 'AI settings');
+  assert.ok(got, 'renamed');
+  assert.deepStrictEqual(got.items.map((i) => i.name), ['Key and model', 'Proofread history', 'Edit rings']);
+});
+
 test('an older menu loses Paste indication from the ring, once', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-pi-'));
   const def = path.join(__dirname, '..', 'config', 'default-menu.json');

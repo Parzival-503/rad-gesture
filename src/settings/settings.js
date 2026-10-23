@@ -828,22 +828,56 @@
       }
       if (libN) markDirty('library');
     }
-    // A colleague's own functions: added (same id = replaced), never run on import.
-    let fnN = 0;
-    if (Array.isArray(r.set.functions)) {
-      for (const f of r.set.functions) {
-        if (!f || typeof f.id !== 'string' || !/^my[a-z0-9]{3,24}$/.test(f.id) || typeof f.code !== 'string') continue;
-        const c = { id: f.id, name: String(f.name || 'My function'), description: String(f.description || ''), code: f.code };
-        libDraft.custom = (libDraft.custom || []).filter((x) => x.id !== c.id).concat([c]);
-        const theirs = res.library && res.library[c.id];
-        libDraft.values[c.id] = { On: theirs && theirs.On === '1' ? '1' : '0', Hotkey: theirs && typeof theirs.Hotkey === 'string' ? theirs.Hotkey : '' };
-        fnN++;
-      }
-      if (fnN) markDirty('library');
-    }
+    const fnN = addImportedFunctions(r.set, res.library);
     markDirty('menu');
     render();
     toast(`Imported ${res.matched} key${res.matched === 1 ? '' : 's'}` + (libN ? ` and ${libN} functions` : '') + (fnN ? `, plus ${fnN} of their own functions (look them over in Functions before saving)` : '') + (res.unmatched.length ? `; ${res.unmatched.length} not in your rings` : '') + '. Save to keep them.');
+  }
+
+  // Someone's own functions from a file: added (same id = replaced), never
+  // run on import. Returns how many.
+  function addImportedFunctions(set, library) {
+    let n = 0;
+    for (const f of Array.isArray(set.functions) ? set.functions : []) {
+      if (!f || typeof f.id !== 'string' || !/^my[a-z0-9]{3,24}$/.test(f.id) || typeof f.code !== 'string') continue;
+      const c = { id: f.id, name: String(f.name || 'My function'), description: String(f.description || ''), code: f.code };
+      libDraft.custom = (libDraft.custom || []).filter((x) => x.id !== c.id).concat([c]);
+      const theirs = library && library[c.id];
+      libDraft.values[c.id] = { On: theirs && theirs.On === '1' ? '1' : '0', Hotkey: theirs && typeof theirs.Hotkey === 'string' ? theirs.Hotkey : '' };
+      n++;
+    }
+    if (n) markDirty('library');
+    return n;
+  }
+  // Functions page: only My functions go in and out (ring keys and
+  // shortcuts are Shortcuts > Export / Import). Same file format, so a
+  // Shortcuts export imports here too.
+  async function exportFunctions() {
+    const mine = libDraft.custom || [];
+    if (!mine.length) return toast('No functions of your own yet. "New function" starts one.');
+    const set = KS.exportSet({ categories: [] }, null, null);
+    set.note = 'RadGesture functions. Import it in RadGesture: Settings > Functions > Import functions.';
+    set.library = {};
+    for (const c of mine) set.library[c.id] = { On: (libDraft.values[c.id] || {}).On || '0', Hotkey: (libDraft.values[c.id] || {}).Hotkey || '' };
+    set.functions = mine.map((c) => ({ id: c.id, name: c.name, description: c.description, code: c.code }));
+    const r = await api.exportKeys(set, 'functions');
+    if (r.ok) toast(`Saved ${mine.length} function${mine.length === 1 ? '' : 's'} to ` + r.file.split(/[\\/]/).pop());
+    else if (!r.canceled) toast('Not saved: ' + (r.error || 'unknown error'));
+  }
+  async function importFunctions() {
+    const r = await api.importKeys('functions');
+    if (!r.ok) {
+      if (!r.canceled) toast(r.error);
+      return;
+    }
+    const lib = r.set && r.set.library && typeof r.set.library === 'object' && !Array.isArray(r.set.library) ? r.set.library : null;
+    const n = r.set && r.set.format === KS.FORMAT ? addImportedFunctions(r.set, lib) : 0;
+    if (!n) return toast('No functions in that file.' + (r.set && Array.isArray(r.set.keys) && r.set.keys.length ? ' It holds ring keys: import it in Shortcuts.' : ''));
+    ui.fx = Object.assign(FF.fresh(), { sort: ui.fx.sort, view: ui.fx.view });
+    render();
+    const el = document.getElementById('myFunctions');
+    if (el) el.scrollIntoView({ block: 'start' });
+    toast(`Added ${n} function${n === 1 ? '' : 's'} to My functions. Look them over, then Save.`);
   }
 
   function ownShortcutsCard() {
@@ -964,7 +998,11 @@
 
   function renderLibrary() {
     $main.append(h('h1', {}, 'Functions'),
-      h('p', { class: 'lede' }, 'Ready-made functions for Sectra, PowerScribe and your apps, plus your own. Run them from the ring or their keyboard shortcut.'));
+      h('p', { class: 'lede' }, 'Ready-made functions for Sectra, PowerScribe and your apps, plus your own. Run them from the ring or their keyboard shortcut.'),
+      h('div', { class: 'fnactions' },
+        h('button', { class: 'btn small primary', id: 'newFunctionTop', onclick: () => addCustom() }, msym('add'), 'New function'),
+        h('button', { class: 'btn small', id: 'importFunctions', onclick: importFunctions }, msym('download'), 'Import functions...'),
+        h('button', { class: 'btn small', id: 'exportFunctions', onclick: exportFunctions }, msym('upload'), 'Export my functions...')));
     const optimizer = (D.status.conflicts || []).filter((c) => c.optimizer);
     $main.append(libHealth());
     if (optimizer.length) $main.append(h('div', { class: 'card libhealth warn slim', id: 'optimizerNote' },
@@ -1165,7 +1203,7 @@
       h('p', { class: 'hint', style: 'margin:-6px 0 10px' },
         'Add your own: give it a name, write its AutoHotkey code, then put it on a ring (Rings: Function) or give it a keyboard shortcut. ',
         'Each one runs as its own small program, so a mistake shows AutoHotkey\'s error box and never stops RadGesture. ',
-        'Share them with Shortcuts > Export; import only from people you trust, since a function can do anything a program can.'),
+        'Share them with Export my functions at the top of this page; import only from people you trust, since a function can do anything a program can.'),
       h('div', { class: 'addrow' }, h('button', { class: 'btn primary small', id: 'addMyFunction', onclick: () => addCustom() }, msym('add'), 'New function')));
     for (const c of inCards) card.append(fnEntry(byId.get(c.id), c, known, places));
     if (!(libDraft.custom || []).length) card.append(h('div', { class: 'hint', style: 'margin-top:10px' }, 'None yet. Tip: "Copy" on any PACS or PowerScribe function above starts one from it.'));

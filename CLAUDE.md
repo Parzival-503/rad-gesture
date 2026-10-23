@@ -140,6 +140,10 @@ screenshots before handing over any visual change.
   and a center click step one ring (right-click the center: back one). Sina
   asked for the dock: cycling with the center took four clicks. Settings >
   General can hide it (`dock: false`), which brings back the center dots.
+  **The gear at the end of the dock opens Settings** (`hub:settings`; shown
+  even with one ring): Sina could only find Settings under AI Tools >
+  Settings, which is the AI tools' own (now "AI settings": Key and model,
+  Proofread history, Edit rings; migration `ai-settings`).
   The dock keeps clear of every open ring (`placeDock`: below the lowest,
   else above the highest, else it steps aside); a smaller ring opened
   down-left/right used to land on it. `preview.js` checks for overlap.
@@ -260,8 +264,12 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   process with the AutoHotkeyU64.exe CI copies next to the helper
   (`LibRunCustom` / `LibAutoHotkey`; uncompiled: `A_AhkPath`), so a broken one
   shows AutoHotkey's error and never stops the helper. **Copy** on a target
-  function starts one from it. Export/Import carry them (`set.functions`,
-  code included; import never runs them). The Windows e2e writes one and
+  function starts one from it. **New function / Import functions / Export my
+  functions** sit at the top of the Functions page (Sina: importing a
+  function under Shortcuts made no sense); same `.rgkeys` format with
+  `keys: []`, so either page reads either file. Shortcuts > Export/Import
+  still carries them for a whole-setup share (`set.functions`, code
+  included; import never runs them). The Windows e2e writes one and
   checks it ran.
 
 **Nothing that ships mentions a person or the project's history** (Sina,
