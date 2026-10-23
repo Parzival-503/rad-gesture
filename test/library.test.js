@@ -252,7 +252,7 @@ test('Functions page filters: words, typed shortcuts, groups, programs, rings, c
   assert.deepStrictEqual(ids({ groups: ['PACS (Sectra)'], sub: 'Measure' }).length, 6);
   assert.ok(ids({ program: 'sectra' }).includes('PS_ToggleDictation'), 'dictation works in Sectra too (F8)');
   assert.ok(!ids({ program: 'powerscribe' }).includes('PACS_WL_Lung'));
-  assert.deepStrictEqual(ids({ shortcut: 'none' }), ['PACS_Layout_2x1', 'PACS_Layout_2x2', 'PACS_Layout_2x3', 'PACS_Layout_3x1', 'PACS_Layout_3x2', 'PACS_Layout_3x3', 'LoginU', 'LoginForget']);
+  assert.deepStrictEqual(ids({ shortcut: 'none' }), ['PACS_Layout_2x2', 'PACS_Layout_3x2', 'PACS_Layout_3x3', 'LoginU', 'LoginForget']);
   assert.ok(ids({ shortcut: 'off' }).includes('PS_ToggleDictation'));
   assert.deepStrictEqual(ids({ ring: 'on' }), ['PACS_WL_Lung']);
   assert.deepStrictEqual(ids({ clash: true }), ['PACS_MPR']);

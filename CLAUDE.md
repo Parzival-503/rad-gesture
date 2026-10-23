@@ -304,14 +304,16 @@ settings never move.
 - **Every "press a key in Sectra/PowerScribe" function lets go of the
   shortcut's own keys first** (`LibPress`): from a macro pad, Insert
   measurement's Ctrl+Alt+M was still held, so Sectra got Ctrl+Alt+M instead
-  of Alt+M and did nothing (Sina, 2026-10-23). The Windows e2e holds
+  of Alt+M and did nothing (Sina, 2026-10-23). His pad TAPS Ctrl+Alt+M (press
+  and release, nothing held), but the hotkey fires on M-down, while the
+  pad's Ctrl+Alt are still down for those milliseconds. Not confirmed as
+  the cause on his PC. The Windows e2e holds
   Ctrl+Alt+M over a stand-in "Image Window" and checks it receives plain
   Alt+M.
 - **Layouts** (PACS > Layout > Grid, `PACS_Layout_<rows>x<cols>`): Sectra's
-  own list, rows x columns as Sectra writes them: 2x1, 2x2, 2x3, 3x1, 3x2,
-  3x3 (Sina only uses these). Sectra's keys come preset where it has one
-  (2x2 Ctrl+Shift+4, 3x2 Ctrl+Shift+6, 3x3 Ctrl+Shift+9); the others start
-  empty and say so. Icons are drawn panes, `"grid:RxC"` in `icons.js`, to
+  own, rows x columns as Sectra writes them: only 2x2, 3x2, 3x3 (Sina uses
+  just these; migration `layout-grid-three` drops the 2x1 / 2x3 / 3x1 one
+  build shipped), with Sectra's keys preset (Ctrl+Shift+4 / 6 / 9). Icons are drawn panes, `"grid:RxC"` in `icons.js`, to
   match Sectra's pictures. Migration `layout-grid` adds the Grid to saved
   rings.
 - **Administrator mismatch**: if PowerScribe or Sectra runs elevated and the

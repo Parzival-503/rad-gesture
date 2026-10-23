@@ -273,7 +273,7 @@ function migrate(m, lib) {
     changed = true;
   }
   if (!done.includes('layout-grid')) {
-    // Sectra's fixed layouts (rows x columns, 2x1 ... 3x3) as a smaller ring
+    // Sectra's fixed layouts (rows x columns: 2x2, 3x2, 3x3) as a smaller ring
     // "Grid" in PACS > Layout, after Next layout, when that ring has room and
     // none is there yet.
     const pacs = m.categories.find((c) => c.id === 'pacs');
@@ -283,7 +283,7 @@ function migrate(m, lib) {
       const grid = {
         name: 'Grid',
         icon: 'view_comfy',
-        items: ['2x1', '2x2', '2x3', '3x1', '3x2', '3x3'].map((k) => {
+        items: ['2x2', '3x2', '3x3'].map((k) => {
           const n = k.replace('x', ' × ');
           return { name: n, icon: 'grid:' + k, action: 'helper:lib:PACS_Layout_' + k };
         }),
@@ -292,6 +292,14 @@ function migrate(m, lib) {
       lay.items.splice(ni >= 0 ? ni + 1 : lay.items.length, 0, grid);
     }
     done.push('layout-grid');
+    changed = true;
+  }
+  if (!done.includes('layout-grid-three')) {
+    // The Grid holds only 2x2, 3x2 and 3x3; one build also had 2x1, 2x3, 3x1.
+    const gone = new Set(['2x1', '2x3', '3x1'].map((k) => 'helper:lib:PACS_Layout_' + k));
+    const prune = (items) => (items || []).filter((it) => !gone.has(it.action)).map((it) => (Array.isArray(it.items) ? Object.assign(it, { items: prune(it.items) }) : it));
+    m.categories.forEach((c) => { c.items = prune(c.items); });
+    done.push('layout-grid-three');
     changed = true;
   }
   if (changed) m.migrated = done;

@@ -215,7 +215,7 @@ test('an older menu gets the Grid of fixed layouts in PACS > Layout, once', () =
   const m = JSON.parse(fs.readFileSync(def, 'utf8'));
   const lay = (menu) => menu.categories.find((c) => c.id === 'pacs').items.find((i) => i.name === 'Layout');
   const shipped = lay(m).items.find((i) => i.name === 'Grid');
-  assert.deepStrictEqual(shipped.items.map((i) => i.name), ['2 × 1', '2 × 2', '2 × 3', '3 × 1', '3 × 2', '3 × 3']);
+  assert.deepStrictEqual(shipped.items.map((i) => i.name), ['2 × 2', '3 × 2', '3 × 3']);
   lay(m).items = lay(m).items.filter((i) => i.name !== 'Grid'); // as older builds saved it
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
   const got = lay(store.readMenu());
@@ -249,4 +249,16 @@ test('an older menu loses Paste indication from the ring, once', () => {
   ps(m).items.splice(1, 0, { name: 'Paste indication', icon: 'content_paste', action: 'helper:keys:^!g' });
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
   assert.ok(!ps(store.readMenu()).items.some((i) => i.action === 'helper:keys:^!g'));
+});
+
+test('rings saved with six layouts keep only 2x2, 3x2 and 3x3, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-grid3-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const grid = (menu) => menu.categories.find((c) => c.id === 'pacs').items.find((i) => i.name === 'Layout').items.find((i) => i.name === 'Grid');
+  grid(m).items = ['2x1', '2x2', '2x3', '3x1', '3x2', '3x3'].map((k) => ({ name: k, icon: 'grid:' + k, action: 'helper:lib:PACS_Layout_' + k }));
+  m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid'];
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  assert.deepStrictEqual(grid(store.readMenu()).items.map((i) => i.action.split('_').pop()), ['2x2', '3x2', '3x3']);
 });

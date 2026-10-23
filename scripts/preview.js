@@ -194,7 +194,7 @@ const shots = path.join(__dirname, 'shots');
   await clickNode('Layout');
   await clickNode('Grid');
   const gridIcons = await page.evaluate(() => window.RGRing.state().levels.slice(-1)[0].nodes.filter((N) => !N.back).map((N) => N.el.querySelectorAll('.gridic rect').length));
-  assert.deepStrictEqual(gridIcons, [2, 4, 6, 3, 6, 9], 'the Grid ring draws every layout as panes');
+  assert.deepStrictEqual(gridIcons, [4, 6, 9], 'the Grid ring draws every layout as panes');
   await page.mouse.move(cx + 140, cy - 20);
   await shot('11-layout-grid');
 

@@ -133,8 +133,8 @@ global LIB_IDS := "PS_ToggleDictation|PS_NextField|PS_PrevField|PS_PasteIndicati
     . "|PACS_WL_SoftTissue|PACS_WL_Lung|PACS_WL_Bone|PACS_WL_Brain|PACS_WL_Stroke|PACS_Enhance|PACS_Sharpen"
     . "|PACS_Distance|PACS_Orthogonal|PACS_ROI|PACS_Arrow|PACS_Circle|PACS_Insert_Measurement"
     . "|PACS_Crosshair|PACS_LinkCrosshair|PACS_Prev_Key_Image|PACS_Next_Key_Image"
-    . "|PACS_Prev_Layout|PACS_Next_Layout|PACS_Layout_2x1|PACS_Layout_2x2|PACS_Layout_2x3"
-    . "|PACS_Layout_3x1|PACS_Layout_3x2|PACS_Layout_3x3|PACS_MPR|PACS_Matrix|PACS_ImageWindow|PACS_Insert_Priors"
+    . "|PACS_Prev_Layout|PACS_Next_Layout|PACS_Layout_2x2|PACS_Layout_3x2|PACS_Layout_3x3"
+    . "|PACS_MPR|PACS_Matrix|PACS_ImageWindow|PACS_Insert_Priors"
     . "|LoginUandP|LoginU|LoginP|LoginForget|ActivateEPIC|ActivateTeams|OpenChromeTabs|SearchRadiopaediaGoogle"
 global g_LibBound := {}     ; hotkey -> library id, for LibHotkey
 global g_LibPass := ""      ; the login password, this session only (never written anywhere)
