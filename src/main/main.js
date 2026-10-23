@@ -17,7 +17,7 @@ const { resolveAction, runSpec } = require('./actions');
 const { createStore, MODELS, MODEL_LABELS } = require('./settings-store');
 const { createSupervisor } = require('./helper-supervisor');
 const conflicts = require('./conflicts');
-const { categoryForApp } = require('../common/menu');
+const { categoryForApp, parseAction } = require('../common/menu');
 const apikey = require('../common/apikey');
 const { createIconStore } = require('./icon-store');
 
@@ -37,12 +37,15 @@ const userDir = () => app.getPath('userData');
 const store = createStore({ userDir, defaultMenuPath: path.join(ROOT, 'config', 'default-menu.json'), libraryPath: path.join(ROOT, 'config', 'library.json') });
 const icons = createIconStore({ dir: () => path.join(userDir(), 'icons'), nativeImage });
 const { codeFor } = require('./library-code');
+const { createReferences } = require('./references');
+const refs = createReferences({ dir: () => path.join(userDir(), 'references') });
 const resourcesHelperDir = () => (app.isPackaged ? path.join(process.resourcesPath, 'helper') : path.join(ROOT, 'helper'));
 
 let overlay = null;
 let overlayReady = false;
 let pendingOpen = null;
 let settingsWin = null;
+let viewerWin = null;
 let tray = null;
 let bridge = null;
 let supervisor = null;
@@ -163,8 +166,42 @@ function hideRing(delay = 0) {
 
 // Runs a picked item. Returns the helper's reply for a release ("action:<id>"
 // or "none"); a click queues helper actions for the helper's next poll.
+// The clipboard, the way Electron 44 gives it: asynchronously (readText
+// returns a promise; reading it like the old API gave "[object Promise]",
+// which is what "Search copied text" searched for until this was fixed).
+async function clipText() {
+  try {
+    return String((await clipboard.readText()) || '');
+  } catch (_) {
+    return '';
+  }
+}
+async function clipImage() {
+  try {
+    for (const it of await clipboard.read()) {
+      const type = (it.types || []).find((t) => t.startsWith('image/'));
+      if (!type) continue;
+      const blob = await it.getType(type);
+      const img = nativeImage.createFromBuffer(Buffer.from(await blob.arrayBuffer()));
+      if (!img.isEmpty()) return img;
+    }
+  } catch (_) {}
+  return null;
+}
+
 function runItem(item, viaRelease) {
-  const r = resolveAction(item.action, { env: process.env, clipboard: clipboard.readText() });
+  const parsed = parseAction(item.action);
+  if (parsed && parsed.kind === 'search') {
+    // Needs the copied text first (asynchronous).
+    logEvent('pick', `${item.name} -> ${item.action}`);
+    clipText().then((text) => {
+      const r = resolveAction(item.action, { env: process.env, clipboard: text });
+      logEvent('search', r.value);
+      shell.openExternal(r.value);
+    });
+    return 'none';
+  }
+  const r = resolveAction(item.action, { env: process.env, clipboard: '' });
   logEvent('pick', `${item.name} -> ${item.action}`);
   switch (r.kind) {
     case 'helper':
@@ -182,6 +219,9 @@ function runItem(item, viaRelease) {
       return 'none';
     case 'hub':
       hubCommand(r.value);
+      return 'none';
+    case 'ref':
+      openReference(r.value);
       return 'none';
     case 'app': {
       // The helper starts it or brings it to the front; without the helper,
@@ -243,6 +283,7 @@ function hubCommand(id) {
   if (id === 'edit-menu' || id === 'settings') openSettings('rings');
   else if (id === 'open-folder') shell.openPath(userDir());
   else if (id === 'reload-menu') loadMenu();
+  else if (id === 'ref-add') addReferenceFromClipboard(true);
   else notify(`Unknown command "${id}"`);
 }
 
@@ -326,6 +367,88 @@ async function startBridge() {
 }
 
 // ---------------------------------------------------------------- settings window
+
+// ---------------------------------------------------------------- Reference library
+
+// A reference for a page: its note, and its picture as a data: URL (full
+// size, or a small one for lists).
+function refForPage(r, thumb) {
+  if (!r) return null;
+  let image = '';
+  if (r.image) {
+    const img = nativeImage.createFromPath(path.join(userDir(), 'references', r.image));
+    if (!img.isEmpty()) image = (thumb ? img.resize({ width: Math.min(320, img.getSize().width) }) : img).toDataURL();
+  }
+  return { ...r, image };
+}
+
+// Screenshots are kept at most 2400 px wide (a 4K snip stays readable, the
+// folder stays small), as PNG.
+function pngOf(img) {
+  if (!img || img.isEmpty()) return null;
+  const { width } = img.getSize();
+  return (width > 2400 ? img.resize({ width: 2400, quality: 'best' }) : img).toPNG();
+}
+
+// The clipboard (a screenshot, or text) as a new reference. From the ring
+// ("Add from clipboard"), the tray, or Settings.
+async function addReferenceFromClipboard(openIt) {
+  const img = await clipImage();
+  let r = null;
+  if (img) r = refs.save({ png: pngOf(img), body: '' });
+  else {
+    const text = (await clipText()).trim();
+    if (text) {
+      const { titleOf } = require('../common/markdown');
+      r = refs.save({ title: titleOf(text), body: text });
+    }
+  }
+  if (!r) {
+    notify('Nothing to add: copy text, or take a screenshot (Win+Shift+S), then try again.');
+    return null;
+  }
+  logEvent('ref-added', r.id);
+  if (openIt) openSettings('references:' + r.id);
+  return r;
+}
+
+function openReference(id) {
+  const r = refs.get(id);
+  if (!r) return notify('That reference is gone. Fix the ring direction in Settings > Rings.');
+  const pt = screen.getCursorScreenPoint();
+  const area = screen.getDisplayNearestPoint(pt).workArea;
+  if (!viewerWin || viewerWin.isDestroyed()) {
+    const w = Math.min(820, area.width - 40), h = Math.min(900, area.height - 40);
+    viewerWin = new BrowserWindow({
+      width: w,
+      height: h,
+      x: Math.round(area.x + (area.width - w) / 2),
+      y: Math.round(area.y + (area.height - h) / 2),
+      show: false,
+      title: 'Reference',
+      backgroundColor: '#111318',
+      icon: path.join(ROOT, 'assets', 'icon.png'),
+      autoHideMenuBar: true,
+      alwaysOnTop: true,
+      webPreferences: { preload: path.join(__dirname, '..', 'viewer', 'preload.js'), contextIsolation: true, sandbox: false },
+    });
+    viewerWin.on('closed', () => (viewerWin = null));
+    viewerWin.once('ready-to-show', () => viewerWin.show());
+    viewerWin.loadFile(path.join(__dirname, '..', 'viewer', 'index.html'), { query: { id } });
+  } else {
+    viewerWin.webContents.send('rgv:show', id);
+    viewerWin.show();
+    viewerWin.focus();
+  }
+  logEvent('ref-open', id);
+}
+
+function registerViewerIpc() {
+  ipcMain.handle('rgv:get', (_e, id) => ({ ref: refForPage(refs.get(id), false), theme: menu && menu.theme }));
+  ipcMain.handle('rgv:open-link', (_e, url) => { if (/^(https?:\/\/|mailto:)/i.test(String(url))) shell.openExternal(url); });
+  ipcMain.handle('rgv:edit', (_e, id) => { openSettings('references:' + id); });
+  ipcMain.handle('rgv:close', () => { if (viewerWin && !viewerWin.isDestroyed()) viewerWin.close(); });
+}
 
 function openSettings(tab = 'rings') {
   if (settingsWin && !settingsWin.isDestroyed()) {
@@ -453,6 +576,49 @@ function registerSettingsIpc() {
     libraryCode: libraryCode(),
     status: fullStatus(),
   }));
+  ipcMain.handle('rgs:refs', () => refs.list().map((r) => refForPage(r, true)));
+  ipcMain.handle('rgs:ref-get', (_e, id) => refForPage(refs.get(id), false));
+  ipcMain.handle('rgs:ref-save', (_e, v) => refForPage(refs.save({ id: v.id, title: v.title, tags: v.tags, body: v.body }), true));
+  ipcMain.handle('rgs:ref-delete', (_e, id) => refs.remove(id));
+  ipcMain.handle('rgs:ref-open', (_e, id) => openReference(id));
+  // A picture for a reference (new, or added to one): from the clipboard or a file.
+  ipcMain.handle('rgs:ref-paste', async (_e, id) => {
+    const img = await clipImage();
+    if (!img) {
+      if (id) return { ok: false, error: 'No picture on the clipboard. Take a screenshot first (Win+Shift+S).' };
+      const r = await addReferenceFromClipboard(false);
+      return r ? { ok: true, ref: refForPage(r, true) } : { ok: false, error: 'The clipboard is empty: copy text or take a screenshot first.' };
+    }
+    return { ok: true, ref: refForPage(refs.save({ id, png: pngOf(img) }), true) };
+  });
+  ipcMain.handle('rgs:ref-pick-image', async (_e, id) => {
+    const r = await dialog.showOpenDialog(settingsWin, { title: 'Choose a picture', properties: ['openFile'], filters: [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] }] });
+    if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+    const png = pngOf(nativeImage.createFromPath(r.filePaths[0]));
+    if (!png) return { ok: false, error: 'That file is not a picture RadGesture can read.' };
+    return { ok: true, ref: refForPage(refs.save({ id, png, title: id ? undefined : path.basename(r.filePaths[0]).replace(/\.[^.]+$/, '') }), true) };
+  });
+  // Windows' own snipping overlay; the snip lands on the clipboard and is
+  // added as soon as it appears (up to a minute).
+  ipcMain.handle('rgs:ref-snip', async () => {
+    if (process.platform !== 'win32') return { ok: false, error: 'Snipping needs Windows. Copy a picture, then Paste screenshot.' };
+    const first = await clipImage();
+    const before = first ? first.toDataURL() : '';
+    clipboard.clear();
+    shell.openExternal('ms-screenclip:');
+    const end = Date.now() + 60000;
+    while (Date.now() < end) {
+      await new Promise((res) => setTimeout(res, 400));
+      const img = await clipImage();
+      if (img && img.toDataURL() !== before) {
+        const r = refs.save({ png: pngOf(img), body: '' });
+        logEvent('ref-added', r.id + ' (snip)');
+        if (settingsWin && !settingsWin.isDestroyed()) settingsWin.focus();
+        return { ok: true, ref: refForPage(r, true) };
+      }
+    }
+    return { ok: false, error: 'No snip in the last minute.' };
+  });
   ipcMain.handle('rgs:save-library', (_e, v) => {
     store.writeLibrary(v);
     tellHelperToReload();
@@ -601,6 +767,9 @@ function trayTemplate() {
     { label: 'Edit rings...', click: () => openSettings('rings') },
     { label: 'AI tools...', click: () => openSettings('ai') },
     { label: 'Shortcuts...', click: () => openSettings('shortcuts') },
+    { label: 'Functions...', click: () => openSettings('functions') },
+    { label: 'Reference library...', click: () => openSettings('references') },
+    { label: 'Add clipboard to the Reference library', click: () => addReferenceFromClipboard(true) },
     { type: 'separator' },
     helperLine,
     ...(lastConflicts.length ? [{ label: `Close ${lastConflicts.length} conflicting old tool(s)...`, click: () => openSettings('status') }] : []),
@@ -671,6 +840,7 @@ app.whenReady().then(async () => {
   });
   const bridgeInfo = await startBridge();
   registerSettingsIpc();
+  registerViewerIpc();
   buildTray();
   setInterval(updateTray, 2000); // helper connected/disconnected shows in the tray
   if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: menu.startAtLogin !== false });
@@ -705,6 +875,7 @@ app.whenReady().then(async () => {
         return true;
       },
       ringOpen: () => ringOpen,
+      runAction: (action) => runItem({ name: 'e2e', action }, false),
       events: () => events.slice(),
       userDir,
     };

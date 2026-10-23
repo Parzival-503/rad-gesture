@@ -279,6 +279,33 @@ settings never move.
   The Windows e2e checks the shipped ones are all on from the first start
   and that a real Ctrl+Alt+2 reaches Lung window.
 
+### Reference library (Settings > References, `ref:<id>`)
+
+Sina: "a library is things you read". The ring of guideline links (once
+"Gallery") is the **Reference library**, and Settings > References holds his
+own **notes** (Markdown underneath, shown formatted) and **pictures**
+(screenshots), in `%APPDATA%\RadGesture\references\` (`index.json` + `<id>.md`
++ `<id>.png`; `src/main/references.js`, tested). Ways in: New note, Snip now
+(`ms-screenclip:`, the snip is picked up from the clipboard within a minute),
+Paste screenshot or text, Choose a picture, the ring's **Add from clipboard**
+(`hub:ref-add`) and the tray. "Put on the ring" adds `ref:<id>` under the
+Reference library ring's **My notes** (made on first use). The ring opens it
+in the **reference viewer** (`src/viewer/`, always on top, Esc closes, Edit
+goes to Settings). Screenshots are kept at most 2400 px wide.
+
+- `src/common/markdown.js` is ours, not a library, and **safe by
+  construction**: everything is escaped, only its own tags come out, links
+  only http(s)/mailto. Headings 1-4, a single line break stays a break,
+  bold/italic/strike/==highlight==/code, nested and check lists, tables with
+  alignment, `> **Pearl**` callouts, rules. The editor (Write / Side by side /
+  Preview) re-renders the preview on every key, continues lists on Enter
+  (Enter on an empty item ends it), Ctrl+B / Ctrl+I, and a toolbar.
+- Notes save themselves (450 ms after typing); there is no Save for them.
+- **Electron 44's clipboard is asynchronous** (`readText()` and `read()`
+  return promises; there is no `readImage`). Use `clipText()` / `clipImage()`
+  in main.js. Reading it the old way made "Search copied text" search for
+  "[object Promise]"; the e2e now checks the search URL.
+
 ### Shortcuts page (made so colleagues can use RadGesture)
 
 Sina's PACS/Apps rings used to press Rad Optimizer's keys (now Library
@@ -307,8 +334,8 @@ Quit (also stops the helper).
 ### The menu data (`config/default-menu.json` -> `%APPDATA%\RadGesture\menu.json`)
 
 Actions: `helper:<id>`, `url:`, `file:` (expands `%VARS%`), `search:`
-(`{clipboard}`), `hub:`. `apps` on a ring picks which ring opens first over
-that program. The Gallery ring carries Sina's reference links from the old
+(`{clipboard}`), `hub:`, `ref:<id>` (a Reference library note or picture). `apps` on a ring picks which ring opens first over
+that program. The Reference library ring (id `gallery`, once "Gallery") carries Sina's reference links from the old
 Kando gallery. Edited only through Settings.
 
 **Saved menus are migrated once** (`migrate()` in `settings-store.js`,

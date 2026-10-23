@@ -34,7 +34,7 @@ Their PACS has its own keys, so after installing:
 
 1. Settings > **Functions** > **Copy the list**: the key each function presses
    in Sectra or PowerScribe (window/level, measure, layouts, insert priors...).
-2. In Sectra, give those tools keys (or keep Sectra's own), then in Library
+2. In Sectra, give those tools keys (or keep Sectra's own), then in Functions
    record the same key for each. Single keys are fine.
 3. Or skip both: **Import** a `.rgkeys` file someone already made with
    **Export** (one per department is enough).
@@ -56,6 +56,16 @@ bottom, **My functions** > **New function**: give it a name, write its
 AutoHotkey code, then put it on a ring (Rings > a direction > Function) or give it a keyboard shortcut. **Copy** on a PACS or PowerScribe
 function starts one from it. Share them with Shortcuts > **Export**. Step by
 step, with examples: [docs/adding-functions.md](docs/adding-functions.md).
+
+## Reference library: your own notes and screenshots
+
+Settings > **References**: **New note** (headings, bold, lists, check lists,
+tables and pearls, shown formatted as you type; a toolbar does it for you),
+**Snip now** (Windows' snipping; the snip is added by itself), **Paste
+screenshot or text**, or **Choose a picture**. Tag them, search them, then
+**Put on the ring**: they open in a clean window over whatever you read. Fastest
+of all: copy something, then ring > Reference library > **Add from
+clipboard** (or the tray). Keep patient details out of screenshots.
 
 ## Themes
 

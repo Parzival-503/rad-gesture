@@ -10,6 +10,7 @@
   const M = window.RGMenu;
   const T = window.RGThemes;
   const FF = window.RGFnFilter;
+  const MD = window.RGMarkdown;
   const $main = document.getElementById('main');
 
   let D = await api.get();
@@ -122,7 +123,7 @@
     if (it.items) return 'ring';
     const a = M.parseAction(it.action) || { kind: 'url', value: '' };
     if (a.kind === 'helper') return a.value.startsWith('keys:') ? 'keys' : a.value.startsWith('lib:') ? 'lib' : 'ai';
-    return { url: 'web', file: 'file', search: 'search', hub: 'hub', app: 'app' }[a.kind] || 'web';
+    return { url: 'web', file: 'file', search: 'search', hub: 'hub', app: 'app', ref: 'ref' }[a.kind] || 'web';
   }
   function describe(it) {
     if (it.items) return `${it.items.length} inside`;
@@ -136,6 +137,8 @@
     }
     if (a.kind === 'url') return a.value.replace(/^https?:\/\//, '').slice(0, 40);
     if (a.kind === 'search') return 'search copied text';
+    if (a.kind === 'ref') { const r = refById(a.value); return r ? 'reference: ' + r.title : (refsList ? 'reference (deleted)' : 'reference'); }
+    if (a.kind === 'hub' && a.value === 'ref-add') return 'adds the clipboard to the Reference library';
     if (a.kind === 'file') return a.value.split(/[\\/]/).pop() || a.value;
     if (a.kind === 'app') return 'opens ' + (a.value.split(/[\\/]/).pop() || a.value) + (it.startWithHub ? ' (starts with RadGesture)' : '');
     return a.value;
@@ -163,6 +166,9 @@
   // ------------------------------------------------------------------ nav + save bar
 
   function setTab(t) {
+    // "references:<id>" opens the Reference library on that entry.
+    const m = /^references:(r[a-z0-9]+)$/.exec(t || '');
+    if (m) { t = 'references'; ui.refSel = m[1]; refsList = null; ui.refQuery = ''; ui.refTag = ''; ui.refKind = 'all'; }
     ui.tab = t;
     document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
     render();
@@ -241,7 +247,7 @@
     // Fade in only when the page changes, not on every re-render while editing.
     $main.classList.toggle('fresh', ui.tab !== lastTab);
     lastTab = ui.tab;
-    const page = { rings: renderRings, ai: renderAI, shortcuts: renderShortcuts, functions: renderLibrary, general: renderGeneral, status: renderStatus }[ui.tab] || renderRings;
+    const page = { rings: renderRings, ai: renderAI, shortcuts: renderShortcuts, functions: renderLibrary, references: renderReferences, general: renderGeneral, status: renderStatus }[ui.tab] || renderRings;
     page();
     paintStatusDot();
   }
@@ -413,7 +419,7 @@
     box.append(field('Name', h('input', { type: 'text', id: 'itemName', value: it.name, oninput: (e) => { it.name = e.target.value; markDirty('menu'); refreshLists(); } })));
     box.append(field('Icon', iconPicker(it.icon, (v) => { it.icon = v; markDirty('menu'); render(); })));
     const type = actionType(it);
-    const types = [['ai', 'AI tool', 'stars'], ['lib', 'Function', 'functions'], ['app', 'Open a program', 'apps'], ['web', 'Website', 'public'], ['search', 'Search copied text', 'search'], ['file', 'File or folder', 'folder_open'], ['keys', 'Press keys', 'keyboard'], ['ring', 'Smaller ring', 'donut_small']];
+    const types = [['ai', 'AI tool', 'stars'], ['lib', 'Function', 'functions'], ['ref', 'Reference', 'menu_book'], ['app', 'Open a program', 'apps'], ['web', 'Website', 'public'], ['search', 'Search copied text', 'search'], ['file', 'File or folder', 'folder_open'], ['keys', 'Press keys', 'keyboard'], ['ring', 'Smaller ring', 'donut_small']];
     box.append(field('What it does', seg(types, type, (t) => changeType(it, t))));
     box.append(typeFields(it, type));
     return box;
@@ -443,7 +449,7 @@
     } else {
       delete it.items;
       if (t !== 'app') ['args', 'ifRunning', 'startWithHub'].forEach((k) => delete it[k]);
-      it.action = { app: 'app:notepad.exe', ai: 'helper:proofread', web: 'url:https://www.google.com', search: 'search:' + SEARCHES[0][1], file: 'file:%USERPROFILE%\\Documents', keys: 'helper:keys:{F4}', lib: 'helper:lib:PACS_WL_SoftTissue' }[t];
+      it.action = { app: 'app:notepad.exe', ai: 'helper:proofread', web: 'url:https://www.google.com', search: 'search:' + SEARCHES[0][1], file: 'file:%USERPROFILE%\\Documents', keys: 'helper:keys:{F4}', lib: 'helper:lib:PACS_WL_SoftTissue', ref: 'ref:' + (((refsList || [])[0] || {}).id || 'rnone0') }[t];
     }
     markDirty('menu');
     render();
@@ -480,6 +486,12 @@
       const f = libFn(id);
       box.append(field('Function', sel, f ? f.description : 'Pick a function.'));
       if (f) box.append(libKeyNote(f, true));
+    } else if (type === 'ref') {
+      if (!refsList) { loadRefs().then(() => render()); box.append(h('div', { class: 'hint' }, 'Loading...')); return box; }
+      const id = a.value;
+      if (!refsList.length) box.append(h('div', { class: 'hint' }, 'The Reference library is empty. Add a note or screenshot in References first.'));
+      else box.append(field('Reference', h('select', { class: 'wide', id: 'refPickRing', onchange: (e) => { set('ref:' + e.target.value); render(); } },
+        refsList.map((r) => h('option', { value: r.id, selected: r.id === id }, (r.image ? '[picture] ' : '') + r.title))), 'Opens in a clean window over what you are reading. Edit it in References.'));
     } else if (type === 'web') {
       box.append(field('Address', h('input', { type: 'url', value: a.value, placeholder: 'https://', oninput: (e) => set('url:' + e.target.value.trim()) })));
     } else if (type === 'search') {
@@ -1245,6 +1257,242 @@
     }
     await api.copyText(lines.join('\r\n'));
     toast('Copied. Paste it anywhere to keep it next to Sectra.');
+  }
+
+  // ---------------------------------------------------------------- Reference library
+  //
+  // Notes (formatted text, Markdown underneath) and pictures (screenshots) kept
+  // on this PC (src/main/references.js). Saved as you type. "Put on the ring"
+  // adds it to the Reference library ring's "My notes"; the ring opens it in
+  // the reference viewer. The links on that ring are edited in Rings.
+
+  let refsList = null; // loaded when the page (or the ring editor) needs it
+  async function loadRefs() {
+    refsList = await api.refs();
+    return refsList;
+  }
+  const refById = (id) => (refsList || []).find((r) => r.id === id);
+
+  function renderReferences() {
+    $main.append(h('h1', {}, 'Reference library'),
+      h('p', { class: 'lede' }, 'Your own notes and screenshots, next to the guideline links on the Reference library ring. Write a note with headings, lists and tables, or snip a table from a paper, then put it on the ring: it opens in a clean window over whatever you are reading.'));
+    if (!refsList) {
+      $main.append(h('div', { class: 'empty' }, 'Loading...'));
+      loadRefs().then(() => { if (ui.tab === 'references') render(); });
+      return;
+    }
+    const add = async (fn, okMsg) => {
+      const r = await fn();
+      if (!r || !r.ok) { if (r && !r.canceled) toast(r.error); return; }
+      await loadRefs();
+      ui.refSel = r.ref.id;
+      render();
+      toast(okMsg);
+    };
+    $main.append(h('div', { class: 'card refadd' },
+      h('div', { class: 'addrow', style: 'margin:0' },
+        h('button', { class: 'btn primary', id: 'refNew', onclick: async () => {
+          const r = await api.refSave({ title: 'New note', body: '# New note\n\n' });
+          await loadRefs();
+          ui.refSel = r.id;
+          ui.refMode = 'split';
+          render();
+          const ta = document.getElementById('refBody');
+          if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+        } }, msym('note_add'), 'New note'),
+        h('button', { class: 'btn', id: 'refSnip', title: 'Opens Windows\' snipping: drag over what you want; it is added by itself', onclick: () => { toast('Drag over what you want to keep...'); add(() => api.refSnip(), 'Screenshot added. Give it a title.'); } }, msym('screenshot_region'), 'Snip now'),
+        h('button', { class: 'btn', id: 'refPaste', title: 'A screenshot or text you copied', onclick: () => add(() => api.refPaste(null), 'Added from the clipboard.') }, msym('content_paste'), 'Paste screenshot or text'),
+        h('button', { class: 'btn', id: 'refPick', onclick: () => add(() => api.refPickImage(null), 'Picture added.') }, msym('add_photo_alternate'), 'Choose a picture...')),
+      h('div', { class: 'hint', style: 'margin-top:10px' }, msym('shield'), ' Keep patient details out: crop names, MRNs and dates out of screenshots. These stay on this PC.')));
+
+    const q = (ui.refQuery || '').trim().toLowerCase();
+    const kind = ui.refKind || 'all';
+    const tag = ui.refTag || '';
+    const tags = [...new Set(refsList.flatMap((r) => r.tags || []))].sort();
+    const shown = refsList.filter((r) => (kind === 'all' || (kind === 'pictures' ? !!r.image : !r.image)) && (!tag || (r.tags || []).includes(tag)) &&
+      (!q || q.split(/\s+/).every((w) => (r.title + ' ' + (r.tags || []).join(' ') + ' ' + r.body).toLowerCase().includes(w))));
+    if (!ui.refSel || !refById(ui.refSel)) ui.refSel = shown.length ? shown[0].id : null;
+    const places = refPlaces();
+
+    const search = h('input', { type: 'text', id: 'refSearch', class: 'search', placeholder: 'Search titles, tags and text', value: ui.refQuery || '',
+      oninput: (e) => { ui.refQuery = e.target.value; const pos = e.target.selectionStart; render(); const s2 = document.getElementById('refSearch'); s2.focus(); s2.setSelectionRange(pos, pos); } });
+    const listCard = h('div', { class: 'card reflist' },
+      h('div', { class: 'searchbox' }, msym('search'), search),
+      h('div', { style: 'margin:10px 0 6px' }, seg([['all', `All ${refsList.length}`], ['notes', 'Notes'], ['pictures', 'Pictures']], kind, (v) => { ui.refKind = v; render(); })),
+      tags.length ? h('div', { class: 'fxchips', style: 'margin-bottom:8px' }, tags.map((t) => h('button', { class: 'fxchip' + (t === tag ? ' on' : ''), onclick: () => { ui.refTag = t === tag ? '' : t; render(); } }, t))) : null);
+    const list = h('div', { class: 'list' });
+    for (const r of shown) {
+      list.append(h('div', { class: 'lrow refrow' + (r.id === ui.refSel ? ' on' : ''), role: 'button', tabindex: '0', 'data-ref': r.id,
+        onclick: () => { ui.refSel = r.id; render(); }, ondblclick: () => api.refOpen(r.id) },
+      r.image ? h('img', { class: 'refthumb', src: r.image, alt: '' }) : h('span', { class: 'ic' }, msym('description')),
+      h('span', { class: 'tx' }, h('b', {}, r.title), h('small', {}, [(r.tags || []).join(', '), places[r.id] ? 'on the ring' : ''].filter(Boolean).join(' · ') || new Date(r.updated).toLocaleDateString()))));
+    }
+    if (!refsList.length) list.append(h('div', { class: 'empty' }, 'Nothing yet. Start with New note, or snip a table from a paper.'));
+    else if (!shown.length) list.append(h('div', { class: 'empty' }, 'Nothing matches.'));
+    listCard.append(list);
+
+    const grid = h('div', { class: 'refgrid' }, listCard, refEditor(refById(ui.refSel), places));
+    $main.append(grid);
+  }
+
+  // Where each reference sits on the rings.
+  function refPlaces() {
+    const out = {};
+    menuDraft.categories.forEach((cat) => {
+      const walk = (items, p) => (items || []).forEach((it) => {
+        if (it.items) walk(it.items, p.concat(it.name));
+        else if (typeof it.action === 'string' && it.action.startsWith('ref:')) (out[it.action.slice(4)] = out[it.action.slice(4)] || []).push(p.concat(it.name).join(' › '));
+      });
+      walk(cat.items, [cat.name]);
+    });
+    return out;
+  }
+
+  // Into the Reference library ring's "My notes" (made on first use).
+  function putOnRing(r) {
+    const ring = menuDraft.categories.find((c) => c.id === 'gallery') || menuDraft.categories.find((c) => /reference/i.test(c.name));
+    if (!ring) return toast('There is no Reference library ring. Add a ring in Rings, then use the "Reference" action.');
+    let mine = ring.items.find((it) => it.items && it.name === 'My notes');
+    const entry = { name: r.title.length > 28 ? r.title.slice(0, 27) + '…' : r.title, icon: r.image ? 'image' : 'description', action: 'ref:' + r.id };
+    if (!mine) {
+      if (ring.items.length >= M.MAX_ITEMS) return toast(`The ${ring.name} ring is full (${M.MAX_ITEMS}). Make room in Rings first.`);
+      mine = { name: 'My notes', icon: 'sticky_note_2', items: [] };
+      ring.items.push(mine);
+    }
+    if (mine.items.length >= M.MAX_ITEMS) return toast('"My notes" is full (8). Make a second smaller ring in Rings.');
+    mine.items.push(entry);
+    markDirty('menu');
+    render();
+    toast(`Added to ${ring.name} › My notes. Save to keep it.`);
+  }
+
+  let refTimer = null;
+  function refEditor(r, places) {
+    const box = h('div', { class: 'card editor refeditor' });
+    if (!r) {
+      box.append(h('div', { class: 'empty' }, 'Pick a note or picture on the left, or add one above.'));
+      return box;
+    }
+    const status = h('span', { class: 'hint', id: 'refSaved' }, 'Saved');
+    const save = (patch) => {
+      Object.assign(r, patch);
+      status.textContent = 'Saving...';
+      clearTimeout(refTimer);
+      refTimer = setTimeout(async () => {
+        const back = await api.refSave({ id: r.id, title: r.title, tags: r.tags, body: r.body });
+        if (back) { r.updated = back.updated; r.title = back.title; }
+        status.textContent = 'Saved';
+        const row = document.querySelector(`.refrow[data-ref="${r.id}"] b`);
+        if (row) row.textContent = r.title;
+      }, 450);
+    };
+    const mode = ui.refMode || 'split';
+    const preview = h('div', { class: 'md refpreview', id: 'refPreview', html: MD.render(r.body) });
+    const ta = h('textarea', { id: 'refBody', class: 'refbody', spellcheck: 'true', placeholder: '# Title\n\nWrite here. Headings, **bold**, lists, tables...',
+      oninput: (e) => { preview.innerHTML = MD.render(e.target.value); save({ body: e.target.value }); },
+      onkeydown: (e) => mdKeys(e, ta) }, r.body);
+    const onRing = places[r.id] || [];
+    box.append(...[
+      h('div', { class: 'refhead' },
+        h('input', { type: 'text', id: 'refTitle', class: 'reftitle', value: r.title, placeholder: 'Title', oninput: (e) => save({ title: e.target.value }) }),
+        status),
+      field('Tags', h('input', { type: 'text', id: 'refTags', value: (r.tags || []).join(', '), placeholder: 'e.g. chest, nodules, guidelines', onchange: (e) => { save({ tags: e.target.value }); setTimeout(() => loadRefs().then(render), 600); } })),
+      r.image ? h('div', { class: 'refpic' }, h('img', { src: (refById(r.id) || r).image, alt: r.title }),
+        h('div', { class: 'addrow' },
+          h('button', { class: 'btn small', onclick: async () => { const x = await api.refPaste(r.id); if (!x.ok) return toast(x.error); await loadRefs(); render(); } }, msym('content_paste'), 'Replace with clipboard'),
+          h('button', { class: 'btn small ghost', onclick: async () => { const x = await api.refPickImage(r.id); if (!x.ok) return x.canceled || toast(x.error); await loadRefs(); render(); } }, msym('image'), 'Replace from a file'))) : null,
+      h('div', { class: 'reftools' },
+        seg([['write', 'Write', 'edit'], ['split', 'Side by side', 'splitscreen'], ['preview', 'Preview', 'visibility']], mode, (v) => { ui.refMode = v; render(); }),
+        mode !== 'preview' ? mdToolbar(ta, preview, save) : null),
+      h('div', { class: 'refwork ' + mode }, mode !== 'preview' ? ta : null, mode !== 'write' ? preview : null),
+      h('div', { class: 'addrow', style: 'margin-top:12px' },
+        h('button', { class: 'btn', id: 'refOpen', onclick: () => api.refOpen(r.id) }, msym('open_in_new'), 'Open'),
+        h('button', { class: 'btn', id: 'refRing', onclick: () => putOnRing(r) }, msym('donut_large'), onRing.length ? 'On the ring (add again)' : 'Put on the ring'),
+        r.image ? null : h('button', { class: 'btn ghost', onclick: async () => { const x = await api.refPaste(r.id); if (!x.ok) return toast(x.error); await loadRefs(); render(); } }, msym('add_photo_alternate'), 'Add a screenshot'),
+        h('span', { class: 'grow' }),
+        ui.refConfirmDelete === r.id
+          ? h('span', { class: 'confirm' }, 'Delete it?',
+            h('button', { class: 'btn small danger', id: 'refDeleteYes', onclick: async () => { await api.refDelete(r.id); ui.refConfirmDelete = null; ui.refSel = null; await loadRefs(); render(); toast('Deleted'); } }, 'Delete'),
+            h('button', { class: 'btn small ghost', onclick: () => { ui.refConfirmDelete = null; render(); } }, 'Keep'))
+          : h('button', { class: 'btn ghost danger', onclick: () => { ui.refConfirmDelete = r.id; render(); } }, msym('delete'), 'Delete')),
+      onRing.length ? h('div', { class: 'hint' }, 'On the ring: ' + onRing.join('; ')) : null].filter(Boolean));
+    return box;
+  }
+
+  // Formatting buttons: wrap the selection, or start the line(s) with a mark.
+  function mdToolbar(ta, preview, save) {
+    const apply = (fn) => {
+      const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+      const r = fn(v, s, e);
+      ta.value = r.text;
+      ta.focus();
+      ta.setSelectionRange(r.s, r.e);
+      preview.innerHTML = MD.render(ta.value);
+      save({ body: ta.value });
+    };
+    const wrap = (mark, ph) => apply((v, s, e) => {
+      const sel = v.slice(s, e) || ph;
+      return { text: v.slice(0, s) + mark + sel + mark + v.slice(e), s: s + mark.length, e: s + mark.length + sel.length };
+    });
+    const lines = (prefix, numbered) => apply((v, s, e) => {
+      const a = v.lastIndexOf('\n', s - 1) + 1;
+      const bEnd = v.indexOf('\n', e);
+      const b = bEnd < 0 ? v.length : bEnd;
+      const strip = (l) => l.replace(/^(#{1,4}\s|[-*+]\s\[[ xX]\]\s|[-*+]\s|\d+[.)]\s|>\s?)/, '');
+      const block = v.slice(a, b).split('\n').map((l, i) => (numbered ? `${i + 1}. ` : prefix) + strip(l)).join('\n');
+      return { text: v.slice(0, a) + block + v.slice(b), s: a, e: a + block.length };
+    });
+    const insert = (snippet, selFrom, selLen) => apply((v, s) => {
+      const lead = s > 0 && v[s - 1] !== '\n' ? '\n\n' : '';
+      const text = v.slice(0, s) + lead + snippet + v.slice(s);
+      return { text, s: s + lead.length + selFrom, e: s + lead.length + selFrom + selLen };
+    });
+    const b = (icon, title, fn) => h('button', { class: 'iconbtn mdbtn', title, 'aria-label': title, onmousedown: (e) => e.preventDefault(), onclick: fn }, msym(icon));
+    return h('div', { class: 'mdbar', role: 'toolbar', 'aria-label': 'Formatting' },
+      h('button', { class: 'iconbtn mdbtn txt', title: 'Big heading', onmousedown: (e) => e.preventDefault(), onclick: () => lines('# ') }, 'H1'),
+      h('button', { class: 'iconbtn mdbtn txt', title: 'Heading', onmousedown: (e) => e.preventDefault(), onclick: () => lines('## ') }, 'H2'),
+      h('button', { class: 'iconbtn mdbtn txt', title: 'Small heading', onmousedown: (e) => e.preventDefault(), onclick: () => lines('### ') }, 'H3'),
+      b('format_bold', 'Bold (Ctrl+B)', () => wrap('**', 'bold')),
+      b('format_italic', 'Italic (Ctrl+I)', () => wrap('*', 'italic')),
+      b('highlight', 'Highlight', () => wrap('==', 'key point')),
+      b('format_list_bulleted', 'Bullet list', () => lines('- ')),
+      b('format_list_numbered', 'Numbered list', () => lines('', true)),
+      b('checklist', 'Check list', () => lines('- [ ] ')),
+      b('format_quote', 'Pearl / callout', () => lines('> ')),
+      b('table', 'Table', () => insert('| Finding | Size | Follow-up |\n|---|---|---|\n| Solid nodule | < 6 mm | None |\n| Solid nodule | 6-8 mm | CT 6-12 mo |\n', 2, 7)),
+      b('link', 'Link', () => apply((v, s, e) => { const t = v.slice(s, e) || 'link text'; const md = `[${t}](https://)`; return { text: v.slice(0, s) + md + v.slice(e), s: s + t.length + 3, e: s + t.length + 11 }; })),
+      b('horizontal_rule', 'Divider', () => insert('---\n', 4, 0)));
+  }
+
+  // Typing helpers: Ctrl+B / Ctrl+I, and lists that continue themselves on
+  // Enter (Enter on an empty item ends the list), as in a word processor.
+  function mdKeys(e, ta) {
+    if ((e.ctrlKey || e.metaKey) && /^[bi]$/i.test(e.key)) {
+      e.preventDefault();
+      const mark = e.key.toLowerCase() === 'b' ? '**' : '*';
+      const s = ta.selectionStart, en = ta.selectionEnd, v = ta.value;
+      ta.value = v.slice(0, s) + mark + v.slice(s, en) + mark + v.slice(en);
+      ta.setSelectionRange(s + mark.length, en + mark.length);
+      ta.dispatchEvent(new Event('input'));
+      return;
+    }
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const v = ta.value, s = ta.selectionStart;
+    const a = v.lastIndexOf('\n', s - 1) + 1;
+    const line = v.slice(a, s);
+    const m = line.match(/^(\s*)([-*+] \[[ xX]\] |[-*+] |(\d+)([.)]) |> )(.*)$/);
+    if (!m) return;
+    e.preventDefault();
+    if (!m[5].trim()) { // empty item: end the list
+      ta.value = v.slice(0, a) + v.slice(s);
+      ta.setSelectionRange(a, a);
+    } else {
+      const next = m[3] ? `${Number(m[3]) + 1}${m[4]} ` : m[2].replace(/\[[xX]\]/, '[ ]');
+      const ins = '\n' + m[1] + next;
+      ta.value = v.slice(0, s) + ins + v.slice(ta.selectionEnd);
+      ta.setSelectionRange(s + ins.length, s + ins.length);
+    }
+    ta.dispatchEvent(new Event('input'));
   }
 
   // ---------------------------------------------------------------- General

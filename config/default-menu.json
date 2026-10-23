@@ -402,6 +402,11 @@
           "name": "My documents",
           "icon": "folder_open",
           "action": "file:%USERPROFILE%\\Documents"
+        },
+        {
+          "name": "Add from clipboard",
+          "icon": "note_add",
+          "action": "hub:ref-add"
         }
       ]
     },

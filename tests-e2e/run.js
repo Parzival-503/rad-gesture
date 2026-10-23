@@ -247,6 +247,58 @@ async function waitFor(fn, ms, step = 200) {
     await win.$eval('#myFunctions', (el) => el.scrollIntoView());
     await win.screenshot({ path: path.join(SHOTS, 'settings-library-mine.png') });
 
+    // Reference library: write a formatted note (it shows formatted as you
+    // type, lists continue on Enter), it saves itself, put it on the ring;
+    // add the clipboard from the tray; open it in the viewer.
+    const refsDir = path.join(userData, 'references');
+    const refIndex = () => (fs.existsSync(path.join(refsDir, 'index.json')) ? JSON.parse(fs.readFileSync(path.join(refsDir, 'index.json'), 'utf8')) : []);
+    await win.click('#nav button[data-tab="references"]');
+    await sleep(500);
+    check('the Reference library page opens', (await win.textContent('main h1')) === 'Reference library');
+    await win.click('#refNew');
+    await sleep(500);
+    await win.click('#refBody');
+    await win.keyboard.press('End');
+    await win.keyboard.type('## Lung nodules\n\n| Size | Follow-up |\n|---|---|\n| < 6 mm | None |\n\n- first');
+    await win.keyboard.press('Enter');
+    await win.keyboard.type('second');
+    await sleep(900);
+    const prev = await win.innerHTML('#refPreview');
+    check('a note shows formatted as you type (heading, table, list)', /<h2>Lung nodules<\/h2>/.test(prev) && /<table>/.test(prev) && /<li>first<\/li><li>second<\/li>/.test(prev), prev.slice(0, 160));
+    const noteId = (refIndex()[0] || {}).id;
+    check('a note saves itself', !!noteId && /## Lung nodules/.test(fs.readFileSync(path.join(refsDir, noteId + '.md'), 'utf8')));
+    await win.click('#refRing');
+    await win.click('#saveAll');
+    await sleep(700);
+    const refRing = menuNow().categories.find((c) => c.id === 'gallery');
+    const myNotes = refRing && refRing.items.find((i) => i.name === 'My notes');
+    check('Put on the ring adds it to Reference library > My notes', !!(myNotes && myNotes.items.some((i) => i.action === 'ref:' + noteId)), refRing ? refRing.name : 'no ring');
+    await win.$eval('main', (el) => el.scrollTo(0, 0));
+    await win.screenshot({ path: path.join(SHOTS, 'settings-references.png') });
+    await app.evaluate(({ clipboard }) => { clipboard.clear(); clipboard.writeText('# Bosniak 2019\n\n- **IIF**: follow up at 6 months'); });
+    await rg((r) => r.clickTray('Add clipboard to the Reference library'));
+    await sleep(900);
+    const bos = refIndex().find((r) => r.title === 'Bosniak 2019');
+    check('the tray adds the clipboard to the Reference library', !!bos);
+    check('and Settings opens on it', (await win.$eval('#refTitle', (e) => e.value).catch(() => '')) === 'Bosniak 2019');
+    // "Search copied text" searches what was copied (Electron 44 reads the
+    // clipboard asynchronously; reading it the old way searched "[object Promise]").
+    await app.evaluate(({ shell, clipboard }) => { global.__opened = []; shell.openExternal = async (u) => { global.__opened.push(u); }; clipboard.writeText('bosniak IIF'); });
+    await rg((r) => r.runAction('search:https://radiopaedia.org/search?q={clipboard}'));
+    const opened = await waitFor(async () => (await app.evaluate(() => global.__opened)).find((u) => u.includes('radiopaedia')), 4000);
+    check('Search copied text searches what was copied', opened === 'https://radiopaedia.org/search?q=bosniak%20IIF', String(opened));
+    await win.click('#refOpen');
+    const viewer = await waitFor(async () => app.windows().find((w) => w.url().includes('viewer')), 8000);
+    if (viewer) await viewer.waitForFunction(() => window.__viewerReady === true, null, { timeout: 8000 }).catch(() => {});
+    const vh = viewer ? await viewer.innerHTML('#page').catch(() => '') : '';
+    check('the viewer shows a reference formatted', /<h1>Bosniak 2019<\/h1>/.test(vh) && /<strong>IIF<\/strong>/.test(vh), vh.slice(0, 120));
+    if (viewer) {
+      await viewer.screenshot({ path: path.join(SHOTS, 'reference-viewer.png') });
+      await viewer.keyboard.press('Escape').catch(() => {}); // the window closes mid-press
+      await sleep(400);
+    }
+    check('Esc closes the viewer', !app.windows().some((w) => w.url().includes('viewer')));
+
     // The ring editor offers Library functions, with the key note.
     await win.click('#nav button[data-tab="rings"]');
     await sleep(300);

@@ -12,13 +12,14 @@
 //   url:<address>    open a website
 //   file:<path>      open a file or folder (%VARS% are expanded)
 //   search:<url>     open a website with {clipboard} replaced by copied text
-//   hub:<id>         hub commands (edit-menu, open-folder, reload-menu)
+//   hub:<id>         hub commands (edit-menu, open-folder, reload-menu, ref-add)
+//   ref:<id>         open one of the Reference library's notes / pictures
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.RGMenu = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
-  const ACTION_KINDS = ['helper', 'url', 'file', 'search', 'hub', 'app'];
+  const ACTION_KINDS = ['helper', 'url', 'file', 'search', 'hub', 'app', 'ref'];
   const MAX_ITEMS = 8; // more than 8 directions stops being flickable
 
   function parseAction(action) {

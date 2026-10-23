@@ -21,8 +21,8 @@ ways to add to it.
 3. Write its **AutoHotkey v1.1 code**. It runs top to bottom each time.
 4. **Save** (bottom bar), then **Try it**.
 5. Use it:
-   - **On the ring**: Settings > Rings > pick a direction > **Library
-     function** > choose it under "My functions".
+   - **On the ring**: Settings > Rings > pick a direction > **Function** >
+     choose it under "My functions".
    - **From a key, mouse button or macro pad**: switch on its **Keyboard
      shortcut** and record one (for a mouse button, set the mouse's software to
      send that same shortcut).
@@ -64,7 +64,7 @@ Run, https://app.statdx.com
   AutoHotkey for this). A mistake shows AutoHotkey's error box with the line
   number; it never stops RadGesture.
 - **Never put a password in a function**: it would be saved in a plain file
-  and travel with every export. Use the Library's login functions (the
+  and travel with every export. Use the login functions in Functions (the
   password is asked once per session and never saved).
 - **Never send messages to PowerScribe's report editor** (SendMessage /
   PostMessage to its RichEdit): it crashes PowerScribe. Keys, the clipboard
@@ -72,7 +72,7 @@ Run, https://app.statdx.com
 - **Sharing**: Shortcuts > Export puts your functions (with their code) in the
   `.rgkeys` file; Import adds a colleague's. A function can do anything a
   program can, so only import from people you trust, and read the code in
-  Library before you press Save.
+  Functions before you press Save.
 
 ---
 
