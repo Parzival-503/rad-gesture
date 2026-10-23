@@ -310,3 +310,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
   .msym, .node, .node::before, .center, .center .ccat i { transition: none; }
   #stage[data-fx~="pulse"] .node.on { animation: none; }
 }
+
+/* Layout pictures ("grid:3x2"): sized and coloured like a symbol. */
+.gridic { width: 1em; height: 1em; display: inline-block; vertical-align: middle; fill: currentColor; fill-opacity: 0.22; stroke: currentColor; stroke-width: 1.5; }
+.node.on .gridic { fill-opacity: 0.85; }

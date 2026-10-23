@@ -414,3 +414,6 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
 
 /* Functions page: New / Import / Export, right under the title. */
 .fnactions { display: flex; gap: 8px; flex-wrap: wrap; margin: -10px 0 18px; }
+
+/* Layout pictures ("grid:3x2"): sized and coloured like a symbol. */
+.gridic { width: 1em; height: 1em; display: inline-block; vertical-align: middle; fill: currentColor; fill-opacity: 0.22; stroke: currentColor; stroke-width: 1.5; }

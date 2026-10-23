@@ -6,7 +6,7 @@
 // two lines it amounts to.
 function pressSnippet(f, key) {
   const win = f.target === 'powerscribe' ? 'ahk_exe Nuance.PowerScribe360.exe' : 'Image Window';
-  return `${f.id}()\n{\n    WinActivate, ${win}\n    Send, ${key || '(no key set)'}\n}\n\n; (runs as LibPress: says so when the program is not open, instead of\n; pressing the key into the window in front)`;
+  return `${f.id}()\n{\n    WinActivate, ${win}\n    Send, {Ctrl up}{Alt up}{Shift up}   ; let go of the shortcut's own keys\n    Send, ${key || '(no key set)'}\n}\n\n; (runs as LibPress: says so when the program is not open, instead of\n; pressing the key into the window in front)`;
 }
 
 // The function named `name` in `src`, from its line to its closing brace,

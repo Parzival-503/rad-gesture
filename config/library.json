@@ -454,6 +454,120 @@
       ]
     },
     {
+      "id": "PACS_Layout_2x1",
+      "name": "Layout 2 × 1",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Sectra's 2 × 1 layout (two rows, one column: stacked). Sectra has no key for this one by default: give it one in Sectra, then record the same key here.",
+      "hotkey": "",
+      "on": true,
+      "icon": "grid:2x1",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "id": "PACS_Layout_2x2",
+      "name": "Layout 2 × 2",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Sectra's 2 × 2 layout (two rows, two columns). Presses Sectra's own key for it.",
+      "hotkey": "",
+      "on": true,
+      "icon": "grid:2x2",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "^+4"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Layout_2x3",
+      "name": "Layout 2 × 3",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Sectra's 2 × 3 layout (two rows, three columns). Sectra has no key for this one by default: give it one in Sectra, then record the same key here.",
+      "hotkey": "",
+      "on": true,
+      "icon": "grid:2x3",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "id": "PACS_Layout_3x1",
+      "name": "Layout 3 × 1",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Sectra's 3 × 1 layout (three rows, one column). Sectra has no key for this one by default: give it one in Sectra, then record the same key here.",
+      "hotkey": "",
+      "on": true,
+      "icon": "grid:3x1",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "id": "PACS_Layout_3x2",
+      "name": "Layout 3 × 2",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Sectra's 3 × 2 layout (three rows, two columns). Presses Sectra's own key for it.",
+      "hotkey": "",
+      "on": true,
+      "icon": "grid:3x2",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "^+6"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Layout_3x3",
+      "name": "Layout 3 × 3",
+      "group": "PACS (Sectra)",
+      "sub": "Layout",
+      "description": "Sectra's 3 × 3 layout (three rows, three columns). Presses Sectra's own key for it.",
+      "hotkey": "",
+      "on": true,
+      "icon": "grid:3x3",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "^+9"
+        }
+      ]
+    },
+    {
       "id": "PACS_MPR",
       "name": "MPR",
       "group": "PACS (Sectra)",

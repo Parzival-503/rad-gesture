@@ -133,7 +133,8 @@ global LIB_IDS := "PS_ToggleDictation|PS_NextField|PS_PrevField|PS_PasteIndicati
     . "|PACS_WL_SoftTissue|PACS_WL_Lung|PACS_WL_Bone|PACS_WL_Brain|PACS_WL_Stroke|PACS_Enhance|PACS_Sharpen"
     . "|PACS_Distance|PACS_Orthogonal|PACS_ROI|PACS_Arrow|PACS_Circle|PACS_Insert_Measurement"
     . "|PACS_Crosshair|PACS_LinkCrosshair|PACS_Prev_Key_Image|PACS_Next_Key_Image"
-    . "|PACS_Prev_Layout|PACS_Next_Layout|PACS_MPR|PACS_Matrix|PACS_ImageWindow|PACS_Insert_Priors"
+    . "|PACS_Prev_Layout|PACS_Next_Layout|PACS_Layout_2x1|PACS_Layout_2x2|PACS_Layout_2x3"
+    . "|PACS_Layout_3x1|PACS_Layout_3x2|PACS_Layout_3x3|PACS_MPR|PACS_Matrix|PACS_ImageWindow|PACS_Insert_Priors"
     . "|LoginUandP|LoginU|LoginP|LoginForget|ActivateEPIC|ActivateTeams|OpenChromeTabs|SearchRadiopaediaGoogle"
 global g_LibBound := {}     ; hotkey -> library id, for LibHotkey
 global g_LibPass := ""      ; the login password, this session only (never written anywhere)
@@ -3602,7 +3603,7 @@ LibWindow(target) {
 LibPress(target, keys, id := "") {
     win := LibWindow(target)
     if (keys = "") {
-        Notify("No key set for " . id . " (Settings > Functions)", 2500)
+        Notify("No key set for this yet. Record the key your " . (target = "powerscribe" ? "PowerScribe" : "Sectra") . " uses: Settings > Functions.", 3000)
         return false
     }
     if !WinExist(win) {
@@ -3612,6 +3613,11 @@ LibPress(target, keys, id := "") {
     LibCheckAccess(win, target = "sectra" ? "Sectra" : target = "powerscribe" ? "PowerScribe" : win)
     WinActivate, %win%
     WinWaitActive, %win%, , 1
+    ; A shortcut from a mouse button or macro pad still holds its own keys
+    ; (Ctrl+Alt of Ctrl+Alt+M) when it lands here: let go of them first, or
+    ; Sectra receives Ctrl+Alt+M instead of the Alt+M it answers to.
+    Send, {Ctrl up}{Alt up}{Shift up}{LWin up}{RWin up}
+    Sleep, 30
     Send, %keys%
     return true
 }

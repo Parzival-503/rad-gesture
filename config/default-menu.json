@@ -112,6 +112,42 @@
               "action": "helper:lib:PACS_Next_Layout"
             },
             {
+              "name": "Grid",
+              "icon": "view_comfy",
+              "items": [
+                {
+                  "name": "2 × 1",
+                  "icon": "grid:2x1",
+                  "action": "helper:lib:PACS_Layout_2x1"
+                },
+                {
+                  "name": "2 × 2",
+                  "icon": "grid:2x2",
+                  "action": "helper:lib:PACS_Layout_2x2"
+                },
+                {
+                  "name": "2 × 3",
+                  "icon": "grid:2x3",
+                  "action": "helper:lib:PACS_Layout_2x3"
+                },
+                {
+                  "name": "3 × 1",
+                  "icon": "grid:3x1",
+                  "action": "helper:lib:PACS_Layout_3x1"
+                },
+                {
+                  "name": "3 × 2",
+                  "icon": "grid:3x2",
+                  "action": "helper:lib:PACS_Layout_3x2"
+                },
+                {
+                  "name": "3 × 3",
+                  "icon": "grid:3x3",
+                  "action": "helper:lib:PACS_Layout_3x3"
+                }
+              ]
+            },
+            {
               "name": "MPR",
               "icon": "view_in_ar",
               "action": "helper:lib:PACS_MPR"

@@ -272,6 +272,28 @@ function migrate(m, lib) {
     done.push('ai-settings');
     changed = true;
   }
+  if (!done.includes('layout-grid')) {
+    // Sectra's fixed layouts (rows x columns, 2x1 ... 3x3) as a smaller ring
+    // "Grid" in PACS > Layout, after Next layout, when that ring has room and
+    // none is there yet.
+    const pacs = m.categories.find((c) => c.id === 'pacs');
+    const lay = pacs && (pacs.items || []).find((it) => it.name === 'Layout' && Array.isArray(it.items));
+    const has = (items) => (items || []).some((it) => /^helper:lib:PACS_Layout_/.test(it.action || '') || has(it.items));
+    if (lay && lay.items.length < M_MAX && !has(lay.items)) {
+      const grid = {
+        name: 'Grid',
+        icon: 'view_comfy',
+        items: ['2x1', '2x2', '2x3', '3x1', '3x2', '3x3'].map((k) => {
+          const n = k.replace('x', ' × ');
+          return { name: n, icon: 'grid:' + k, action: 'helper:lib:PACS_Layout_' + k };
+        }),
+      };
+      const ni = lay.items.findIndex((it) => it.action === 'helper:lib:PACS_Next_Layout');
+      lay.items.splice(ni >= 0 ? ni + 1 : lay.items.length, 0, grid);
+    }
+    done.push('layout-grid');
+    changed = true;
+  }
   if (changed) m.migrated = done;
   return changed;
 }

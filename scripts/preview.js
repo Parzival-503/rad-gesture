@@ -156,14 +156,47 @@ const shots = path.join(__dirname, 'shots');
 
   // 10. The gear at the end of the dock opens Settings.
   await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.up();
+  await page.waitForTimeout(500); // the bar springs into place
   const gear = await page.$('.dock .dset');
   assert.ok(gear, 'the dock has a Settings button');
   const gb = await gear.boundingBox();
-  await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2);
+  await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2, { steps: 3 });
+  await page.waitForTimeout(100);
   assert.strictEqual(await page.evaluate(() => document.querySelector('.dock .dname').textContent), 'Settings', 'its name shows on hover');
   await shot('10-dock-settings');
   const picked = await page.evaluate(() => new Promise((res) => { window.RGRing.hooks.select = (it) => res(it.action); document.querySelector('.dock .dset').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 1, clientY: 1 })); setTimeout(() => res(null), 1000); }));
   assert.strictEqual(picked, 'hub:settings', 'the gear opens Settings');
+
+  // 11. PACS > Layout > Grid: the fixed layouts, drawn as "2×2" etc.
+  await page.evaluate(() => window.RGRing.clear());
+  for (let i = 0; i < 5 && !(await state()); i++) {
+    await page.waitForTimeout(300);
+    await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.up();
+  }
+  await page.waitForTimeout(400);
+  assert.ok(await state(), 'the ring is open again');
+  const pacsAt = await page.evaluate(() => window.RG_DEMO_MENU.categories.findIndex((c) => c.id === 'pacs'));
+  const pc = await (await page.$(`.dchip[data-cat="${pacsAt}"]`)).boundingBox();
+  await page.mouse.click(pc.x + pc.width / 2, pc.y + pc.height / 2);
+  await page.waitForTimeout(400);
+  const clickNode = async (name) => {
+    const box = await page.evaluate((n) => {
+      const L = window.RGRing.state().levels.slice(-1)[0];
+      const N = L.nodes.find((x) => x.it.name === n);
+      const r = N && N.el.getBoundingClientRect();
+      return r && { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }, name);
+    assert.ok(box, `"${name}" is on the ring`);
+    await page.mouse.move(box.x, box.y); // straight there: gliding past a direction would open it
+    await page.mouse.down(); await page.mouse.up();
+    await page.waitForTimeout(450);
+  };
+  await clickNode('Layout');
+  await clickNode('Grid');
+  const gridIcons = await page.evaluate(() => window.RGRing.state().levels.slice(-1)[0].nodes.filter((N) => !N.back).map((N) => N.el.querySelectorAll('.gridic rect').length));
+  assert.deepStrictEqual(gridIcons, [2, 4, 6, 3, 6, 9], 'the Grid ring draws every layout as panes');
+  await page.mouse.move(cx + 140, cy - 20);
+  await shot('11-layout-grid');
 
   assert.deepStrictEqual(errors, [], 'no page errors');
   await browser.close();

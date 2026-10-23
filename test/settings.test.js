@@ -208,6 +208,21 @@ test('an older menu loses Lung-RADS, gets paired icons and clearer names, once',
   assert.deepStrictEqual(sub(got, 'ai', 'Prior checklist').items.map((i) => i.name), ['Add copied prior', 'Make checklist', 'Empty the list', 'Show toolbar']);
 });
 
+test('an older menu gets the Grid of fixed layouts in PACS > Layout, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-grid-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const lay = (menu) => menu.categories.find((c) => c.id === 'pacs').items.find((i) => i.name === 'Layout');
+  const shipped = lay(m).items.find((i) => i.name === 'Grid');
+  assert.deepStrictEqual(shipped.items.map((i) => i.name), ['2 × 1', '2 × 2', '2 × 3', '3 × 1', '3 × 2', '3 × 3']);
+  lay(m).items = lay(m).items.filter((i) => i.name !== 'Grid'); // as older builds saved it
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const got = lay(store.readMenu());
+  assert.deepStrictEqual(got.items.map((i) => i.name), lay(JSON.parse(fs.readFileSync(def, 'utf8'))).items.map((i) => i.name), 'Grid lands after Next layout');
+  assert.deepStrictEqual(got.items.find((i) => i.name === 'Grid'), shipped, 'the same Grid the default menu ships');
+});
+
 test('an older menu: the AI ring\'s Settings becomes AI settings, once', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-ais-'));
   const def = path.join(__dirname, '..', 'config', 'default-menu.json');

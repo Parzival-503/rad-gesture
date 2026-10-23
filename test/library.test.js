@@ -164,7 +164,7 @@ test('exported shortcut sets carry the library but never the username', () => {
 test('"Show the code" finds every library function in the helper', () => {
   const code = codeFor(lib, ahk, {});
   for (const f of lib.functions) assert.ok(code[f.id] && code[f.id].length > 20, `no code for ${f.id}`);
-  assert.match(code.PACS_WL_Lung, /WinActivate, Image Window\n {4}Send, 2/);
+  assert.match(code.PACS_WL_Lung, /WinActivate, Image Window\n {4}Send, \{Ctrl up\}[^\n]*\n {4}Send, 2/);
   assert.match(code.PACS_Insert_Priors, /^; Insert priors: select the Comparison field/);
   assert.match(code.PACS_Insert_Priors, /Send, %sectraKey%\n {4}return true\n\}$/);
   for (const names of Object.values(CODE_FUNCS)) for (const n of names) assert.ok(functionSource(ahk, n), n);
@@ -252,7 +252,7 @@ test('Functions page filters: words, typed shortcuts, groups, programs, rings, c
   assert.deepStrictEqual(ids({ groups: ['PACS (Sectra)'], sub: 'Measure' }).length, 6);
   assert.ok(ids({ program: 'sectra' }).includes('PS_ToggleDictation'), 'dictation works in Sectra too (F8)');
   assert.ok(!ids({ program: 'powerscribe' }).includes('PACS_WL_Lung'));
-  assert.deepStrictEqual(ids({ shortcut: 'none' }), ['LoginU', 'LoginForget']);
+  assert.deepStrictEqual(ids({ shortcut: 'none' }), ['PACS_Layout_2x1', 'PACS_Layout_2x2', 'PACS_Layout_2x3', 'PACS_Layout_3x1', 'PACS_Layout_3x2', 'PACS_Layout_3x3', 'LoginU', 'LoginForget']);
   assert.ok(ids({ shortcut: 'off' }).includes('PS_ToggleDictation'));
   assert.deepStrictEqual(ids({ ring: 'on' }), ['PACS_WL_Lung']);
   assert.deepStrictEqual(ids({ clash: true }), ['PACS_MPR']);

@@ -519,6 +519,30 @@ async function waitFor(fn, ms, step = 200) {
         check('a shortcut copies the highlighted text (as Paste indication does)', /bosniak IIF cyst/.test(copied), copied);
         try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe']); } catch (_) {}
 
+        // A Sectra function from a macro pad: Ctrl+Alt+M is still held when
+        // the helper presses Alt+M in the image window. A stand-in "Image
+        // Window" writes down the key it gets, with the modifiers held then:
+        // it must be Alt+M, not Ctrl+Alt+M.
+        const keyOut = path.join(userData, 'sectra-key.txt');
+        try { fs.unlinkSync(keyOut); } catch (_) {}
+        const fakeSectra = path.join(userData, 'fake-sectra.ahk');
+        fs.writeFileSync(fakeSectra, [
+          '#NoTrayIcon', '#SingleInstance Force', 'SetTitleMatchMode, 2',
+          'Gui, Add, Edit, w300 h60 vBox',
+          'Gui, Show, w320 h80, Image Window - test',
+          'OnMessage(0x100, "Key")', 'OnMessage(0x104, "Key")',
+          'Run, notepad.exe', 'WinWait, ahk_exe notepad.exe, , 8', 'WinActivate', 'WinWaitActive, ahk_exe notepad.exe, , 5', 'Sleep, 400',
+          'SendLevel, 1', 'Send, {Ctrl down}{Alt down}m', 'Sleep, 600', 'Send, {Alt up}{Ctrl up}', 'SendLevel, 0',
+          'Sleep, 1200', 'FileAppend, end, ' + keyOut, 'ExitApp',
+          'Key(wParam) {',
+          '  if (wParam = 0x4D)',
+          '    FileAppend, % (GetKeyState("Ctrl") ? "ctrl+" : "") . (GetKeyState("Alt") ? "alt+" : "") . "m|", ' + keyOut,
+          '}', ''].join('\r\n'));
+        spawnSync(process.env.AHK_EXE, [fakeSectra], { timeout: 30000 });
+        const gotKey = fs.existsSync(keyOut) ? fs.readFileSync(keyOut, 'utf8') : 'nothing';
+        check('a Sectra function from a held Ctrl+Alt+M presses plain Alt+M in the image window (Insert measurement)', /^alt\+m\|/.test(gotKey), gotKey);
+        try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe']); } catch (_) {}
+
         // The one-liner's chart bin: two copied pieces show on the toolbar as
         // "2 pieces"; Clear empties it.
         const binText = async () => {

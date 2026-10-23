@@ -120,6 +120,12 @@ These run inside RadGesture (Rad Optimizer is not needed). The key is what the f
 | PACS > Crosshair & link > Link priors | Link priors | Alt+X |
 | PACS > Layout > Previous layout | Previous layout | [ |
 | PACS > Layout > Next layout | Next layout | ] |
+| PACS > Layout > Grid > 2 × 1 | Layout 2 × 1 | - |
+| PACS > Layout > Grid > 2 × 2 | Layout 2 × 2 | Ctrl+Shift+4 |
+| PACS > Layout > Grid > 2 × 3 | Layout 2 × 3 | - |
+| PACS > Layout > Grid > 3 × 1 | Layout 3 × 1 | - |
+| PACS > Layout > Grid > 3 × 2 | Layout 3 × 2 | Ctrl+Shift+6 |
+| PACS > Layout > Grid > 3 × 3 | Layout 3 × 3 | Ctrl+Shift+9 |
 | PACS > Layout > MPR | MPR | Ctrl+M |
 | PACS > Layout > Matrix | Matrix | M |
 | PACS > Layout > Image window | Image window | N |
