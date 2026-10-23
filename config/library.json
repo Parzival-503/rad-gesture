@@ -1,5 +1,5 @@
 {
-  "_about": "RadGesture's function library: Rad Optimizer's functions, built into the helper (LibRun in helper/RadGestureHelper.ahk). Defaults only: what a person changes lives in RadGesture.ini [Lib.<id>]. hotkey = the keyboard shortcut RadGesture listens for; a 'key' param = what the function presses inside Sectra or PowerScribe. 'target' functions just bring that program up and press Key. 'uses' = the programs a function that is not a 'target' one works in (for the Functions page filters).",
+  "_about": "The built-in functions: defaults only (what a person changes lives in RadGesture.ini [Lib.<id>]). hotkey = the keyboard shortcut RadGesture listens for; a 'key' param = what the function presses inside Sectra or PowerScribe. 'target' functions bring that program up and press Key; others are their own code in the helper (LibRun). 'uses' = the programs a non-target function works in (for the Functions page filters).",
   "version": 1,
   "groups": [
     "PACS (Sectra)",
@@ -14,10 +14,10 @@
   "functions": [
     {
       "id": "PS_ToggleDictation",
-      "name": "Dictation on/off",
+      "name": "Dictate (Sectra, then PowerScribe)",
       "group": "PowerScribe",
       "sub": "Dictation",
-      "description": "Presses the Sectra key first (if Sectra is open), then the dictation key in PowerScribe. Off by default: turn it on if you want it. RadStopwatch also starts its timer on Ctrl+Alt+F4, on purpose.",
+      "description": "Two steps in one press. 1) In Sectra it presses the Dictate key (F8): Sectra opens the exam you are viewing in PowerScribe. 2) It brings that PowerScribe window to the front and presses the dictation key (F4), which switches the microphone on (or off). With the Sectra key empty it only toggles dictation in PowerScribe. Off by default; RadStopwatch also starts its timer on Ctrl+Alt+F4.",
       "hotkey": "^!F4",
       "on": false,
       "icon": "mic",
@@ -25,13 +25,13 @@
         {
           "name": "Key",
           "type": "key",
-          "label": "Presses in PowerScribe",
+          "label": "Presses in PowerScribe (microphone on/off)",
           "default": "{F4}"
         },
         {
           "name": "SectraKey",
           "type": "key",
-          "label": "Presses in Sectra first (empty: skip)",
+          "label": "Presses in Sectra first (Dictate: opens the exam in PowerScribe; empty: skip)",
           "default": "{F8}"
         }
       ],

@@ -49,7 +49,7 @@ and re-run it.
 
 ## Shared on purpose
 
-- **Ctrl+Alt+F4**: RadGesture's "Dictation on/off" function (off by default) turns dictation on and RadStopwatch (~ passes the key through) starts the study timer: one press, both.
+- **Ctrl+Alt+F4**: RadGesture's "Dictate" function (off by default: Sectra opens the exam in PowerScribe, then the microphone goes on) and RadStopwatch (~ passes the key through) starts the study timer: one press, both.
 
 ## RadGesture helper
 
@@ -150,7 +150,7 @@ These run inside RadGesture (Rad Optimizer is not needed). The key is what the f
 
 | Function | Shortcut when switched on |
 |---|---|
-| Dictation on/off | Ctrl+Alt+F4 |
+| Dictate (Sectra, then PowerScribe) | Ctrl+Alt+F4 |
 | Paste indication | Ctrl+Alt+G |
 | Log in (username + password) | Alt+Shift+U |
 | Type username | (none) |

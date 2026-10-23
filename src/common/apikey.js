@@ -11,8 +11,8 @@ function cleanKey(k) {
 
 // '' unless it is clearly not a Claude API key; any other sk-ant-... key
 // goes to Anthropic, which has the final word (it issues more than one kind:
-// sk-ant-api03-, sk-ant-usr-, ... - an sk-ant-api-only check rejected a real
-// key of Sina's).
+// sk-ant-api03-, sk-ant-usr-, ...; an sk-ant-api-only check would reject
+// real keys).
 function keyProblem(k) {
   if (!k) return 'Enter an API key first.';
   if (k.startsWith('sk-ant-oat')) return 'That is a Claude app login code, not an API key. Make an API key at console.anthropic.com > Settings > API keys (it starts with sk-ant-) and paste that.';

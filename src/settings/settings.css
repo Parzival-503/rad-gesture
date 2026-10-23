@@ -303,7 +303,7 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
   .btn, .side button, .lrow, .seg button, .iconbtn, .krow, .tpick, .colors button, .recorder { transition: none; }
 }
 
-/* Library (Rad Optimizer's functions) */
+/* Functions page */
 .libfn { padding: 14px 0; border-top: 1px solid var(--line); }
 .card > h2 + .libfn, .card > .row + .libfn { border-top: 1px solid var(--line); }
 .libhead { display: flex; gap: 12px; align-items: flex-start; }

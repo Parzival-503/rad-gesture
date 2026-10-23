@@ -4,12 +4,12 @@
 ; The hub (the Electron app) draws the ring. This script owns the keyboard
 ; (Ctrl+CapsLock opens the ring) and does everything that types, copies or
 ; touches PowerScribe, so every PowerScribe safety rule lives in one place.
-; It also holds the AI tools, which began as RadProofread (proofread, prior
-; checklist, impression) and RadOneLiner. Their notes follow unchanged.
+; It also holds the AI tools (proofread, prior checklist, impression,
+; one-liner) and the function collection (Settings > Functions).
 ; Settings, key and history live in %APPDATA%\RadGesture\ (the bridge section
 ; at the bottom of this file explains how the hub and helper talk).
 ; ============================================================================
-; RadProofread - AI-powered dictation error detector for radiology reports
+; Proofread - AI-powered dictation error detector for radiology reports
 ; ----------------------------------------------------------------------------
 ; Hotkeys:
 ;   Ctrl+Alt+Q    - Proofread current report
@@ -20,9 +20,9 @@
 ;   "+ Add" on the small Priors window. Repeat for each prior. "Checklist"
 ;   sends the priors plus the current PowerScribe exam title to Claude and
 ;   shows 3-8 things to double-check. Neither window ever takes focus.
-;   Optional hotkeys: RadProofread.ini, [Priors] AddHotkey / ChecklistHotkey.
+;   Optional hotkeys: Settings > Shortcuts (Add prior, Prior checklist).
 ;
-; One-liner (merged from RadOneLiner.ahk): select text anywhere, Ctrl+Alt+U
+; One-liner: select text anywhere, Ctrl+Alt+U
 ; (or the toolbar's One-liner button), pick a flavor; result on clipboard.
 ;
 ; Impression: in PowerScribe press the toolbar's Impression button (or the
@@ -79,7 +79,7 @@ global g_ApiKey      := ""
 global g_Model       := "claude-sonnet-5-5"
 global g_Sensitivity := "moderate"     ; conservative | moderate | aggressive
 global g_MaxTokens   := 1500
-global g_Hotkey      := "^!q"          ; Ctrl+Alt+Q (chosen to avoid Rad_Optimizer)
+global g_Hotkey      := "^!q"          ; Ctrl+Alt+Q
 global g_StripHeader := 1              ; try to skip everything before "FINDINGS:" / "REPORT:" etc.
 global g_ShowOnEmpty := 1              ; show popup even if no flags (green "all clear")
 global g_LogHistory  := 1              ; log each session to history file
@@ -98,17 +98,17 @@ global g_PriorMaxTokens  := 600
 global g_PriorBoundAdd   := ""
 global g_PriorBoundList  := ""
 global g_PriorBinShown   := false
-global g_PriorAtStartup  := 1    ; the floating Priors toolbar, as RadProofread had it (Settings > AI tools can hide it)
+global g_PriorAtStartup  := 1    ; the floating Priors toolbar (Settings > AI tools can hide it)
 global g_PriorListText   := ""   ; the last checklist, for Insert / Copy
 
-; One-liner (from RadOneLiner.ahk) and impression helper.
-global g_OneLinerHotkey  := "^!u" ; Ctrl+Alt+U, free per the Rad Optimizer audit
+; One-liner and impression helper.
+global g_OneLinerHotkey  := "^!u" ; Ctrl+Alt+U
 global g_ImpHotkey       := ""    ; blank = toolbar button only
 global g_ImpRules        := "Keep it very short. No measurements or other numbers."
 global g_ImpMaxTokens    := 400
 global g_ImpModel        := ""    ; "" = same model as the other tools; or claude-opus-5-5
 global g_BoundOneLiner   := ""
-global g_LungHotkey      := "!+l"  ; Alt+Shift+L, as in Sina's standalone Lung-RADS script
+global g_LungHotkey      := "!+l"  ; Alt+Shift+L
 global g_BoundLung       := ""
 global g_BoundImp        := ""
 global g_ImpLastFindings := ""
@@ -121,7 +121,7 @@ global g_SavedClip       := ""
 global g_PendingText     := ""
 global g_DirectFlavor    := ""    ; set by the ring: skip the flavor picker
 
-; Function library (Rad Optimizer's functions; section at the bottom). Every id
+; Function collection (section at the bottom). Every id
 ; must be in config/library.json and the other way round.
 global LIB_IDS := "PS_ToggleDictation|PS_NextField|PS_PrevField|PS_PasteIndication|LungScreening2"
     . "|PACS_WL_SoftTissue|PACS_WL_Lung|PACS_WL_Bone|PACS_WL_Brain|PACS_WL_Stroke|PACS_Enhance|PACS_Sharpen"
@@ -1116,8 +1116,7 @@ RunProgram(spec) {
 }
 
 ; The key as saved right now. Read from the INI before every AI call, not
-; only at startup / reload: a copy held since startup went stale (Sina saved
-; a key in Settings and the helper still said "No API key set").
+; only at startup / reload, so a key saved in Settings works at once.
 HaveKey() {
     global g_ApiKey, INI_PATH
     IniRead, v, %INI_PATH%, API, ApiKey, %A_Space%
@@ -1127,10 +1126,8 @@ HaveKey() {
     return g_ApiKey != ""
 }
 
-; AI settings live in the hub's Settings window (AI tools page). This old
-; built-in box is only the fallback for when the hub isn't running: two places
-; to type the key was one too many (Sina tested a key in the old box and got
-; "invalid x-api-key" with no way to see what was in the masked field).
+; AI settings live in the hub's Settings window (AI tools page). This
+; built-in box is only the fallback for when the hub isn't running.
 OpenAiSettings() {
     if (HubRequest("POST", "/open-settings?tab=ai") = "")
         ShowSettingsGui()
@@ -2409,13 +2406,12 @@ ReadExamTitle() {
 }
 
 ; ============================================================================
-; ONE-LINER  (merged from RadOneLiner.ahk)
+; ONE-LINER
 ; ----------------------------------------------------------------------------
 ; Select text anywhere (Epic, browser, PowerScribe history), press Ctrl+Alt+U
 ; or the toolbar's One-liner button, pick a flavor. The one-liner lands on the
-; clipboard. Capture, prompts, picker, toast and teardown are RadOneLiner's
-; own code; the API call now goes through PostClaude() and the key comes from
-; RadProofread.ini like everything else.
+; clipboard. The API call goes through PostClaude() and the key comes from
+; RadGesture.ini like everything else.
 ;
 ; The picker DOES take focus, on purpose: it is driven by 1-4 / Esc. It is
 ; used on selected text, not mid-dictation.
@@ -2614,7 +2610,7 @@ ShowFlavorPicker() {
     ; Position near cursor
     CoordMode, Mouse, Screen
     MouseGetPos, mx, my
-    Gui, Picker:Show, x%mx% y%my% NoActivate, RadOneLiner
+    Gui, Picker:Show, x%mx% y%my% NoActivate, RadGesture One-liner
     WinActivate, ahk_id %PickerHwnd%
 }
 
@@ -2787,8 +2783,8 @@ RunFlavor(flavor) {
     global g_PendingText, g_SavedClip, g_Busy
     Toast("Generating " . flavor . " one-liner...", "info", 0)  ; persistent toast
 
-    ; Same wrapper as RadOneLiner: extraction only, no creative gap-filling
-    ; with dates. (RadOneLiner sent temperature 0; the 5.5 models reject it.)
+    ; Extraction only, no creative gap-filling with dates. (No temperature:
+    ; the 5.5 models reject it.)
     wrappedUser := "Generate the one-liner from this patient text. Output the one-liner only:`n`n---`n" . g_PendingText . "`n---"
     result := PostClaude(GetSystemPrompt(flavor), wrappedUser, 400, "low")
 
@@ -2835,7 +2831,7 @@ FlavorLabel(flavor) {
 ; OpenEvidence and Close. OpenEvidence has no public API, so that button
 ; copies your rules + the findings and opens the site for you to paste.
 ;
-; Your own rules live in RadProofread.ini, [Impression] ExtraRules=, and win
+; Your own rules live in Settings > AI tools (RadGesture.ini, [Impression] ExtraRules=), and win
 ; over the built-in ones.
 ; ============================================================================
 
@@ -3022,9 +3018,8 @@ return
 ; ============================================================================
 ; SETTINGS MIGRATION
 ; ----------------------------------------------------------------------------
-; Before the hub, settings lived in RadProofread.ini next to the script. If
-; there is no RadGesture.ini yet and an old one is next to this script, copy
-; it so the API key carries over. Otherwise Tray -> Settings asks for the key.
+; An older settings file (RadProofread.ini next to the script) is copied
+; when there is no RadGesture.ini yet, so its API key carries over.
 ; ============================================================================
 MigrateOldSettings() {
     global INI_PATH
@@ -3220,7 +3215,7 @@ RunHubAction(a) {
     } else if (SubStr(a, 1, 4) = "run:") {
         RunProgram(SubStr(a, 5))
     } else if (SubStr(a, 1, 4) = "lib:") {
-        ; A library function (Rad Optimizer's functions, built in).
+        ; A function from the function collection.
         LibRun(SubStr(a, 5))
     } else if (SubStr(a, 1, 5) = "keys:") {
         hubKeys := SubStr(a, 6)
@@ -3241,7 +3236,7 @@ HubAutoResume:
 return
 
 ; ============================================================================
-; LUNG-RADS  (Sina's standalone Lung-RADS script, merged unchanged)
+; LUNG-RADS
 ; ----------------------------------------------------------------------------
 ; Alt+Shift+L (or the ring: PACS > PowerScribe > Lung-RADS). In the open
 ; PowerScribe report: reads the Micronodule field; "None" means Lung-RADS 1,
@@ -3254,10 +3249,9 @@ return
 ;     rule that matters (SendMessage there gave RPC_E_CANTCALLOUT_ININPUTSYNCCALL).
 ;   - Read-only QUESTIONS to the pick lists (LB_FINDSTRINGEXACT, LB_GETCOUNT,
 ;     LB_GETCURSEL, LB_GETITEMRECT) use SendMessage, because only it returns an
-;     answer. This is exactly how it has worked daily on the workstation.
+;     answer.
 ;   - Nothing is ever sent to the report editor (RichEdit) itself.
 ; tools/ahk_check.py allows SendMessage for those four queries only.
-; Only change from the original: tooltips go through Notify().
 ; ============================================================================
 
 LungScreening()
@@ -3508,19 +3502,18 @@ PS_SimulateDblClick(hCtrl, idx) {
 }
 
 ; ============================================================================
-; FUNCTION LIBRARY  (Rad Optimizer's functions, built in)
+; FUNCTION COLLECTION  (Settings > Functions)
 ; ----------------------------------------------------------------------------
 ; config/library.json lists every function with its description and defaults;
 ; Settings > Functions is where a person turns a keyboard shortcut on or off,
 ; changes it, and sets the key each function presses inside Sectra or
 ; PowerScribe. All of that lives in RadGesture.ini [Lib.<id>] (the hub fills
 ; in the defaults before the helper starts). Two ways in:
-;   - its keyboard shortcut (RegisterLibraryHotkeys, the same keys Rad
-;     Optimizer used, so a mouse button or macro pad keeps working), and
+;   - its keyboard shortcut (RegisterLibraryHotkeys; a mouse button or macro
+;     pad set to send that shortcut works the same), and
 ;   - the ring: "helper:lib:<id>" -> RunHubAction -> LibRun(id).
-; The code is Sina's Rad Optimizer code (3-16-26 / 5-8-26), kept as it was
-; except where a comment says "Change:". Every id here must be in
-; config/library.json and the other way round (test/library.test.js).
+; Every id here must be in config/library.json and the other way round
+; (test/library.test.js).
 ; ============================================================================
 
 
@@ -3579,7 +3572,7 @@ LibRun(id) {
     ; One of "My functions": its own script, run by the bundled AutoHotkey.
     if (LibParam(id, "Custom") = "1")
         return LibRunCustom(id)
-    ; "Bring this program up and press its key": most of Rad Optimizer.
+    ; "Bring this program up and press its key": most functions.
     target := LibParam(id, "Target")
     if (target != "")
         return LibPress(target, LibParam(id, "Key"), id)
@@ -3652,12 +3645,10 @@ LibWindow(target) {
     return target
 }
 
-; Rad Optimizer's PACS_* / PS_NextField / PS_PrevField were all:
-;     WinActivate Image Window
-;     Send <key>
-; Change: if the program is not open, say so instead of pressing the key into
-; whatever window is in front (a "2" typed into the report), and wait up to
-; a second for it to come up before pressing.
+; Most functions: bring Sectra's image window (or PowerScribe) to the front
+; and press one key there. If the program is not open, say so instead of
+; pressing the key into whatever window is in front (a "2" typed into the
+; report); wait up to a second for it to come up before pressing.
 LibPress(target, keys, id := "") {
     win := LibWindow(target)
     if (keys = "") {
@@ -3674,9 +3665,14 @@ LibPress(target, keys, id := "") {
     return true
 }
 
-; PS_ToggleDictation, the 3-16-26 version Sina kept: F8 in Sectra first (if
-; open), then F4 in PowerScribe. Change: both keys come from Settings; an
-; empty Sectra key skips that step.
+; Dictate: two steps, in two programs.
+;   1. Sectra: press its "Dictate" key (F8 by default). Sectra then opens the
+;      exam that is open in Sectra in PowerScribe, ready for dictation.
+;   2. PowerScribe: bring that window to the front (so it is definitely the
+;      one listening) and press its dictation key (F4 by default), which
+;      switches the microphone on, or off when it is already on.
+; Both keys are set in Settings > Functions. With the Sectra key empty, or
+; Sectra not open, it only toggles dictation in PowerScribe.
 Lib_ToggleDictation(psKey, sectraKey) {
     if (sectraKey != "" && WinExist("Image Window")) {
         WinActivate, Image Window
@@ -3684,16 +3680,23 @@ Lib_ToggleDictation(psKey, sectraKey) {
         Send, %sectraKey%
         Sleep, 50
     }
+    ; PowerScribe may still be starting up after step 1: give it a few seconds.
+    WinWait, ahk_exe Nuance.PowerScribe360.exe, , 5
+    if (ErrorLevel) {
+        Notify("PowerScribe did not open", 2500)
+        return false
+    }
     WinActivate, ahk_exe Nuance.PowerScribe360.exe
     WinWaitActive, ahk_exe Nuance.PowerScribe360.exe, , 1
     Send, %psKey%
     return true
 }
 
-; PACS_Insert_Priors, as in Rad Optimizer. The pick-list question
-; (LB_FINDSTRINGEXACT) is read-only; the field is chosen with Control,
-; ChooseString exactly as before, which has worked daily from a mouse button.
-; Change: the Sectra key comes from Settings, and it says what went wrong.
+; Insert priors: select the Comparison field in PowerScribe, then bring up
+; Sectra and press its "insert priors" key (Ctrl+P by default), so the prior
+; studies land in Comparison. Finding the field asks the pick lists a
+; read-only question (LB_FINDSTRINGEXACT); the field is chosen with Control,
+; ChooseString.
 Lib_InsertPriors(sectraKey) {
     ps := "ahk_exe Nuance.PowerScribe360.exe"
     fieldName := "Comparison"
@@ -3746,8 +3749,8 @@ Lib_InsertPriors(sectraKey) {
     return true
 }
 
-; PS_PasteIndication, as in Rad Optimizer. Change: the clipboard you had
-; before comes back at the end (the original emptied it there).
+; Paste indication: copy the highlighted text, select the Indication field in
+; PowerScribe and paste it there. The clipboard you had comes back after.
 Lib_PasteIndication() {
     ps := "ahk_exe Nuance.PowerScribe360.exe"
     fieldName := "Indication"
@@ -3812,9 +3815,9 @@ Lib_PasteIndication() {
     return true
 }
 
-; LungScreening2 ("Lung Screening Navigation"), as in Rad Optimizer: last
-; field of the report, pick "2" in its list, double-click it. Uses the same
-; PS_LB_FindExact as Lung-RADS above (read-only question).
+; Lung screening 2: go to the last field of the report, pick "2" in its list
+; and double-click it. Uses the same PS_LB_FindExact as Lung-RADS above
+; (read-only question).
 Lib_LungScreening2() {
     static cachedHwnd := 0
     static cachedCtrl := ""
@@ -3898,8 +3901,8 @@ Lib_FindPickListControl_Fast(psWin, choice, ByRef outCtrl, ByRef outHwnd, ByRef 
     return false
 }
 
-; Rad Optimizer's PS_DoubleClickIndex: a real double-click (the mouse moves
-; there) on a list item. LB_GETITEMRECT is a read-only question.
+; A real double-click (the mouse moves there) on a list item.
+; LB_GETITEMRECT is a read-only question.
 Lib_DoubleClickIndex(hCtrl, idx) {
     static LB_GETITEMRECT := 0x198
 
@@ -3931,10 +3934,9 @@ Lib_DoubleClickIndex(hCtrl, idx) {
     return true
 }
 
-; Rad Optimizer's LoginUandP / LoginP. Changes: no username or password in
-; the code. The username comes from Settings > Functions; the password is asked
-; once per session and kept only in memory (as in the merged Rad Optimizer).
-; {Raw} so a password with ! + ^ # { is typed as it is, not as Alt/Shift/...
+; Logins: no username or password in the code. The username comes from
+; Settings > Functions; the password is asked once per session and kept only
+; in memory. {Raw} so a password with ! + ^ # { is typed as it is, not as Alt/Shift/...
 Lib_Login(typeUser, typePass, tab, enter) {
     global INI_PATH
     user := ""
@@ -3964,8 +3966,8 @@ Lib_Login(typeUser, typePass, tab, enter) {
     return true
 }
 
-; Rad Optimizer's GetPassword(): asks the first time, then remembers until
-; the helper stops (or "Forget the password").
+; Asks for the password the first time, then remembers it until the helper
+; stops (or "Forget the password").
 LibPassword() {
     global g_LibPass
     if (g_LibPass != "")
@@ -3980,7 +3982,7 @@ LibPassword() {
     return true
 }
 
-; Rad Optimizer's ActivateEPIC. Change: says so when Epic is not open.
+; Epic: bring Hyperspace to the front; say so when Epic is not open.
 Lib_ActivateEPIC() {
     if !WinExist("Hyperspace") {
         Notify("Epic (Hyperspace) is not open", 2000)
@@ -3990,7 +3992,7 @@ Lib_ActivateEPIC() {
     return true
 }
 
-; Rad Optimizer's ActivateTeams, unchanged.
+; Teams: bring it to the front, or start it.
 Lib_ActivateTeams() {
     if WinExist("Teams")
     {
@@ -4009,9 +4011,8 @@ Lib_ActivateTeams() {
     return false
 }
 
-; Rad Optimizer's OpenChromeTabs. Change: the websites come from Settings >
-; Functions (one list per person: no work links in the code), and the default
-; browser opens them when Chrome is not installed. A URL is passed as a
+; Open my websites: the list from Settings > Functions, in Chrome (or the
+; default browser when Chrome is not installed). A URL is passed as a
 ; variable, so its % signs need no escaping.
 Lib_OpenTabs(urls) {
     if (urls = "") {
@@ -4030,8 +4031,9 @@ Lib_OpenTabs(urls) {
     return true
 }
 
-; Rad Optimizer's SearchRadiopaediaGoogle. Changes: its window and labels are
-; named LibSearch so they can't collide with the helper's; Esc closes it.
+; Search selection: copy the highlighted text and offer Google Images,
+; Radiopaedia or both. Its window and labels are named LibSearch so they
+; can't collide with the helper's; Esc closes it.
 Lib_SearchRadiopaediaGoogle() {
     global g_LibSearchTerm
     ClipSaved := ClipboardAll

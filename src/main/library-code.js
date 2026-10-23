@@ -1,9 +1,9 @@
 // The AutoHotkey code behind each library function, for Settings > Functions
-// ("Show the code"), the way the Rad Optimizer website showed each module.
+// ("Code" button), so anyone can see what a function does.
 // Read from the helper script itself, so what is shown is what runs.
 
 // A "bring it up and press Key" function has no code of its own: show the
-// two lines it amounts to, as Rad Optimizer had them.
+// two lines it amounts to.
 function pressSnippet(f, key) {
   const win = f.target === 'powerscribe' ? 'ahk_exe Nuance.PowerScribe360.exe' : 'Image Window';
   return `${f.id}()\n{\n    WinActivate, ${win}\n    Send, ${key || '(no key set)'}\n}\n\n; (runs as LibPress: says so when the program is not open, instead of\n; pressing the key into the window in front)`;

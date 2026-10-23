@@ -1,5 +1,5 @@
 // Search, filters and sorting for Settings > Functions (the function
-// collection: Rad Optimizer's functions plus "My functions"). Shared by the
+// collection: the built-in functions plus "My functions"). Shared by the
 // Settings window and the tests, so the rules are checked without a browser.
 //
 // Each function is first turned into a plain "card":

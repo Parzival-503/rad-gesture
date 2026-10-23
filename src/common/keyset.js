@@ -1,6 +1,6 @@
 // The keys the ring presses (every "helper:keys:..." direction) as one list,
 // and shortcut sets: export / import / reset, so the same RadGesture can be
-// handed to a colleague whose Sectra (or Rad Optimizer) uses other keys.
+// handed to a colleague whose Sectra uses other keys.
 // Shared by the Settings window and the tests.
 //
 // Two spellings of a key combination:

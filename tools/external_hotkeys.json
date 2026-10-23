@@ -183,7 +183,7 @@
   "shared_on_purpose": [
     {
       "key": "^!F4",
-      "why": "RadGesture's \"Dictation on/off\" function (off by default) turns dictation on and RadStopwatch (~ passes the key through) starts the study timer: one press, both."
+      "why": "RadGesture's \"Dictate\" function (off by default: Sectra opens the exam in PowerScribe, then the microphone goes on) and RadStopwatch (~ passes the key through) starts the study timer: one press, both."
     }
   ],
   "sibling_fallback": {

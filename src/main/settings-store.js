@@ -6,7 +6,7 @@
 //  - the library:      config/library.json (the functions and their defaults)
 //                      -> RadGesture.ini [Lib.<id>] (what the person chose)
 //
-// Sina never edits either file by hand; the Settings window does.
+// Nobody edits either file by hand; the Settings window does.
 
 const fs = require('fs');
 const path = require('path');
@@ -44,7 +44,7 @@ const SHORTCUT_FIELDS = {
   priorChecklist: ['Priors', 'ChecklistHotkey', ''],
 };
 
-// The function library (Rad Optimizer's functions, built into the helper).
+// The function collection (built into the helper).
 // Defaults come from config/library.json; what a person changes lives in
 // RadGesture.ini [Lib.<id>]: On (keyboard shortcut on), Hotkey, and each
 // param (Key = what it presses in Sectra/PowerScribe, Tab, Enter, Urls).
@@ -82,9 +82,10 @@ function syncLibraryIni(s, lib) {
   return changed;
 }
 
-// The ring's Rad Optimizer keys ("helper:keys:^!2") -> the library function
-// that key used to start in Rad Optimizer ("helper:lib:PACS_WL_Lung"). Only a
-// key that is exactly Rad Optimizer's default changes; a key a person chose
+// Older rings pressed a shortcut ("helper:keys:^!2") that a separate script
+// answered; now that the function is built in, the ring runs it directly
+// ("helper:lib:PACS_WL_Lung"). Only a key that is exactly a function's
+// default shortcut changes; a key a person chose
 // for their own Sectra stays a key press.
 function optimizerKeyMap(lib) {
   const m = new Map();
@@ -142,7 +143,7 @@ function migrate(m, lib) {
     changed = true;
   }
   if (!done.includes('orthogonal-in-measure')) {
-    // Orthogonal is a measuring tool (Sina): it moves from Crosshair to
+    // Orthogonal is a measuring tool: it moves from Crosshair to
     // Measure, right after Distance. Only when both are where we shipped them.
     const pacs = m.categories.find((c) => c.id === 'pacs');
     const sub = (n) => pacs && (pacs.items || []).find((it) => it.name === n && Array.isArray(it.items));
@@ -159,8 +160,8 @@ function migrate(m, lib) {
     changed = true;
   }
   if (!done.includes('no-paste-indication')) {
-    // Rad Optimizer's Paste indication (Ctrl+Alt+G) works only on a selection
-    // made by hand, never from the ring (Sina), so the ring no longer has it.
+    // Paste indication (Ctrl+Alt+G) works only on a selection made by hand,
+    // never from the ring, so the ring no longer has it.
     const pacs = m.categories.find((c) => c.id === 'pacs');
     const ps = pacs && (pacs.items || []).find((it) => it.name === 'PowerScribe' && Array.isArray(it.items));
     if (ps && ps.items.length > 1) ps.items = ps.items.filter((it) => !(it.action === 'helper:keys:^!g' && it.name === 'Paste indication'));
@@ -168,9 +169,8 @@ function migrate(m, lib) {
     changed = true;
   }
   if (lib && !done.includes('library')) {
-    // Rad Optimizer's functions are built in now: the PACS and Apps rings run
-    // them directly instead of pressing Rad Optimizer's keys, so they work
-    // without Rad Optimizer running.
+    // The functions are built in: the PACS and Apps rings run them directly
+    // instead of pressing a shortcut for another script to answer.
     const map = optimizerKeyMap(lib);
     const walk = (items) => (items || []).forEach((it) => {
       if (it.items) walk(it.items);
@@ -181,8 +181,7 @@ function migrate(m, lib) {
     changed = true;
   }
   if (!done.includes('reference-library')) {
-    // "Gallery" confused radiologists (Sina): the ring of reading material is
-    // the Reference Library. Only the shipped name changes; a ring the person
+    // The ring of reading material is the Reference Library (it was "Gallery"). Only the shipped name changes; a ring the person
     // renamed keeps their name.
     const g = m.categories.find((c) => c.id === 'gallery' && c.name === 'Gallery');
     if (g) g.name = 'Reference Library';
@@ -190,8 +189,7 @@ function migrate(m, lib) {
     changed = true;
   }
   if (!done.includes('reference-library-title')) {
-    // It is a title: "Reference Library", capital L (Sina). The first build
-    // with the new name shipped it as "Reference library".
+    // A title: "Reference Library", capital L.
     const g = m.categories.find((c) => c.id === 'gallery' && c.name === 'Reference library');
     if (g) g.name = 'Reference Library';
     done.push('reference-library-title');
@@ -309,8 +307,8 @@ function createStore({ userDir, defaultMenuPath, libraryPath }) {
     const s = readIni();
     const done = String(ini.get(s, 'RadGesture', 'Migrated', '')).split(',').filter(Boolean);
     if (done.includes('prior-toolbar')) return false;
-    // The first v3 builds hid RadProofread's floating Priors toolbar by default
-    // and saving AI settings wrote that down; Sina relies on it. Show it again.
+    // Some earlier builds hid the floating Priors toolbar by default and
+    // saved that; show it again once.
     ini.set(s, 'Priors', 'ShowAtStartup', '1');
     done.push('prior-toolbar');
     ini.set(s, 'RadGesture', 'Migrated', done.join(','));

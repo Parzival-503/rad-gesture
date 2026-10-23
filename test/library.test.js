@@ -165,7 +165,7 @@ test('"Show the code" finds every library function in the helper', () => {
   const code = codeFor(lib, ahk, {});
   for (const f of lib.functions) assert.ok(code[f.id] && code[f.id].length > 20, `no code for ${f.id}`);
   assert.match(code.PACS_WL_Lung, /WinActivate, Image Window\n {4}Send, 2/);
-  assert.match(code.PACS_Insert_Priors, /^; PACS_Insert_Priors, as in Rad Optimizer/);
+  assert.match(code.PACS_Insert_Priors, /^; Insert priors: select the Comparison field/);
   assert.match(code.PACS_Insert_Priors, /Send, %sectraKey%\n {4}return true\n\}$/);
   for (const names of Object.values(CODE_FUNCS)) for (const n of names) assert.ok(functionSource(ahk, n), n);
   assert.match(functionSource(ahk, 'Lib_SearchRadiopaediaGoogle'), /return true\n\}$/);
@@ -269,4 +269,19 @@ test('"Reference library" (first build) gets its capital L, once', () => {
   const g = { categories: [{ id: 'gallery', name: 'Gallery', items: [{ name: 'x', icon: 'x', action: 'url:https://a.example' }] }] };
   migrate(g, lib);
   assert.strictEqual(g.categories[0].name, 'Reference Library');
+});
+
+test('what ships carries no personal names or development history', () => {
+  const files = [];
+  const walk = (d) => fs.readdirSync(path.join(root, d), { withFileTypes: true }).forEach((e) => {
+    const rel = path.join(d, e.name);
+    if (e.isDirectory()) walk(rel);
+    else if (/\.(js|html|css|json|ahk)$/.test(e.name) && !/tabler-map|material-symbols/.test(e.name)) files.push(rel);
+  });
+  ['src', 'config', 'helper'].forEach(walk);
+  files.push('tools/external_hotkeys.json');
+  for (const f of files) {
+    const t = fs.readFileSync(path.join(root, f), 'utf8');
+    assert.ok(!/\bSina\b|3-16-26|5-8-26|; Change:|\bkp\.org\b/i.test(t), `${f} mentions a person or the project's history`);
+  }
 });

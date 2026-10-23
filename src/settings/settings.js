@@ -511,7 +511,7 @@
         handlers.length ? `Handled by ${handlers.map((x) => `${x.script}: ${x.does}`).join('; ')}.` : 'No script of yours handles this; it goes straight to the active window.'));
     } else if (type === 'app') {
       // A program, shortcut, AutoHotkey script or batch file (RadStopwatch,
-      // Rad Optimizer, Epic...). The helper starts it, or brings its window
+      // Epic...). The helper starts it, or brings its window
       // to the front when it is already open.
       box.append(field('Program', h('input', { type: 'text', id: 'appPath', value: a.value, placeholder: 'C:\\...\\Program.exe', oninput: (e) => set('app:' + e.target.value.trim()) }),
         'A program (.exe), a shortcut (.lnk), an AutoHotkey script (.ahk) or a batch file.'));
@@ -766,7 +766,7 @@
   // ---------------------------------------------------------------- Shortcuts
   //
   // Everything a key does, in one place: RadGesture's own shortcuts, and every
-  // key a ring direction presses (into Sectra, PowerScribe, Rad Optimizer...).
+  // key a ring direction presses (into Sectra, PowerScribe, ...).
   // A colleague sets the keys up in Sectra, matches them here, or imports a
   // set someone exported.
 
@@ -923,13 +923,13 @@
 
   // ---------------------------------------------------------------- Functions (the function collection)
   //
-  // Rad Optimizer's functions, built into the helper: one entry per function
+  // The built-in functions (run by the helper), one entry per function
   // with its description, its keyboard shortcut (on/off + the key), the key it
   // presses inside Sectra or PowerScribe, Try it, where it sits on the rings,
   // and its code. Defaults in config/library.json; choices in RadGesture.ini.
 
   // "Presses Alt+O in Sectra" - the note that the key must already do that
-  // job in this person's Sectra / PowerScribe (Sina: colleagues have their own).
+  // job in this person's Sectra / PowerScribe (everyone's keys differ).
   function libKeyNote(f, inEditor) {
     const v = libDraft.values[f.id] || {};
     const keys = (f.params || []).filter((p) => p.type === 'key' && v[p.name]);
@@ -964,7 +964,7 @@
 
   function renderLibrary() {
     $main.append(h('h1', {}, 'Functions'),
-      h('p', { class: 'lede' }, 'The function collection: Rad Optimizer\'s functions, built into RadGesture, plus your own. Each one works from the ring (Rings › a direction › Function) and, when switched on, from its own keyboard shortcut. A mouse button or macro pad that sends that shortcut works too.'));
+      h('p', { class: 'lede' }, 'The function collection: ready-made functions for Sectra, PowerScribe and your apps, plus your own. Each one works from the ring (Rings › a direction › Function) and, when switched on, from its own keyboard shortcut. A mouse button or macro pad that sends that shortcut works too.'));
     const optimizer = (D.status.conflicts || []).filter((c) => c.optimizer);
     $main.append(libHealth());
     $main.append(h('div', { class: 'card setup', id: 'libSetup' },
@@ -974,10 +974,10 @@
           h('p', {}, 'Most functions bring Sectra or PowerScribe up and press a key there ("Presses in Sectra"). That key must already do the job in your Sectra: set it in Sectra\'s keyboard settings, or record the key yours uses.'),
           h('div', { class: 'addrow' }, h('button', { class: 'btn small', id: 'copyLibKeys', onclick: copyLibKeys }, msym('content_copy'), 'Copy the list')))),
         h('div', { class: 'step' }, h('div', { class: 'stepn' }, '2'), h('div', { class: 'stepb' }, h('b', {}, msym('keyboard'), 'Your shortcuts'),
-          h('p', {}, 'Switch on the keyboard shortcuts you want. They start as Rad Optimizer\'s, so a mouse button set to Ctrl+Alt+P keeps doing Insert priors.'))),
-        h('div', { class: 'step' }, h('div', { class: 'stepn' }, '3'), h('div', { class: 'stepb' }, h('b', {}, msym('block'), 'Close Rad Optimizer'),
-          h('p', {}, 'It uses the same keys. Close it, and take it out of Windows startup, so only RadGesture answers them.'),
-          optimizer.length ? h('div', { class: 'addrow' }, h('span', { class: 'chip warn' }, msym('warning'), 'Running now'),
+          h('p', {}, 'Switch on the keyboard shortcuts you want, or record your own. A mouse button or macro pad set to send the same shortcut (e.g. Ctrl+Alt+P for Insert priors) works too.'))),
+        h('div', { class: 'step' }, h('div', { class: 'stepn' }, '3'), h('div', { class: 'stepb' }, h('b', {}, msym('block'), 'One program per key'),
+          h('p', {}, 'Another shortcut script that listens for the same keys would fight RadGesture for them. Status lists any it finds; close them and take them out of Windows startup.'),
+          optimizer.length ? h('div', { class: 'addrow' }, h('span', { class: 'chip warn' }, msym('warning'), 'Rad Optimizer is running'),
             h('button', { class: 'btn small primary', id: 'closeOptimizer', onclick: async () => { D.status = await api.closeConflicts(); toast('Closed'); render(); } }, msym('close'), 'Close it now')) : null)))));
 
     const known = knownHotkeys();
@@ -1020,13 +1020,13 @@
   }
 
   // Are the function shortcuts really listening? The helper reports how many
-  // it switched on after every start and save (Sina: "none of my shortcuts
-  // work" must be answerable at a glance).
+  // it switched on after every start and save ("are my shortcuts working?"
+  // answered at a glance).
   function libHealth() {
     const s = D.status;
     const lh = s.libHotkeys;
     const dict = libDraft.values.PS_ToggleDictation;
-    const dictNote = dict && dict.On !== '1' ? ' Dictation on/off is switched off (as shipped): switch it on below for Ctrl+Alt+F4.' : '';
+    const dictNote = dict && dict.On !== '1' ? ' Dictate (Ctrl+Alt+F4: Sectra opens the exam in PowerScribe, then the microphone goes on) ships switched off: switch it on below if you want it.' : '';
     let kind, text;
     if (!s.helper.connected) { kind = 'bad'; text = 'The helper is not running, so no function shortcut works right now. See Status.'; }
     else if (!lh) { kind = 'warn'; text = 'The helper has not reported its shortcuts. If this stays, it is an older RadGesture: install the latest one.'; }
@@ -1125,8 +1125,7 @@
         h('button', { class: 'btn small primary', id: 'addMyFunctionTop', onclick: () => addCustom() }, msym('add'), 'New function')));
   }
 
-  // ---- My functions: scripts a person (or a colleague) writes, like the
-  // Rad Optimizer website's own functions. Saved as AutoHotkey files in the
+  // ---- My functions: scripts a person (or a colleague) writes. Saved as AutoHotkey files in the
   // RadGesture folder; each runs as its own little program.
   const NEW_FN_CODE = [
     '; Your AutoHotkey (v1.1) code. It runs when you pick this function on the',

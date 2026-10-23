@@ -230,8 +230,9 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   never stored** (asked once per session, in memory, `LibPassword`); no
   username, password or work link (kp.org, SharePoint, OneDrive) goes in the
   repo: this repo is public. `test/library.test.js` checks that.
-- **Off by default** (Sina): Dictation on/off (F8 in Sectra, then F4 in
-  PowerScribe), Paste indication (needs a selection made by hand; not on the
+- **Off by default** (Sina): Dictate (F8 = Sectra's Dictate button, which opens
+  the exam in PowerScribe; then PowerScribe is brought up and F4 toggles the
+  microphone), Paste indication (needs a selection made by hand; not on the
   ring), the logins. Everything else is on with Rad Optimizer's keys.
 - Settings > Functions: the "set the keys in Sectra first" card (colleagues'
   Sectra differs; Sina asked for that note), one entry per function
@@ -258,6 +259,13 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   function starts one from it. Export/Import carry them (`set.functions`,
   code included; import never runs them). The Windows e2e writes one and
   checks it ran.
+
+**Nothing that ships mentions a person or the project's history** (Sina,
+2026-10-23: colleagues will read it). Comments in the helper, src/, config/
+and the code shown by the "Code" button explain what the code does, never
+who wanted it, which old script it came from, or "Change:" notes. Backstory
+belongs here in CLAUDE.md. `test/library.test.js` fails on "Sina", old
+version dates, "; Change:" or work links in shipped files.
 
 **Names people see** (Sina, 2026-10-23): this page is **Functions** ("the
 function collection"), never "Library": a library is reading material. The
