@@ -246,7 +246,7 @@
     // Fade in only when the page changes, not on every re-render while editing.
     $main.classList.toggle('fresh', ui.tab !== lastTab);
     lastTab = ui.tab;
-    const page = { rings: renderRings, ai: renderAI, shortcuts: renderShortcuts, functions: renderLibrary, references: renderReferences, general: renderGeneral, status: renderStatus }[ui.tab] || renderRings;
+    const page = { rings: renderRings, ai: renderAI, shortcuts: renderShortcuts, functions: renderLibrary, workflow: renderWorkflow, references: renderReferences, general: renderGeneral, status: renderStatus }[ui.tab] || renderRings;
     page();
     paintStatusDot();
   }
@@ -1049,13 +1049,13 @@
         }
         if (!inG.length) continue;
         const card = h('div', { class: 'card' }, h('h2', {}, g, h('span', { class: 'count' }, String(inG.length))));
-        if (g === 'Logins') card.append(usernameRow());
+        if (g === 'Logins') card.append(workflowPointer());
         for (const c of inG) card.append(fnEntry(byId.get(c.id), c, known, places));
         $main.append(card);
       }
     } else {
       const card = h('div', { class: 'card', id: 'fnResults' }, h('h2', {}, fx.sort === 'az' ? 'A to Z' : 'By shortcut', h('span', { class: 'count' }, String(shown.length))));
-      if (shown.some((c) => c.group === 'Logins')) card.append(usernameRow());
+      if (shown.some((c) => c.group === 'Logins')) card.append(workflowPointer());
       for (const c of shown) card.append(fnEntry(byId.get(c.id), c, known, places));
       if (shown.length) $main.append(card);
     }
@@ -1078,6 +1078,56 @@
     return h('div', { class: 'card libhealth slim ' + kind, id: 'libHealth' },
       h('div', { class: 'big' }, h('span', { class: 'orb ' + (kind === 'good' ? 'good' : 'bad') }, msym(kind === 'good' ? 'check_circle' : kind === 'warn' ? 'help' : 'error')),
         h('p', {}, text)));
+  }
+
+  function workflowPointer() {
+    return h('div', { class: 'hint', style: 'margin:-4px 0 8px' }, 'Your username, apps and websites are on the ',
+      h('button', { class: 'linkbtn', onclick: () => setTab('workflow') }, 'Workflow page'), '.');
+  }
+
+  // ---- Workflow: what you open or type many times a day, in one place.
+  // Logins (username + their shortcuts), apps (Epic, Teams and the programs
+  // on your rings), websites. The functions are the same ones as on the
+  // Functions page; this page only gathers them.
+  function renderWorkflow() {
+    $main.append(h('h1', {}, 'Workflow'),
+      h('p', { class: 'lede' }, 'Your logins, apps and websites: what you open or type many times a day.'));
+    const known = knownHotkeys();
+    const places = libPlaces();
+    const entry = (id) => { const f = libFn(id); return f ? libEntry(f, known, places[id] || []) : null; };
+
+    $main.append(h('div', { class: 'card', id: 'wfLogin' },
+      h('h2', {}, msym('badge'), 'Log in'),
+      h('p', { class: 'hint', style: 'margin:-6px 0 10px' }, 'Shift+Alt+U types your username, Tab, your password and Enter, wherever the cursor is. The password is asked once per session, kept in memory only, and never saved.'),
+      usernameRow(),
+      ...['LoginUandP', 'LoginU', 'LoginP', 'LoginForget'].map(entry)));
+
+    // Programs the rings open ("Open a program" directions), wherever they are.
+    const progs = [];
+    menuDraft.categories.forEach((c, ci) => {
+      const walk = (items, path, names) => (items || []).forEach((it, i) => {
+        if (Array.isArray(it.items)) walk(it.items, path.concat(i), names.concat(it.name));
+        else if (/^app:/.test(it.action || '')) progs.push({ it, ci, path, i, where: names.join(' > ') });
+      });
+      walk(c.items, [], [c.name]);
+    });
+    const progCard = h('div', { class: 'card', id: 'wfApps' },
+      h('h2', {}, msym('apps'), 'Apps'),
+      entry('ActivateEPIC'), entry('ActivateTeams'),
+      h('h3', { class: 'subhead' }, 'Programs on your rings'));
+    if (!progs.length) progCard.append(h('p', { class: 'hint' }, 'None yet. Add one in Rings: pick a direction, choose "Open a program".'));
+    for (const p of progs) {
+      progCard.append(row(p.it.name, `${p.where}  ·  ${String(p.it.action).slice(4)}`,
+        h('span', { class: 'hint' }, 'Start with RadGesture'),
+        sw(!!p.it.startWithHub, (v) => { p.it.startWithHub = v || undefined; markDirty('menu'); render(); }, 'Start ' + p.it.name + ' with RadGesture'),
+        h('button', { class: 'btn ghost small', onclick: () => { ui.ring = p.ci; ui.path = p.path; ui.sel = p.i; setTab('rings'); } }, msym('edit'), 'Edit')));
+    }
+    progCard.append(h('div', { class: 'addrow' }, h('button', { class: 'btn small', onclick: () => setTab('rings') }, msym('add'), 'Add a program in Rings')));
+    $main.append(progCard);
+
+    $main.append(h('div', { class: 'card', id: 'wfWeb' },
+      h('h2', {}, msym('public'), 'Websites'),
+      entry('OpenChromeTabs'), entry('SearchRadiopaediaGoogle')));
   }
 
   function usernameRow() {

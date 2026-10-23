@@ -286,6 +286,13 @@ migration `reference-library` renames the shipped ring). Internal names
 (`library.json`, `[Lib.<id>]`, `helper:lib:`, `[Library]`) stay, so saved
 settings never move.
 
+- **Workflow page** (Settings > Workflow, `renderWorkflow`; Sina: username
+  and password belong somewhere prominent with Epic, Teams and websites):
+  the username, the four login functions, Epic, Teams, every "Open a
+  program" direction on the rings (start-with-RadGesture switch, Edit jumps
+  to it in Rings), Open my websites, Search selection. Same `libEntry`
+  entries as Functions, so one setting lives in one place; the Functions
+  page's Logins group points here.
 - **Search and filters** (`src/common/fnfilter.js`, tested): words ANDed
   over name/description/kind/rings/keys/code; a typed shortcut ("ctrl+alt+p",
   "alt+o", "F4") finds what listens for it or presses it; Find by key

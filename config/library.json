@@ -594,7 +594,7 @@
       "name": "Log in (username + password)",
       "group": "Logins",
       "sub": "Logins",
-      "description": "Types your username, Tab, your password, Enter. Your username is set below; the password is asked once per session and never saved.",
+      "description": "Types your username, Tab, your password, Enter. Your username is set on the Workflow page; the password is asked once per session and never saved.",
       "hotkey": "+!u",
       "on": true,
       "icon": "login",

@@ -417,3 +417,7 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
 
 /* Layout pictures ("grid:3x2"): sized and coloured like a symbol. */
 .gridic { width: 1em; height: 1em; display: inline-block; vertical-align: middle; fill: currentColor; fill-opacity: 0.22; stroke: currentColor; stroke-width: 1.5; }
+
+/* Workflow page: a small heading inside a card, icons in card titles. */
+.card h3.subhead { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin: 18px 0 4px; }
+.card h2 > .msym { color: var(--accent); margin-right: 8px; font-size: 20px; }

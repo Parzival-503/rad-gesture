@@ -94,7 +94,7 @@ async function waitFor(fn, ms, step = 200) {
     check('tray > Settings... opens the Settings window', !!win);
     await win.waitForFunction(() => window.__settingsReady === true, null, { timeout: 15000 });
     await win.setViewportSize({ width: 1200, height: 780 }).catch(() => {});
-    for (const tab of ['rings', 'ai', 'shortcuts', 'functions', 'general', 'status']) {
+    for (const tab of ['rings', 'ai', 'shortcuts', 'functions', 'workflow', 'general', 'status']) {
       await win.click(`#nav button[data-tab="${tab}"]`);
       await sleep(350);
       const h1 = await win.textContent('main h1');
@@ -203,7 +203,15 @@ async function waitFor(fn, ms, step = 200) {
     await lungRecs[1].click();
     await win.keyboard.press('KeyL');
     await sleep(150);
+    check('Functions points to the Workflow page for the username', !!(await win.$('#nav button[data-tab="workflow"]')) && /Workflow page/.test(await win.textContent('main')));
+    // Workflow: the username, the logins, Epic / Teams, programs, websites.
+    await win.click('#nav button[data-tab="workflow"]');
+    await sleep(300);
+    check('Workflow gathers logins, apps and websites', !!(await win.$('#wfLogin #libUser')) && !!(await win.$('#wfApps #lib-ActivateEPIC')) && !!(await win.$('#wfApps #lib-ActivateTeams')) && !!(await win.$('#wfWeb #lib-OpenChromeTabs')));
     await win.fill('#libUser', 'e2e-user');
+    await win.screenshot({ path: path.join(SHOTS, 'settings-workflow.png') });
+    await win.click('#nav button[data-tab="functions"]');
+    await sleep(300);
     await win.click('#lib-PACS_Insert_Priors button:has-text("Code")');
     await sleep(200);
     check('Functions shows a function\'s code', /Lib_InsertPriors/.test(await win.textContent('#lib-PACS_Insert_Priors .libcode')));
@@ -214,7 +222,7 @@ async function waitFor(fn, ms, step = 200) {
     const ini3 = fs.readFileSync(path.join(userData, 'RadGesture.ini'), 'latin1');
     check('Functions saves a shortcut switched on and recorded', /\[Lib\.LoginForget\][^[]*On=1/.test(ini3) && /\[Lib\.LoginForget\][^[]*Hotkey=\^!\+F9/.test(ini3));
     check('Functions saves the key pressed in Sectra', /\[Lib\.PACS_WL_Lung\][^[]*Key=l/.test(ini3) && /\[Lib\.PACS_WL_Lung\][^[]*Target=sectra/.test(ini3));
-    check('Functions saves the username (and no password anywhere)', /\[Library\][^[]*Username=e2e-user/.test(ini3) && !/password/i.test(ini3));
+    check('Workflow saves the username (and no password anywhere)', /\[Library\][^[]*Username=e2e-user/.test(ini3) && !/password/i.test(ini3));
     await win.$eval('main', (el) => el.scrollTo(0, 0));
     await win.screenshot({ path: path.join(SHOTS, 'settings-library.png') });
 
