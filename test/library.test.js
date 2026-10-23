@@ -226,14 +226,14 @@ test('the helper runs My functions with the AutoHotkey that ships next to it', (
   assert.ok(wf.includes('asset_name: RadGesture-portable.zip'), 'CI publishes the portable zip');
 });
 
-test('the Gallery ring becomes the Reference library, once, unless renamed', () => {
+test('the Gallery ring becomes the Reference Library, once, unless renamed', () => {
   const m = { categories: [{ id: 'gallery', name: 'Gallery', items: [{ name: 'x', icon: 'x', action: 'url:https://a.example' }] }] };
   migrate(m, lib);
-  assert.strictEqual(m.categories[0].name, 'Reference library');
+  assert.strictEqual(m.categories[0].name, 'Reference Library');
   const mine = { categories: [{ id: 'gallery', name: 'My links', items: [{ name: 'x', icon: 'x', action: 'url:https://a.example' }] }] };
   migrate(mine, lib);
   assert.strictEqual(mine.categories[0].name, 'My links');
-  assert.strictEqual(defaultMenu.categories.find((c) => c.id === 'gallery').name, 'Reference library');
+  assert.strictEqual(defaultMenu.categories.find((c) => c.id === 'gallery').name, 'Reference Library');
 });
 
 test('Functions page filters: words, typed shortcuts, groups, programs, rings, clashes, sorting', () => {
@@ -260,4 +260,13 @@ test('Functions page filters: words, typed shortcuts, groups, programs, rings, c
   assert.strictEqual(FF.activeCount(Object.assign(FF.fresh(), { q: 'x', clash: true, sort: 'az' })), 2, 'sorting is not a filter');
   assert.strictEqual(FF.typedKey('lung'), '', 'a plain word is a word');
   assert.strictEqual(FF.typedKey('f4'), 'f4');
+});
+
+test('"Reference library" (first build) gets its capital L, once', () => {
+  const m = { categories: [{ id: 'gallery', name: 'Reference library', items: [{ name: 'x', icon: 'x', action: 'url:https://a.example' }] }], migrated: ['reference-library'] };
+  migrate(m, lib);
+  assert.strictEqual(m.categories[0].name, 'Reference Library');
+  const g = { categories: [{ id: 'gallery', name: 'Gallery', items: [{ name: 'x', icon: 'x', action: 'url:https://a.example' }] }] };
+  migrate(g, lib);
+  assert.strictEqual(g.categories[0].name, 'Reference Library');
 });

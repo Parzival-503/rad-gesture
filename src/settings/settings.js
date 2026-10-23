@@ -138,7 +138,7 @@
     if (a.kind === 'url') return a.value.replace(/^https?:\/\//, '').slice(0, 40);
     if (a.kind === 'search') return 'search copied text';
     if (a.kind === 'ref') { const r = refById(a.value); return r ? 'reference: ' + r.title : (refsList ? 'reference (deleted)' : 'reference'); }
-    if (a.kind === 'hub' && a.value === 'ref-add') return 'adds the clipboard to the Reference library';
+    if (a.kind === 'hub' && a.value === 'ref-add') return 'adds the clipboard to the Reference Library';
     if (a.kind === 'file') return a.value.split(/[\\/]/).pop() || a.value;
     if (a.kind === 'app') return 'opens ' + (a.value.split(/[\\/]/).pop() || a.value) + (it.startWithHub ? ' (starts with RadGesture)' : '');
     return a.value;
@@ -166,7 +166,7 @@
   // ------------------------------------------------------------------ nav + save bar
 
   function setTab(t) {
-    // "references:<id>" opens the Reference library on that entry.
+    // "references:<id>" opens the Reference Library on that entry.
     const m = /^references:(r[a-z0-9]+)$/.exec(t || '');
     if (m) { t = 'references'; ui.refSel = m[1]; refsList = null; ui.refQuery = ''; ui.refTag = ''; ui.refKind = 'all'; }
     ui.tab = t;
@@ -489,9 +489,9 @@
     } else if (type === 'ref') {
       if (!refsList) { loadRefs().then(() => render()); box.append(h('div', { class: 'hint' }, 'Loading...')); return box; }
       const id = a.value;
-      if (!refsList.length) box.append(h('div', { class: 'hint' }, 'The Reference library is empty. Add a note or screenshot in References first.'));
+      if (!refsList.length) box.append(h('div', { class: 'hint' }, 'The Reference Library is empty. Add a note or screenshot in References first.'));
       else box.append(field('Reference', h('select', { class: 'wide', id: 'refPickRing', onchange: (e) => { set('ref:' + e.target.value); render(); } },
-        refsList.map((r) => h('option', { value: r.id, selected: r.id === id }, (r.image ? '[picture] ' : '') + r.title))), 'Opens in a clean window over what you are reading. Edit it in References.'));
+        refsList.map((r) => h('option', { value: r.id, selected: r.id === id }, (r.image ? '[picture] ' : '') + r.title))), 'Opens in a clean window over what you are reading. Edit it in Reference Library.'));
     } else if (type === 'web') {
       box.append(field('Address', h('input', { type: 'url', value: a.value, placeholder: 'https://', oninput: (e) => set('url:' + e.target.value.trim()) })));
     } else if (type === 'search') {
@@ -1259,11 +1259,11 @@
     toast('Copied. Paste it anywhere to keep it next to Sectra.');
   }
 
-  // ---------------------------------------------------------------- Reference library
+  // ---------------------------------------------------------------- Reference Library
   //
   // Notes (formatted text, Markdown underneath) and pictures (screenshots) kept
   // on this PC (src/main/references.js). Saved as you type. "Put on the ring"
-  // adds it to the Reference library ring's "My notes"; the ring opens it in
+  // adds it to the Reference Library ring's "My notes"; the ring opens it in
   // the reference viewer. The links on that ring are edited in Rings.
 
   let refsList = null; // loaded when the page (or the ring editor) needs it
@@ -1274,8 +1274,8 @@
   const refById = (id) => (refsList || []).find((r) => r.id === id);
 
   function renderReferences() {
-    $main.append(h('h1', {}, 'Reference library'),
-      h('p', { class: 'lede' }, 'Your own notes and screenshots, next to the guideline links on the Reference library ring. Write a note with headings, lists and tables, or snip a table from a paper, then put it on the ring: it opens in a clean window over whatever you are reading.'));
+    $main.append(h('h1', {}, 'Reference Library'),
+      h('p', { class: 'lede' }, 'Your own notes and screenshots, next to the guideline links on the Reference Library ring. Write a note with headings, lists and tables, or snip a table from a paper, then put it on the ring: it opens in a clean window over whatever you are reading.'));
     if (!refsList) {
       $main.append(h('div', { class: 'empty' }, 'Loading...'));
       loadRefs().then(() => { if (ui.tab === 'references') render(); });
@@ -1305,34 +1305,129 @@
         h('button', { class: 'btn', id: 'refPick', onclick: () => add(() => api.refPickImage(null), 'Picture added.') }, msym('add_photo_alternate'), 'Choose a picture...')),
       h('div', { class: 'hint', style: 'margin-top:10px' }, msym('shield'), ' Keep patient details out: crop names, MRNs and dates out of screenshots. These stay on this PC.')));
 
+    // Everything in the Reference Library, in one list: your notes and
+    // pictures, and the guideline links that ship on its ring (edited here
+    // too; they live in the ring, so they need Save like any ring change).
+    const ring = refRing();
+    const links = ring ? ringLinks(ring) : [];
     const q = (ui.refQuery || '').trim().toLowerCase();
     const kind = ui.refKind || 'all';
     const tag = ui.refTag || '';
     const tags = [...new Set(refsList.flatMap((r) => r.tags || []))].sort();
-    const shown = refsList.filter((r) => (kind === 'all' || (kind === 'pictures' ? !!r.image : !r.image)) && (!tag || (r.tags || []).includes(tag)) &&
-      (!q || q.split(/\s+/).every((w) => (r.title + ' ' + (r.tags || []).join(' ') + ' ' + r.body).toLowerCase().includes(w))));
-    if (!ui.refSel || !refById(ui.refSel)) ui.refSel = shown.length ? shown[0].id : null;
+    const sections = [...new Set(links.map((l) => l.section))];
+    const words = q.split(/\s+/).filter(Boolean);
+    const hit = (text) => words.every((w) => text.toLowerCase().includes(w));
+    const mine = refsList.filter((r) => (kind === 'all' || (kind === 'pictures' ? !!r.image : kind === 'notes' ? !r.image : false)) &&
+      (!tag || (r.tags || []).includes(tag)) && hit(r.title + ' ' + (r.tags || []).join(' ') + ' ' + r.body));
+    const shownLinks = links.filter((l) => (kind === 'all' || kind === 'links') && (!tag || tag === l.section) && hit(l.title + ' ' + l.section + ' ' + l.url));
+    const valid = (sel) => (sel && sel.startsWith('link:') ? links.some((l) => l.key === sel) : !!refById(sel));
+    if (!valid(ui.refSel)) ui.refSel = mine.length ? mine[0].id : shownLinks.length ? shownLinks[0].key : null;
     const places = refPlaces();
 
-    const search = h('input', { type: 'text', id: 'refSearch', class: 'search', placeholder: 'Search titles, tags and text', value: ui.refQuery || '',
+    const search = h('input', { type: 'text', id: 'refSearch', class: 'search', placeholder: 'Search titles, tags, sections, text and links', value: ui.refQuery || '',
       oninput: (e) => { ui.refQuery = e.target.value; const pos = e.target.selectionStart; render(); const s2 = document.getElementById('refSearch'); s2.focus(); s2.setSelectionRange(pos, pos); } });
+    const nPics = refsList.filter((r) => r.image).length;
     const listCard = h('div', { class: 'card reflist' },
       h('div', { class: 'searchbox' }, msym('search'), search),
-      h('div', { style: 'margin:10px 0 6px' }, seg([['all', `All ${refsList.length}`], ['notes', 'Notes'], ['pictures', 'Pictures']], kind, (v) => { ui.refKind = v; render(); })),
-      tags.length ? h('div', { class: 'fxchips', style: 'margin-bottom:8px' }, tags.map((t) => h('button', { class: 'fxchip' + (t === tag ? ' on' : ''), onclick: () => { ui.refTag = t === tag ? '' : t; render(); } }, t))) : null);
+      h('div', { style: 'margin:10px 0 6px' }, seg([['all', `All ${refsList.length + links.length}`], ['links', `Links ${links.length}`], ['notes', `Notes ${refsList.length - nPics}`], ['pictures', `Pictures ${nPics}`]], kind, (v) => { ui.refKind = v; render(); })),
+      tags.length || sections.length ? h('div', { class: 'fxchips', style: 'margin-bottom:8px' },
+        sections.concat(tags).map((t) => h('button', { class: 'fxchip' + (t === tag ? ' on' : ''), onclick: () => { ui.refTag = t === tag ? '' : t; render(); } }, t))) : null);
     const list = h('div', { class: 'list' });
-    for (const r of shown) {
+    if (mine.length) list.append(h('div', { class: 'kgroup' }, 'Your notes and pictures'));
+    for (const r of mine) {
       list.append(h('div', { class: 'lrow refrow' + (r.id === ui.refSel ? ' on' : ''), role: 'button', tabindex: '0', 'data-ref': r.id,
         onclick: () => { ui.refSel = r.id; render(); }, ondblclick: () => api.refOpen(r.id) },
       r.image ? h('img', { class: 'refthumb', src: r.image, alt: '' }) : h('span', { class: 'ic' }, msym('description')),
       h('span', { class: 'tx' }, h('b', {}, r.title), h('small', {}, [(r.tags || []).join(', '), places[r.id] ? 'on the ring' : ''].filter(Boolean).join(' · ') || new Date(r.updated).toLocaleDateString()))));
     }
-    if (!refsList.length) list.append(h('div', { class: 'empty' }, 'Nothing yet. Start with New note, or snip a table from a paper.'));
-    else if (!shown.length) list.append(h('div', { class: 'empty' }, 'Nothing matches.'));
-    listCard.append(list);
+    let lastSec = null;
+    for (const l of shownLinks) {
+      if (l.section !== lastSec) { list.append(h('div', { class: 'kgroup' }, msym('link'), ' ', l.section)); lastSec = l.section; }
+      list.append(h('div', { class: 'lrow refrow' + (l.key === ui.refSel ? ' on' : ''), role: 'button', tabindex: '0', 'data-link': l.title,
+        onclick: () => { ui.refSel = l.key; render(); }, ondblclick: () => api.openUrl(l.url) },
+      h('span', { class: 'ic' }, icon(l.item.icon || 'link')),
+      h('span', { class: 'tx' }, h('b', {}, l.title), h('small', {}, l.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]))));
+    }
+    if (!mine.length && !shownLinks.length) list.append(h('div', { class: 'empty' }, refsList.length + links.length ? 'Nothing matches.' : 'Nothing yet. Start with New note, or snip a table from a paper.'));
+    listCard.append(list,
+      ring ? h('div', { class: 'addrow' }, h('button', { class: 'btn small', id: 'refAddLink', onclick: () => addRingLink(ring) }, msym('add_link'), 'Add a link')) : null);
 
-    const grid = h('div', { class: 'refgrid' }, listCard, refEditor(refById(ui.refSel), places));
+    const sel = ui.refSel && ui.refSel.startsWith('link:') ? links.find((l) => l.key === ui.refSel) : null;
+    const grid = h('div', { class: 'refgrid' }, listCard, sel ? linkEditor(sel, ring) : refEditor(refById(ui.refSel), places));
     $main.append(grid);
+  }
+
+  // The Reference Library ring (id "gallery"; its name may have been changed).
+  function refRing() {
+    return menuDraft.categories.find((c) => c.id === 'gallery') || menuDraft.categories.find((c) => /reference/i.test(c.name));
+  }
+
+  // Its website links ("url:"), with the smaller ring each sits in.
+  function ringLinks(ring) {
+    const out = [];
+    const walk = (items, sec, keyPath) => (items || []).forEach((it, i) => {
+      const key = keyPath.concat(i);
+      if (it.items) walk(it.items, it.name, key);
+      else if (typeof it.action === 'string' && it.action.startsWith('url:')) out.push({ key: 'link:' + key.join('.'), title: it.name, url: it.action.slice(4), section: sec, item: it, parent: items });
+    });
+    walk(ring.items, ring.name, []);
+    return out;
+  }
+
+  // A new link, in the first smaller ring with room (else on the ring itself).
+  function addRingLink(ring) {
+    const target = ring.items.find((it) => it.items && it.items.some((x) => (x.action || '').startsWith('url:')) && it.items.length < M.MAX_ITEMS) ||
+      (ring.items.length < M.MAX_ITEMS ? ring : null);
+    if (!target) return toast(`Every part of the ${ring.name} ring is full (${M.MAX_ITEMS} each). Make room in Rings.`);
+    const items = target.items;
+    items.push({ name: 'New link', icon: 'menu_book', action: 'url:https://' });
+    markDirty('menu');
+    const l = ringLinks(ring).find((x) => x.item === items[items.length - 1]);
+    ui.refSel = l ? l.key : null;
+    ui.refKind = 'all';
+    ui.refQuery = '';
+    ui.refTag = '';
+    render();
+    const n = document.getElementById('linkName');
+    if (n) { n.focus(); n.select(); }
+  }
+
+  function linkEditor(l, ring) {
+    const box = h('div', { class: 'card editor refeditor' });
+    const it = l.item;
+    const homes = [ring].concat(ring.items.filter((x) => x.items));
+    box.append(
+      h('div', { class: 'refhead' }, h('span', { class: 'chip' }, msym('link'), 'Link on the ring'), h('span', { class: 'hint' }, 'Changes here are saved with Save.')),
+      field('Name', h('input', { type: 'text', id: 'linkName', value: it.name, oninput: (e) => { it.name = e.target.value; markDirty('menu'); } })),
+      field('Address', h('input', { type: 'url', id: 'linkUrl', value: l.url, placeholder: 'https://', oninput: (e) => { it.action = 'url:' + e.target.value.trim(); markDirty('menu'); } })),
+      field('Section', h('select', { id: 'linkSection', onchange: (e) => {
+        const to = homes[Number(e.target.value)];
+        if (to.items === l.parent) return;
+        if (to.items.length >= M.MAX_ITEMS) { toast(`"${to.name}" is full.`); render(); return; }
+        l.parent.splice(l.parent.indexOf(it), 1);
+        to.items.push(it);
+        markDirty('menu');
+        ui.refSel = (ringLinks(ring).find((x) => x.item === it) || {}).key;
+        render();
+      } }, homes.map((s, i) => h('option', { value: i, selected: s.items === l.parent }, s === ring ? `${ring.name} (the ring itself)` : s.name))),
+      'The smaller ring it sits in.'),
+      field('Icon', iconPicker(it.icon, (v) => { it.icon = v; markDirty('menu'); render(); })),
+      h('div', { class: 'addrow', style: 'margin-top:12px' },
+        h('button', { class: 'btn', id: 'linkOpen', onclick: () => api.openUrl(it.action.slice(4)) }, msym('open_in_new'), 'Open'),
+        h('span', { class: 'grow' }),
+        ui.refConfirmDelete === l.key
+          ? h('span', { class: 'confirm' }, 'Remove it from the ring?',
+            h('button', { class: 'btn small danger', onclick: () => {
+              if (l.parent.length <= 1) { toast('Its section needs at least one link. Delete the section in Rings instead.'); return; }
+              l.parent.splice(l.parent.indexOf(it), 1);
+              ui.refConfirmDelete = null;
+              ui.refSel = null;
+              markDirty('menu');
+              render();
+            } }, 'Remove'),
+            h('button', { class: 'btn small ghost', onclick: () => { ui.refConfirmDelete = null; render(); } }, 'Keep'))
+          : h('button', { class: 'btn ghost danger', onclick: () => { ui.refConfirmDelete = l.key; render(); } }, msym('delete'), 'Remove')));
+    return box;
   }
 
   // Where each reference sits on the rings.
@@ -1348,10 +1443,10 @@
     return out;
   }
 
-  // Into the Reference library ring's "My notes" (made on first use).
+  // Into the Reference Library ring's "My notes" (made on first use).
   function putOnRing(r) {
-    const ring = menuDraft.categories.find((c) => c.id === 'gallery') || menuDraft.categories.find((c) => /reference/i.test(c.name));
-    if (!ring) return toast('There is no Reference library ring. Add a ring in Rings, then use the "Reference" action.');
+    const ring = refRing();
+    if (!ring) return toast('There is no Reference Library ring. Add a ring in Rings, then use the "Reference" action.');
     let mine = ring.items.find((it) => it.items && it.name === 'My notes');
     const entry = { name: r.title.length > 28 ? r.title.slice(0, 27) + '…' : r.title, icon: r.image ? 'image' : 'description', action: 'ref:' + r.id };
     if (!mine) {

@@ -13,7 +13,7 @@
 //   file:<path>      open a file or folder (%VARS% are expanded)
 //   search:<url>     open a website with {clipboard} replaced by copied text
 //   hub:<id>         hub commands (edit-menu, open-folder, reload-menu, ref-add)
-//   ref:<id>         open one of the Reference library's notes / pictures
+//   ref:<id>         open one of the Reference Library's notes / pictures
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();

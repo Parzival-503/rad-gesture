@@ -368,7 +368,7 @@ async function startBridge() {
 
 // ---------------------------------------------------------------- settings window
 
-// ---------------------------------------------------------------- Reference library
+// ---------------------------------------------------------------- Reference Library
 
 // A reference for a page: its note, and its picture as a data: URL (full
 // size, or a small one for lists).
@@ -581,6 +581,7 @@ function registerSettingsIpc() {
   ipcMain.handle('rgs:ref-save', (_e, v) => refForPage(refs.save({ id: v.id, title: v.title, tags: v.tags, body: v.body }), true));
   ipcMain.handle('rgs:ref-delete', (_e, id) => refs.remove(id));
   ipcMain.handle('rgs:ref-open', (_e, id) => openReference(id));
+  ipcMain.handle('rgs:open-url', (_e, url) => { if (/^https?:\/\//i.test(String(url))) shell.openExternal(url); });
   // A picture for a reference (new, or added to one): from the clipboard or a file.
   ipcMain.handle('rgs:ref-paste', async (_e, id) => {
     const img = await clipImage();
@@ -768,8 +769,8 @@ function trayTemplate() {
     { label: 'AI tools...', click: () => openSettings('ai') },
     { label: 'Shortcuts...', click: () => openSettings('shortcuts') },
     { label: 'Functions...', click: () => openSettings('functions') },
-    { label: 'Reference library...', click: () => openSettings('references') },
-    { label: 'Add clipboard to the Reference library', click: () => addReferenceFromClipboard(true) },
+    { label: 'Reference Library...', click: () => openSettings('references') },
+    { label: 'Add clipboard to the Reference Library', click: () => addReferenceFromClipboard(true) },
     { type: 'separator' },
     helperLine,
     ...(lastConflicts.length ? [{ label: `Close ${lastConflicts.length} conflicting old tool(s)...`, click: () => openSettings('status') }] : []),

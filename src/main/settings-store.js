@@ -182,11 +182,19 @@ function migrate(m, lib) {
   }
   if (!done.includes('reference-library')) {
     // "Gallery" confused radiologists (Sina): the ring of reading material is
-    // the Reference library. Only the shipped name changes; a ring the person
+    // the Reference Library. Only the shipped name changes; a ring the person
     // renamed keeps their name.
     const g = m.categories.find((c) => c.id === 'gallery' && c.name === 'Gallery');
-    if (g) g.name = 'Reference library';
+    if (g) g.name = 'Reference Library';
     done.push('reference-library');
+    changed = true;
+  }
+  if (!done.includes('reference-library-title')) {
+    // It is a title: "Reference Library", capital L (Sina). The first build
+    // with the new name shipped it as "Reference library".
+    const g = m.categories.find((c) => c.id === 'gallery' && c.name === 'Reference library');
+    if (g) g.name = 'Reference Library';
+    done.push('reference-library-title');
     changed = true;
   }
   if (changed) m.migrated = done;

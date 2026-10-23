@@ -349,7 +349,7 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
 .fnrow .ph { color: var(--ink-3); font-size: 12.5px; }
 .fnrow kbd { font-size: 12px; padding: 1px 6px; }
 
-/* Formatted notes (Reference library): the same look in the editor preview
+/* Formatted notes (Reference Library): the same look in the editor preview
    and the viewer window. */
 .md { line-height: 1.55; font-size: 14.5px; color: var(--ink); max-width: 860px; }
 .md h1, .md h2, .md h3, .md h4 { text-transform: none; letter-spacing: normal; color: var(--ink); }
@@ -380,7 +380,7 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
 .md hr { border: 0; border-top: 1px solid var(--line-hi); margin: 18px 0; }
 .md a { color: var(--accent); }
 
-/* Reference library page */
+/* Reference Library page */
 .refgrid { display: grid; grid-template-columns: minmax(250px, 320px) 1fr; gap: 16px; align-items: start; }
 .reflist .list { max-height: 62vh; overflow-y: auto; }
 .refrow .refthumb { width: 44px; height: 32px; object-fit: cover; border-radius: 5px; border: 1px solid var(--line-hi); flex: 0 0 auto; }

@@ -1,4 +1,4 @@
-// The reference viewer: one note or picture from the Reference library, opened
+// The reference viewer: one note or picture from the Reference Library, opened
 // from the ring. Read-only; Edit goes to Settings > References. Esc closes.
 (function () {
   const api = window.rgv;

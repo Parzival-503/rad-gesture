@@ -1,4 +1,4 @@
-// The Reference library's own entries: notes (Markdown) and pictures
+// The Reference Library's own entries: notes (Markdown) and pictures
 // (screenshots), kept on this PC in %APPDATA%\RadGesture\references\:
 //   index.json        [{ id, title, tags, image, created, updated }]
 //   <id>.md           the note (also the caption under a picture)

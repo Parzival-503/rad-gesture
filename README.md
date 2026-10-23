@@ -5,7 +5,7 @@ mouse. Flick toward a tool and let go, or tap and click.
 
 - **AI Tools**: Proofread, Impression, One-liner (4 flavors), Priors checklist
 - **PACS** and **Apps**: Rad Optimizer's functions, now built in (Settings > Functions; Rad Optimizer is no longer needed), Lung-RADS
-- **Reference library** (was "Gallery"): reference links (Lung-RADS, Fleischner, LI-RADS, TI-RADS, ...), search copied text
+- **Reference Library** (was "Gallery"): reference links (Lung-RADS, Fleischner, LI-RADS, TI-RADS, ...), search copied text
 
 Scroll or click the center to switch rings.
 
@@ -57,14 +57,14 @@ AutoHotkey code, then put it on a ring (Rings > a direction > Function) or give 
 function starts one from it. Share them with Shortcuts > **Export**. Step by
 step, with examples: [docs/adding-functions.md](docs/adding-functions.md).
 
-## Reference library: your own notes and screenshots
+## Reference Library: your own notes and screenshots
 
 Settings > **References**: **New note** (headings, bold, lists, check lists,
 tables and pearls, shown formatted as you type; a toolbar does it for you),
 **Snip now** (Windows' snipping; the snip is added by itself), **Paste
 screenshot or text**, or **Choose a picture**. Tag them, search them, then
 **Put on the ring**: they open in a clean window over whatever you read. Fastest
-of all: copy something, then ring > Reference library > **Add from
+of all: copy something, then ring > Reference Library > **Add from
 clipboard** (or the tray). Keep patient details out of screenshots.
 
 ## Themes

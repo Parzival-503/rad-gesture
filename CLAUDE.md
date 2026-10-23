@@ -261,7 +261,7 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
 
 **Names people see** (Sina, 2026-10-23): this page is **Functions** ("the
 function collection"), never "Library": a library is reading material. The
-ring of reading material is the **Reference library** (it was "Gallery";
+ring of reading material is the **Reference Library** (it was "Gallery";
 migration `reference-library` renames the shipped ring). Internal names
 (`library.json`, `[Lib.<id>]`, `helper:lib:`, `[Library]`) stay, so saved
 settings never move.
@@ -279,17 +279,17 @@ settings never move.
   The Windows e2e checks the shipped ones are all on from the first start
   and that a real Ctrl+Alt+2 reaches Lung window.
 
-### Reference library (Settings > References, `ref:<id>`)
+### Reference Library (Settings > Reference Library, `ref:<id>`)
 
 Sina: "a library is things you read". The ring of guideline links (once
-"Gallery") is the **Reference library**, and Settings > References holds his
+"Gallery") is the **Reference Library**, and Settings > References holds his
 own **notes** (Markdown underneath, shown formatted) and **pictures**
 (screenshots), in `%APPDATA%\RadGesture\references\` (`index.json` + `<id>.md`
 + `<id>.png`; `src/main/references.js`, tested). Ways in: New note, Snip now
 (`ms-screenclip:`, the snip is picked up from the clipboard within a minute),
 Paste screenshot or text, Choose a picture, the ring's **Add from clipboard**
 (`hub:ref-add`) and the tray. "Put on the ring" adds `ref:<id>` under the
-Reference library ring's **My notes** (made on first use). The ring opens it
+Reference Library ring's **My notes** (made on first use). The ring opens it
 in the **reference viewer** (`src/viewer/`, always on top, Esc closes, Edit
 goes to Settings). Screenshots are kept at most 2400 px wide.
 
@@ -300,6 +300,14 @@ goes to Settings). Screenshots are kept at most 2400 px wide.
   alignment, `> **Pearl**` callouts, rules. The editor (Write / Side by side /
   Preview) re-renders the preview on every key, continues lists on Enter
   (Enter on an empty item ends it), Ctrl+B / Ctrl+I, and a toolbar.
+- The page lists **everything** in the Reference Library: his notes and
+  pictures, then the ring's guideline links (`url:` items of the `gallery`
+  ring, grouped by the smaller ring they sit in; Sina could not find the
+  shipped references there). Links are edited in place (name, address,
+  section, icon, remove; "Add a link"); they live in the menu, so they need
+  Save. Filters: All / Links / Notes / Pictures, sections and tags as chips.
+- **"Reference Library", capital L** (a title, Sina). Migration
+  `reference-library-title` fixes rings saved as "Reference library".
 - Notes save themselves (450 ms after typing); there is no Save for them.
 - **Electron 44's clipboard is asynchronous** (`readText()` and `read()`
   return promises; there is no `readImage`). Use `clipText()` / `clipImage()`
@@ -334,8 +342,8 @@ Quit (also stops the helper).
 ### The menu data (`config/default-menu.json` -> `%APPDATA%\RadGesture\menu.json`)
 
 Actions: `helper:<id>`, `url:`, `file:` (expands `%VARS%`), `search:`
-(`{clipboard}`), `hub:`, `ref:<id>` (a Reference library note or picture). `apps` on a ring picks which ring opens first over
-that program. The Reference library ring (id `gallery`, once "Gallery") carries Sina's reference links from the old
+(`{clipboard}`), `hub:`, `ref:<id>` (a Reference Library note or picture). `apps` on a ring picks which ring opens first over
+that program. The Reference Library ring (id `gallery`, once "Gallery") carries Sina's reference links from the old
 Kando gallery. Edited only through Settings.
 
 **Saved menus are migrated once** (`migrate()` in `settings-store.js`,

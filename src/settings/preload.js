@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('rgs', {
   refPaste: (id) => ipcRenderer.invoke('rgs:ref-paste', id),
   refPickImage: (id) => ipcRenderer.invoke('rgs:ref-pick-image', id),
   refSnip: () => ipcRenderer.invoke('rgs:ref-snip'),
+  openUrl: (url) => ipcRenderer.invoke('rgs:open-url', url),
   testKey: (key, model) => ipcRenderer.invoke('rgs:test-key', { key, model }),
   status: () => ipcRenderer.invoke('rgs:status'),
   restartHelper: () => ipcRenderer.invoke('rgs:restart-helper'),

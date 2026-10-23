@@ -1,4 +1,4 @@
-// A small, safe Markdown renderer for Reference library notes. Shared by the
+// A small, safe Markdown renderer for Reference Library notes. Shared by the
 // Settings editor (live preview) and the reference viewer window.
 //
 // Safe by construction: every bit of text is HTML-escaped first, and the only

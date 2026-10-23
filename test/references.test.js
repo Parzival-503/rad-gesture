@@ -1,4 +1,4 @@
-// The Reference library: notes and pictures, the formatter, the ring action.
+// The Reference Library: notes and pictures, the formatter, the ring action.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -62,13 +62,13 @@ test('references: create, update, picture, list newest first, delete', () => {
   assert.deepStrictEqual(refs.list().map((r) => r.id), [a.id]);
 });
 
-test('ring: "ref:<id>" opens a reference; the Reference library ring can add from the clipboard', () => {
+test('ring: "ref:<id>" opens a reference; the Reference Library ring can add from the clipboard', () => {
   assert.deepStrictEqual(parseAction('ref:rabc123'), { kind: 'ref', value: 'rabc123' });
   assert.strictEqual(resolveAction('ref:rabc123').kind, 'ref');
   const menu = { categories: [{ name: 'R', items: [{ name: 'Note', icon: 'description', action: 'ref:rabc123' }] }] };
   assert.ok(validateMenu(menu).ok);
   const def = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'default-menu.json'), 'utf8'));
   const ring = def.categories.find((c) => c.id === 'gallery');
-  assert.strictEqual(ring.name, 'Reference library');
+  assert.strictEqual(ring.name, 'Reference Library');
   assert.ok(ring.items.some((it) => it.action === 'hub:ref-add'));
 });

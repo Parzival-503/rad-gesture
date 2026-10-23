@@ -247,14 +247,20 @@ async function waitFor(fn, ms, step = 200) {
     await win.$eval('#myFunctions', (el) => el.scrollIntoView());
     await win.screenshot({ path: path.join(SHOTS, 'settings-library-mine.png') });
 
-    // Reference library: write a formatted note (it shows formatted as you
+    // Reference Library: write a formatted note (it shows formatted as you
     // type, lists continue on Enter), it saves itself, put it on the ring;
     // add the clipboard from the tray; open it in the viewer.
     const refsDir = path.join(userData, 'references');
     const refIndex = () => (fs.existsSync(path.join(refsDir, 'index.json')) ? JSON.parse(fs.readFileSync(path.join(refsDir, 'index.json'), 'utf8')) : []);
     await win.click('#nav button[data-tab="references"]');
     await sleep(500);
-    check('the Reference library page opens', (await win.textContent('main h1')) === 'Reference library');
+    check('the Reference Library page opens', (await win.textContent('main h1')) === 'Reference Library');
+    check('the shipped guideline links are listed in the Reference Library', (await win.$$('.refrow[data-link]')).length >= 13, `${(await win.$$('.refrow[data-link]')).length} links`);
+    await win.click('.refrow[data-link="Fleischner 2017"]');
+    await sleep(200);
+    check('a link opens in its editor (name, address, section)', /rsna\.org/.test(await win.$eval('#linkUrl', (e) => e.value)) && (await win.$eval('#linkName', (e) => e.value)) === 'Fleischner 2017');
+    await win.click('#nav button[data-tab="references"]');
+    await sleep(200);
     await win.click('#refNew');
     await sleep(500);
     await win.click('#refBody');
@@ -272,14 +278,14 @@ async function waitFor(fn, ms, step = 200) {
     await sleep(700);
     const refRing = menuNow().categories.find((c) => c.id === 'gallery');
     const myNotes = refRing && refRing.items.find((i) => i.name === 'My notes');
-    check('Put on the ring adds it to Reference library > My notes', !!(myNotes && myNotes.items.some((i) => i.action === 'ref:' + noteId)), refRing ? refRing.name : 'no ring');
+    check('Put on the ring adds it to Reference Library > My notes', !!(myNotes && myNotes.items.some((i) => i.action === 'ref:' + noteId)), refRing ? refRing.name : 'no ring');
     await win.$eval('main', (el) => el.scrollTo(0, 0));
     await win.screenshot({ path: path.join(SHOTS, 'settings-references.png') });
     await app.evaluate(({ clipboard }) => { clipboard.clear(); clipboard.writeText('# Bosniak 2019\n\n- **IIF**: follow up at 6 months'); });
-    await rg((r) => r.clickTray('Add clipboard to the Reference library'));
+    await rg((r) => r.clickTray('Add clipboard to the Reference Library'));
     await sleep(900);
     const bos = refIndex().find((r) => r.title === 'Bosniak 2019');
-    check('the tray adds the clipboard to the Reference library', !!bos);
+    check('the tray adds the clipboard to the Reference Library', !!bos);
     check('and Settings opens on it', (await win.$eval('#refTitle', (e) => e.value).catch(() => '')) === 'Bosniak 2019');
     // "Search copied text" searches what was copied (Electron 44 reads the
     // clipboard asynchronously; reading it the old way searched "[object Promise]").
