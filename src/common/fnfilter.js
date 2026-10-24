@@ -12,7 +12,7 @@
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./hotkeys'));
   else root.RGFnFilter = factory(root.RGHotkeys);
 })(typeof self !== 'undefined' ? self : this, function (HK) {
-  const DEFAULTS = { q: '', groups: [], sub: '', shortcut: 'any', ring: 'any', program: 'any', clash: false, key: '', sort: 'group', view: 'detail' };
+  const DEFAULTS = { q: '', groups: [], sub: '', shortcut: 'any', ring: 'any', program: 'any', clash: false, key: '', sort: 'group', view: 'tiles' };
 
   function fresh() {
     return JSON.parse(JSON.stringify(DEFAULTS));

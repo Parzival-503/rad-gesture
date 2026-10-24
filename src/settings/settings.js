@@ -1004,7 +1004,8 @@
         h('button', { class: 'btn small', id: 'importFunctions', onclick: importFunctions }, msym('download'), 'Import functions...'),
         h('button', { class: 'btn small', id: 'exportFunctions', onclick: exportFunctions }, msym('upload'), 'Export my functions...')));
     const optimizer = (D.status.conflicts || []).filter((c) => c.optimizer);
-    $main.append(libHealth());
+    const strip = h('div', { class: 'fnstrip' }, libHealth());
+    $main.append(strip);
     if (optimizer.length) $main.append(h('div', { class: 'card libhealth warn slim', id: 'optimizerNote' },
       h('div', { class: 'big' }, msym('warning'), h('p', {}, 'Rad Optimizer is running and fights RadGesture for these keys.'),
         h('button', { class: 'btn small primary', id: 'closeOptimizer', onclick: async () => { D.status = await api.closeConflicts(); toast('Closed'); render(); } }, msym('close'), 'Close it now'))));
@@ -1022,7 +1023,7 @@
           h('p', {}, 'Every shortcut starts switched on. Switch off the ones you don\'t want, or record your own. A mouse button or macro pad set to send the same shortcut (e.g. Ctrl+Alt+P for Insert priors) works too.'))),
         h('div', { class: 'step' }, h('div', { class: 'stepn' }, '3'), h('div', { class: 'stepb' }, h('b', {}, msym('block'), 'One program per key'),
           h('p', {}, 'Another shortcut script that listens for the same keys would fight RadGesture for them. Status lists any it finds; close them and take them out of Windows startup.')))));
-    $main.append(setup);
+    strip.append(setup);
 
     const known = knownHotkeys();
     const places = libPlaces();
@@ -1050,13 +1051,22 @@
         if (!inG.length) continue;
         const card = h('div', { class: 'card' }, h('h2', {}, g, h('span', { class: 'count' }, String(inG.length))));
         if (g === 'Logins') card.append(workflowPointer());
-        for (const c of inG) card.append(fnEntry(byId.get(c.id), c, known, places));
+        if (fx.view === 'tiles') {
+          // Tiles in smaller groups by what they do (Window / level, Measure...).
+          const subs = [...new Set(inG.map((c) => c.sub))];
+          for (const s of subs) {
+            const inS = inG.filter((c) => c.sub === s);
+            if (subs.length > 1 && s) card.append(h('h3', { class: 'fnsubhead' }, s, h('span', { class: 'count' }, String(inS.length))));
+            card.append(fnTiles(inS, byId, known, places));
+          }
+        } else for (const c of inG) card.append(fnEntry(byId.get(c.id), c, known, places));
         $main.append(card);
       }
     } else {
       const card = h('div', { class: 'card', id: 'fnResults' }, h('h2', {}, fx.sort === 'az' ? 'A to Z' : 'By shortcut', h('span', { class: 'count' }, String(shown.length))));
       if (shown.some((c) => c.group === 'Logins')) card.append(workflowPointer());
-      for (const c of shown) card.append(fnEntry(byId.get(c.id), c, known, places));
+      if (fx.view === 'tiles') card.append(fnTiles(shown, byId, known, places));
+      else for (const c of shown) card.append(fnEntry(byId.get(c.id), c, known, places));
       if (shown.length) $main.append(card);
     }
     if (!shown.length) $main.append(h('div', { class: 'empty', id: 'fnNone' }, 'No function matches these filters. ',
@@ -1136,9 +1146,53 @@
         oninput: (e) => { libDraft.username = e.target.value; markDirty('library'); } }));
   }
 
+  // The full entry of one function (its shortcut, the keys it presses, Try it, Code...).
+  function fullEntry(f, known, places) {
+    return f.custom ? customEntry((libDraft.custom || []).find((x) => x.id === f.id), known, places[f.id] || []) : libEntry(f, known, places[f.id] || []);
+  }
+
+  // Tiles view: a small tile per function (icon, name, its shortcut, what it
+  // presses where). A click opens its full entry right under its row; the
+  // panel spans the grid and "dense" packing lets the rest of the row fill
+  // in before it. One open at a time.
+  function fnTiles(list, byId, known, places) {
+    const grid = h('div', { class: 'fntiles' });
+    for (const c of list) {
+      const f = byId.get(c.id);
+      const open = ui.tileOpen === c.id;
+      grid.append(fnTile(f, c, open));
+      if (!open) continue;
+      const el = fullEntry(f, known, places);
+      const btns = el.querySelector('.libbtns');
+      if (btns) btns.append(h('button', { class: 'iconbtn', title: 'Close', 'aria-label': 'Close ' + f.name, onclick: () => { ui.tileOpen = null; render(); } }, msym('close')));
+      grid.append(h('div', { class: 'fndetail' }, el));
+    }
+    return grid;
+  }
+
+  function fnTile(f, c, open) {
+    const k = (spec) => h('span', { class: 'keys' }, HK.pretty(spec).split('+').map((x) => h('kbd', {}, x)));
+    const kp = (f.params || []).find((p) => p.type === 'key');
+    const where = kp ? kp.label.replace(/^Presses\s*/i, '').replace(/\s*\(.*$/, '') : '';
+    return h('button', { class: 'fntile' + (open ? ' open' : ''), id: 'tile-' + f.id, 'data-group': f.group, 'aria-expanded': String(open), title: f.description || '',
+      onclick: () => {
+        ui.tileOpen = open ? null : f.id;
+        render();
+        const el = document.getElementById('lib-' + f.id);
+        if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } },
+    c.places.length ? h('span', { class: 'fnring', title: 'On the ring: ' + c.places.join('; ') }, msym('donut_large')) : null,
+    h('span', { class: 'fntop' }, h('span', { class: 'fnic' }, icon(f.icon || 'code')), h('span', { class: 'fnname' }, f.name)),
+    h('span', { class: 'fnfoot' },
+      h('span', { class: 'fnline', title: 'Keyboard shortcut' }, msym('keyboard'),
+        c.on && c.hotkey ? k(c.hotkey) : h('span', {}, c.hotkey ? 'Shortcut off' : 'No shortcut'),
+        c.clash ? h('span', { class: 'fnclash', title: 'This shortcut is also used elsewhere' }, msym('warning')) : null),
+      c.keys.length ? h('span', { class: 'fnline', title: 'What it presses' }, msym('east'), k(c.keys[0]), where ? h('span', {}, where) : null) : null));
+  }
+
   // One function: the full entry, or (compact view) one line that opens it.
   function fnEntry(f, c, known, places) {
-    const full = () => (f.custom ? customEntry((libDraft.custom || []).find((x) => x.id === f.id), known, places[f.id] || []) : libEntry(f, known, places[f.id] || []));
+    const full = () => fullEntry(f, known, places);
     if (ui.fx.view !== 'compact' || ui.libOpen[f.id]) {
       const el = full();
       if (ui.fx.view === 'compact') {
@@ -1185,11 +1239,21 @@
       h('option', { value: '' }, 'Every kind'), subs.map((x) => h('option', { value: x, selected: x === fx.sub }, x)));
     const keyFind = h('span', { class: 'fxkey' }, recorder(fx.key, (k) => set('key', k), { plain: true }),
       fx.key ? h('button', { class: 'iconbtn', title: 'Stop finding by key', 'aria-label': 'Clear key', onclick: () => set('key', '') }, msym('close')) : null);
+    // The finer filters fold away so the functions start near the top;
+    // they stay open while one of them is in use.
+    const moreN = (fx.sub ? 1 : 0) + ['shortcut', 'ring', 'program'].filter((k) => fx[k] !== 'any').length + (fx.clash ? 1 : 0) + (fx.sort !== 'group' ? 1 : 0);
+    const more = !!ui.fxMore || moreN > 0;
     return h('div', { class: 'card fxbar', id: 'fnFilters' },
       h('div', { class: 'fxrow' },
         h('div', { class: 'searchbox grow' }, msym('search'), search),
-        h('span', { class: 'fxlabel' }, 'Find by key'), keyFind),
-      h('div', { class: 'fxrow' }, groupChips),
+        h('span', { class: 'fxlabel' }, 'Find by key'), keyFind,
+        h('button', { class: 'btn small' + (more ? ' on' : ''), id: 'fxMore', 'aria-expanded': String(more), onclick: () => { ui.fxMore = !more; render(); } },
+          msym('tune'), 'Filters', moreN ? h('i', { class: 'fxn' }, String(moreN)) : null),
+        seg([['tiles', 'Tiles', 'grid_view'], ['detail', 'Detailed', 'view_agenda'], ['compact', 'Compact', 'view_list']], fx.view, (v) => { ui.libOpen = {}; ui.tileOpen = null; set('view', v); })),
+      h('div', { class: 'fxrow' }, groupChips, h('span', { class: 'grow' }),
+        h('span', { class: 'chip', id: 'fxCount' }, `${shown.length} of ${cards.length}`),
+        n ? h('button', { class: 'btn ghost small', id: 'fxClear', onclick: () => { const keep = { sort: fx.sort, view: fx.view }; ui.fx = Object.assign(FF.fresh(), keep); render(); } }, msym('filter_alt_off'), `Clear filters (${n})`) : null),
+      more ? h('div', { class: 'fxmore' },
       h('div', { class: 'fxrow' },
         h('label', { class: 'fxlabel' }, 'Kind'), subSel,
         h('label', { class: 'fxlabel' }, 'Works in'), seg([['any', 'Any'], ['sectra', 'Sectra'], ['powerscribe', 'PowerScribe'], ['other', 'Other']], fx.program, (v) => set('program', v))),
@@ -1199,10 +1263,7 @@
         h('button', { class: 'fxchip' + (fx.clash ? ' on' : ''), id: 'fxClash', 'aria-pressed': String(fx.clash), onclick: () => set('clash', !fx.clash) }, msym('warning'), 'Clashes', h('i', {}, String(count((c) => c.clash))))),
       h('div', { class: 'fxrow' },
         h('label', { class: 'fxlabel' }, 'Sort'), seg([['group', 'By group'], ['az', 'A to Z'], ['shortcut', 'By shortcut']], fx.sort, (v) => set('sort', v)),
-        h('label', { class: 'fxlabel' }, 'View'), seg([['detail', 'Detailed', 'view_agenda'], ['compact', 'Compact', 'view_list']], fx.view, (v) => { ui.libOpen = {}; set('view', v); }),
         h('span', { class: 'grow' }),
-        h('span', { class: 'chip', id: 'fxCount' }, `${shown.length} of ${cards.length}`),
-        n ? h('button', { class: 'btn ghost small', id: 'fxClear', onclick: () => { const keep = { sort: fx.sort, view: fx.view }; ui.fx = Object.assign(FF.fresh(), keep); render(); } }, msym('filter_alt_off'), `Clear filters (${n})`) : null,
         h('button', { class: 'btn ghost small', id: 'libDefaults', title: 'Shortcuts and keys as RadGesture ships them (your username, websites and own functions stay)', onclick: () => {
           for (const f of D.library.functions) {
             const v = libDraft.values[f.id];
@@ -1213,8 +1274,7 @@
           markDirty('library');
           render();
           toast('Back to the defaults. Save to keep them.');
-        } }, msym('restart_alt'), 'Defaults'),
-        h('button', { class: 'btn small primary', id: 'addMyFunctionTop', onclick: () => addCustom() }, msym('add'), 'New function')));
+        } }, msym('restart_alt'), 'Defaults'))) : null);
   }
 
   // ---- My functions: scripts a person (or a colleague) writes. Saved as AutoHotkey files in the
@@ -1236,6 +1296,7 @@
     libDraft.values[id] = { On: '0', Hotkey: '' };
     ui.fx = Object.assign(FF.fresh(), { sort: ui.fx.sort, view: ui.fx.view });
     ui.libOpen[id] = true;
+    ui.tileOpen = id;
     markDirty('library');
     render();
     const el = document.getElementById('lib-' + id);
@@ -1255,7 +1316,8 @@
         'Each one runs as its own small program, so a mistake shows AutoHotkey\'s error box and never stops RadGesture. ',
         'Share them with Export my functions at the top of this page; import only from people you trust, since a function can do anything a program can.'),
       h('div', { class: 'addrow' }, h('button', { class: 'btn primary small', id: 'addMyFunction', onclick: () => addCustom() }, msym('add'), 'New function')));
-    for (const c of inCards) card.append(fnEntry(byId.get(c.id), c, known, places));
+    if (ui.fx.view === 'tiles' && inCards.length) card.append(fnTiles(inCards, byId, known, places));
+    else for (const c of inCards) card.append(fnEntry(byId.get(c.id), c, known, places));
     if (!(libDraft.custom || []).length) card.append(h('div', { class: 'hint', style: 'margin-top:10px' }, 'None yet. Tip: "Copy" on any PACS or PowerScribe function above starts one from it.'));
     return card;
   }
@@ -1704,6 +1766,8 @@
     $main.append(h('div', { class: 'card' },
       h('h2', {}, 'RadGesture'),
       row('Start with Windows', null, sw(m.startAtLogin !== false, (v) => { m.startAtLogin = v; markDirty('menu'); render(); }, 'Start with Windows')),
+      row('Keep this window on top', 'Settings stays above every other program, also while you try a function in Sectra or PowerScribe. Off: it comes to the front when opened, then behaves like any window.',
+        sw(m.settingsOnTop !== false, (v) => { if (v) delete m.settingsOnTop; else m.settingsOnTop = false; markDirty('menu'); api.setOnTop(v); render(); }, 'Keep this window on top')),
       row('Pause the ring', 'Ctrl+CapsLock does nothing while paused. The AI shortcuts keep working.',
         sw(D.status.paused, async (v) => { D.status = await api.setPaused(v); render(); }, 'Pause the ring'))));
   }

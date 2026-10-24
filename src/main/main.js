@@ -438,12 +438,11 @@ function openReference(id) {
       webPreferences: { preload: path.join(__dirname, '..', 'viewer', 'preload.js'), contextIsolation: true, sandbox: false },
     });
     viewerWin.on('closed', () => (viewerWin = null));
-    viewerWin.once('ready-to-show', () => viewerWin.show());
+    viewerWin.once('ready-to-show', () => bringToTop(viewerWin, true));
     viewerWin.loadFile(path.join(__dirname, '..', 'viewer', 'index.html'), { query: { id } });
   } else {
     viewerWin.webContents.send('rgv:show', id);
-    viewerWin.show();
-    viewerWin.focus();
+    bringToTop(viewerWin, true);
   }
   logEvent('ref-open', id);
 }
@@ -471,8 +470,7 @@ function openProofread(d) {
   const payload = Object.assign({ theme: menu && menu.theme }, proofData);
   if (proofWin && !proofWin.isDestroyed()) {
     proofWin.webContents.send('rgp:show', payload);
-    if (proofWin.isMinimized()) proofWin.restore();
-    proofWin.show();
+    bringToTop(proofWin, true);
   } else {
     const pt = screen.getCursorScreenPoint();
     const area = screen.getDisplayNearestPoint(pt).workArea;
@@ -498,7 +496,7 @@ function openProofread(d) {
       if (proofData && bridge) bridge.enqueue(`proof:closed:${proofData.seq}:${proofDone.join(',')}`);
       proofData = null;
     });
-    win.once('ready-to-show', () => win.show());
+    win.once('ready-to-show', () => bringToTop(win, true));
     win.loadFile(path.join(__dirname, '..', 'proofread', 'index.html'));
   }
   proofWin.focus();
@@ -530,12 +528,26 @@ function registerViewerIpc() {
   ipcMain.handle('rgv:close', () => { if (viewerWin && !viewerWin.isDestroyed()) viewerWin.close(); });
 }
 
+// Windows keeps a program that is not in front from putting its window
+// there: opened from the tray or the ring, a plain show() landed behind
+// everything. Making it topmost first puts it above every normal window;
+// unless it should stay there, it lets go again once it is up and focused.
+function bringToTop(win, stay) {
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  win.setAlwaysOnTop(true);
+  win.show();
+  win.moveTop();
+  win.focus();
+  if (!stay) setTimeout(() => { if (!win.isDestroyed()) win.setAlwaysOnTop(false); }, 600);
+}
+
+const settingsOnTop = () => !menu || menu.settingsOnTop !== false;
+
 function openSettings(tab = 'rings') {
   if (settingsWin && !settingsWin.isDestroyed()) {
     settingsWin.webContents.send('rgs:tab', tab);
-    if (settingsWin.isMinimized()) settingsWin.restore();
-    settingsWin.show();
-    settingsWin.focus();
+    bringToTop(settingsWin, settingsOnTop());
     return settingsWin;
   }
   settingsWin = new BrowserWindow({
@@ -553,7 +565,7 @@ function openSettings(tab = 'rings') {
     webPreferences: { preload: path.join(__dirname, '..', 'settings', 'preload.js'), contextIsolation: true, sandbox: false },
   });
   settingsWin.loadFile(path.join(__dirname, '..', 'settings', 'index.html'), { query: { tab } });
-  settingsWin.once('ready-to-show', () => settingsWin.show());
+  settingsWin.once('ready-to-show', () => bringToTop(settingsWin, settingsOnTop()));
   settingsWin.on('closed', () => (settingsWin = null));
   logEvent('settings-open', tab);
   return settingsWin;
@@ -707,6 +719,10 @@ function registerSettingsIpc() {
     scanConflicts(false);
     return { ok: true };
   });
+  ipcMain.handle('rgs:on-top', (_e, on) => {
+    if (settingsWin && !settingsWin.isDestroyed()) settingsWin.setAlwaysOnTop(!!on);
+    return true;
+  });
   ipcMain.handle('rgs:save-menu', (_e, m) => {
     const r = store.writeMenu(m);
     if (r.ok) {
@@ -854,6 +870,8 @@ function trayTemplate() {
     { label: 'Functions...', click: () => openSettings('functions') },
     { label: 'Reference Library...', click: () => openSettings('references') },
     { label: 'Add clipboard to the Reference Library', click: () => addReferenceFromClipboard(true) },
+    { label: 'Show the Priors toolbar', enabled: h.connected, click: () => bridge.enqueue('prior:show') },
+    { label: 'Proofread history...', enabled: h.connected, click: () => bridge.enqueue('history') },
     { type: 'separator' },
     helperLine,
     ...(lastConflicts.length ? [{ label: `Close ${lastConflicts.length} conflicting old tool(s)...`, click: () => openSettings('status') }] : []),
@@ -960,6 +978,7 @@ app.whenReady().then(async () => {
         return true;
       },
       ringOpen: () => ringOpen,
+      settingsOnTop: () => !!(settingsWin && !settingsWin.isDestroyed() && settingsWin.isAlwaysOnTop()),
       runAction: (action) => runItem({ name: 'e2e', action }, false),
       events: () => events.slice(),
       userDir,

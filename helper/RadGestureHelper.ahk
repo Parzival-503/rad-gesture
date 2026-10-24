@@ -158,6 +158,10 @@ RegisterPriorHotkeys()
 RegisterToolHotkeys()
 RegisterHubHotkeys()
 BuildTrayMenu()
+; Started by the RadGesture app (it passes RG_DATA_DIR): the app's own tray
+; icon is the one to use, so this one stays hidden. Run on its own, it shows.
+if (g_DataDirEnv != "")
+    Menu, Tray, NoIcon
 SetTimer, HubPoll, 750
 if (g_PriorAtStartup)
     ShowPriorBin()
@@ -443,7 +447,7 @@ SetGui_Save:
     Menu, Tray, DeleteAll
     BuildTrayMenu()
     Gui, SetGui:Destroy
-    TrayTip, RadGesture, Settings saved., 2, 1
+    Toast("Settings saved.", "ok", 2000)
     return
 
 SetGui_Cancel:
@@ -2093,7 +2097,7 @@ RegisterPriorHotkeys() {
         }
     }
     if (bad != "")
-        TrayTip, RadGesture, Could not bind prior hotkey(s):%bad%, 5, 2
+        Toast("Could not bind prior shortcut(s):" . bad, "warn", 6000)
 }
 
 PriorAddHotkey:
@@ -2630,7 +2634,7 @@ RegisterToolHotkeys() {
         }
     }
     if (bad != "")
-        TrayTip, RadGesture, Could not bind hotkey(s):%bad%, 5, 2
+        Toast("Could not bind shortcut(s):" . bad, "warn", 6000)
 }
 
 OneLinerHotkey:
@@ -3258,7 +3262,7 @@ RegisterHubHotkeys() {
         g_HubBoundDown := g_HubTrigger
         g_HubBoundUp := upKey
     } catch e {
-        TrayTip, RadGesture, Could not bind the ring trigger %g_HubTrigger%, 5, 2
+        Toast("Could not bind the ring shortcut " . g_HubTrigger, "warn", 6000)
     }
     ; Esc closes the ring, but only while it is open.
     Hotkey, Esc, HubEsc, On

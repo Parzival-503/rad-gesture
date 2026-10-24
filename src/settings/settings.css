@@ -421,3 +421,39 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
 /* Workflow page: a small heading inside a card, icons in card titles. */
 .card h3.subhead { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin: 18px 0 4px; }
 .card h2 > .msym { color: var(--accent); margin-right: 8px; font-size: 20px; }
+
+/* Functions: the status line and "Read first" side by side, folded filters. */
+.fnstrip { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.fnstrip > .card { flex: 1 1 320px; margin: 0; }
+.fnstrip > .readfirst.open { flex-basis: 100%; }
+#fxMore.on { border-color: var(--accent); }
+#fxMore .fxn { font-style: normal; font-size: 11.5px; background: var(--accent); color: #0d1220; border-radius: 999px; padding: 0 6px; }
+.fxmore { display: flex; flex-direction: column; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+
+/* Functions: tiles. A tile opens its full entry under its row (.fndetail spans
+   the grid; "dense" lets the rest of the row fill in before it). */
+.card h3.fnsubhead { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin: 16px 0 8px; }
+.card h3.fnsubhead:first-of-type { margin-top: 4px; }
+.fntiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); grid-auto-flow: dense; gap: 10px; }
+.fntile { position: relative; display: flex; flex-direction: column; gap: 10px; min-height: 108px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--well); color: var(--ink); text-align: left; font: inherit; cursor: pointer; transition: background .15s, border-color .15s, transform .15s; }
+.fntile:hover { background: var(--card-hi); border-color: var(--line-hi); transform: translateY(-1px); }
+.fntile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fntile.open { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; background: color-mix(in srgb, var(--accent) 8%, var(--well)); }
+.fntile .fntop { display: flex; align-items: flex-start; gap: 10px; padding-right: 16px; }
+.fntile .fnic { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: color-mix(in srgb, var(--accent) 80%, white); }
+.fntile .fnic .msym, .fntile .fnic .tabler, .fntile .fnic .emoji { font-size: 21px; }
+.fntile[data-group="PowerScribe"] .fnic { background: rgba(242, 180, 107, 0.14); color: #f4c287; }
+.fntile[data-group="Logins"] .fnic { background: rgba(111, 214, 195, 0.14); color: #8fe0d0; }
+.fntile[data-group="Apps"] .fnic { background: rgba(199, 166, 255, 0.14); color: #d4b9ff; }
+.fntile[data-group="My functions"] .fnic { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+.fntile .fnname { font-weight: 600; font-size: 13.5px; line-height: 1.3; }
+.fntile .fnfoot { margin-top: auto; display: flex; flex-direction: column; gap: 5px; }
+.fntile .fnline { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11.5px; color: var(--ink-2); }
+.fntile .fnline > .msym { font-size: 15px; color: var(--ink-3); }
+.fntile .keys { display: inline-flex; gap: 3px; }
+.fntile kbd { font: 600 11px var(--font); background: var(--card-hi); border: 1px solid var(--line-hi); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--ink); }
+.fntile .fnring { position: absolute; top: 10px; right: 10px; color: var(--ink-3); }
+.fntile .fnring .msym { font-size: 16px; }
+.fntile .fnclash .msym { font-size: 15px; color: var(--warn); }
+.fndetail { grid-column: 1 / -1; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 14px; background: var(--card); padding: 4px 18px 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
+.fndetail > .libfn { border-top: 0; }

@@ -293,6 +293,16 @@ settings never move.
   to it in Rings), Open my websites, Search selection. Same `libEntry`
   entries as Functions, so one setting lives in one place; the Functions
   page's Logins group points here.
+- **Tiles** (the default view; Sina picked it from mockups, 2026-10-24: the
+  page was hard to navigate): a small tile per function (icon, name, its
+  shortcut, "-> key in Sectra"), in smaller groups by kind (Window / level,
+  Measure...). A click opens the full entry (`libEntry`, same id
+  `lib-<id>`) in a `.fndetail` panel under that row (`grid-column: 1/-1` +
+  `grid-auto-flow: dense`), one at a time (`ui.tileOpen`). Detailed and
+  Compact are still in the View switch. The finer filters (kind, works in,
+  shortcut, ring, clashes, sort, Defaults) fold behind **Filters** and stay
+  open while one is in use; the helper status and "Read first" sit side
+  by side. The e2e checks the first tiles are on the first screen.
 - **Search and filters** (`src/common/fnfilter.js`, tested): words ANDed
   over name/description/kind/rings/keys/code; a typed shortcut ("ctrl+alt+p",
   "alt+o", "F4") finds what listens for it or presses it; Find by key
@@ -387,6 +397,19 @@ or an F-key so they can't fire while typing. Recorded keys are stored in
 Send syntax (`{F4}`, `^{Space}`, `{;}`) by `KS.hotkeyToSend`.
 
 ### Tray
+
+**One tray icon.** The helper hides its own (`Menu, Tray, NoIcon`) when the
+hub started it (`RG_DATA_DIR` is set); run on its own it shows. Sina saw two
+RadGesture icons (2026-10-24). Its useful items are in the hub's tray (Show
+the Priors toolbar, Proofread history), and its TrayTips became `Toast`s,
+since AHK drops a TrayTip when the script has no tray icon.
+
+**Settings comes to the front** (`bringToTop` in main.js): opened from the
+tray or the ring, a plain `show()` landed behind everything (Windows does
+not let a background program take the front). It is made topmost, shown and
+focused, and stays topmost while General > "Keep this window on top" is on
+(default, `menu.settingsOnTop`; Sina asked for it always on top). The
+proofread window and the reference viewer use the same call.
 
 Left-click: Settings. Right-click: Open the ring, Settings..., Edit rings...,
 AI tools..., Shortcuts..., helper state line (click to start it), close

@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('rgs', {
   programIcon: (file) => ipcRenderer.invoke('rgs:program-icon', file),
   tryRing: (m) => ipcRenderer.invoke('rgs:try-ring', m),
   setPaused: (p) => ipcRenderer.invoke('rgs:set-paused', p),
+  setOnTop: (on) => ipcRenderer.invoke('rgs:on-top', on),
   runHelperAction: (id) => ipcRenderer.invoke('rgs:run-helper-action', id),
   onTab: (cb) => ipcRenderer.on('rgs:tab', (_e, tab) => cb(tab)),
 });

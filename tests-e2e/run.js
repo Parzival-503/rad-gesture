@@ -84,7 +84,7 @@ async function waitFor(fn, ms, step = 200) {
 
     // ---------------- tray
     const labels = await rg((r) => r.trayLabels());
-    for (const l of ['Open the ring', 'Settings...', 'Edit rings...', 'AI tools...', 'Shortcuts...', 'Pause the ring', 'Start with Windows', 'Status and help...', 'Quit RadGesture']) {
+    for (const l of ['Open the ring', 'Settings...', 'Edit rings...', 'AI tools...', 'Shortcuts...', 'Pause the ring', 'Start with Windows', 'Status and help...', 'Show the Priors toolbar', 'Proofread history...', 'Quit RadGesture']) {
       check(`tray has "${l}"`, labels.includes(l));
     }
 
@@ -93,6 +93,7 @@ async function waitFor(fn, ms, step = 200) {
     const win = await waitFor(async () => app.windows().find((w) => w.url().includes('settings')), 15000);
     check('tray > Settings... opens the Settings window', !!win);
     await win.waitForFunction(() => window.__settingsReady === true, null, { timeout: 15000 });
+    check('Settings opens above every other window', await waitFor(() => rg((r) => r.settingsOnTop()), 3000));
     await win.setViewportSize({ width: 1200, height: 780 }).catch(() => {});
     for (const tab of ['rings', 'ai', 'shortcuts', 'functions', 'workflow', 'general', 'status']) {
       await win.click(`#nav button[data-tab="${tab}"]`);
@@ -181,6 +182,28 @@ async function waitFor(fn, ms, step = 200) {
     const libDef = JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'library.json'), 'utf8'));
     await win.click('#nav button[data-tab="functions"]');
     await sleep(350);
+    // Tiles (the default): one small tile each, the finer filters folded, the
+    // first tiles on the first screen; a click opens the full entry in place.
+    check('Functions opens as one tile per function', (await win.$$('.fntile')).length === libDef.functions.length && (await win.$$('.libfn')).length === 0, `${(await win.$$('.fntile')).length} tiles`);
+    check('Functions: the finer filters start folded', !(await win.$('#fnFilters .fxmore')) && !!(await win.$('#fxMore')));
+    await win.$eval('main', (el) => el.scrollTo(0, 0));
+    await sleep(100);
+    const firstTile = await (await win.$('.fntile')).boundingBox();
+    check('Functions: the first tiles are on the first screen', firstTile && firstTile.y + firstTile.height < (await win.evaluate(() => window.innerHeight)), firstTile && `tile at y=${Math.round(firstTile.y)}`);
+    await win.screenshot({ path: path.join(SHOTS, 'settings-functions-tiles.png') });
+    await win.click('#tile-PACS_Insert_Measurement');
+    await sleep(300);
+    check('Functions: a tile opens its full entry under it', !!(await win.$('.fndetail #lib-PACS_Insert_Measurement.libfn')) && (await win.$$('.libfn')).length === 1 && /Try it/.test(await win.textContent('.fndetail')));
+    await win.screenshot({ path: path.join(SHOTS, 'settings-functions-tile-open.png') });
+    await win.click('.fndetail button[aria-label^="Close"]');
+    await sleep(200);
+    check('Functions: the open tile closes again', !(await win.$('.fndetail')));
+    await win.click('#fxMore');
+    await sleep(150);
+    check('Functions: Filters shows the finer filters', !!(await win.$('#fnFilters .fxmore')) && /Works in/.test(await win.textContent('#fnFilters')));
+    await win.click('#fxMore');
+    await win.click('#fnFilters button:text-is("Detailed")');
+    await sleep(300);
     check('Functions lists every function', (await win.$$('.libfn')).length === libDef.functions.length, `${(await win.$$('.libfn')).length} of ${libDef.functions.length}`);
     check('Functions opens with the "set the keys in Sectra first" note', !!(await win.$('#libSetup')) && /Sectra/.test(await win.textContent('#libSetup')));
     check('"Read first" starts folded', !(await win.$('#copyLibKeys')));
@@ -243,6 +266,7 @@ async function waitFor(fn, ms, step = 200) {
     await sleep(200);
     check('Functions: a compact line opens to the full entry', !!(await win.$('#lib-PACS_WL_Lung.libfn')));
     await win.click('#fnFilters button:text-is("Detailed")');
+    await win.click('#fxMore');
     await win.click('#fnFilters button:text-is("Not on one")');
     await sleep(200);
     check('Functions: "not on a ring" filter', !(await win.$('#lib-PACS_WL_Lung')) && !!(await win.$('#lib-PS_PasteIndication')));
