@@ -425,7 +425,7 @@ async function waitFor(fn, ms, step = 200) {
         let got = [];
         const ok = await waitFor(async () => {
           got = got.concat(await drain());
-          return got.includes('action:' + a) || (await rg((r) => r.events())).some((e) => e === 'done ' + a);
+          return got.includes('action:' + a) || (await rg((r) => r.events())).some((e) => `${e.type} ${e.detail}` === 'done ' + a);
         }, 3000);
         return { ok, got: got.join(' ') || '(taken by the helper)' };
       };
