@@ -410,8 +410,18 @@ async function waitFor(fn, ms, step = 200) {
       const drain = async () => { const got = []; for (let r = await call('GET', '/poll'); r.startsWith('action:'); r = await call('GET', '/poll')) got.push(r); return got; };
       await drain();
       if (pw) await pw.click('.card[data-i="1"] [data-act="find"]');
-      const q1 = (await drain()).join(' ');
-      check('Find asks the helper to find that finding in PowerScribe', q1 === 'action:proof:find:7:1', q1);
+      // On Windows the real helper polls too and may take it first; then it
+      // reports it done. Either way the helper got exactly this request.
+      const reached = async (a) => {
+        let got = [];
+        const ok = await waitFor(async () => {
+          got = got.concat(await drain());
+          return got.includes('action:' + a) || (await rg((r) => r.events())).some((e) => e === 'done ' + a);
+        }, 3000);
+        return { ok, got: got.join(' ') || '(taken by the helper)' };
+      };
+      const q1 = await reached('proof:find:7:1');
+      check('Find asks the helper to find that finding in PowerScribe', q1.ok, q1.got);
       await call('POST', '/proofread-toast', 'Ready: Find What filled');
       const tst = pw ? await waitFor(async () => /Find What filled/.test(await pw.textContent('#toast')), 3000) : false;
       check('the helper\'s messages show in the window', !!tst);
@@ -420,8 +430,8 @@ async function waitFor(fn, ms, step = 200) {
       check('the window stays open while you work in it', stillOpen);
       if (stillOpen) await pw.keyboard.press('Escape').catch(() => {}); // the window closes mid-press
       await sleep(500);
-      const q2 = (await drain()).join(' ');
-      check('closing it tells the helper what was resolved (for the history)', q2 === 'action:proof:closed:7:1', q2);
+      const q2 = await reached('proof:closed:7:1');
+      check('closing it tells the helper what was resolved (for the history)', q2.ok, q2.got);
       check('Esc closes the proofread window', !app.windows().some((w) => w.url().includes('proofread')));
     }
 
