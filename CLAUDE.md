@@ -398,11 +398,24 @@ Send syntax (`{F4}`, `^{Space}`, `{;}`) by `KS.hotkeyToSend`.
 
 ### Tray
 
-**One tray icon.** The helper hides its own (`Menu, Tray, NoIcon`) when the
-hub started it (`RG_DATA_DIR` is set); run on its own it shows. Sina saw two
-RadGesture icons (2026-10-24). Its useful items are in the hub's tray (Show
-the Priors toolbar, Proofread history), and its TrayTips became `Toast`s,
-since AHK drops a TrayTip when the script has no tray icon.
+**One tray icon, one menu.** The helper hides its own (`Menu, Tray, NoIcon`)
+when the hub started it (`RG_DATA_DIR` is set); run on its own it shows. Sina
+saw two RadGesture icons (2026-10-24) and liked the hub's menu (modern look,
+Open the ring) over the helper's small old-style one, so everything the
+helper's menu had now lives in the hub's: **Prior checklist** submenu (show
+toolbar, add copied prior, make the checklist, empty), **AI** submenu (model,
+Test the API key, Proofread history, Last AI request, AI settings),
+**Advanced** (Restart the helper, open the settings file / folder). Helper
+items go through `helperDo()` (the bridge queue; `testkey` and `lastcall`
+are helper actions for this). The helper's TrayTips became `Toast`s, since
+AHK drops a TrayTip when the script has no tray icon.
+
+**Every RadGesture window comes to the front** (Sina, 2026-10-24: "the whole
+RadGesture was behind all other windows"). Started by hand (Start menu, a
+second launch, after an install), RadGesture opens Settings in front; started
+with Windows (login item registered with `--at-login`) it stays in the tray.
+The helper's history window is `+AlwaysOnTop` and activated, its message
+boxes are system-modal (4096 added), and Last AI request activates Notepad.
 
 **Settings comes to the front** (`bringToTop` in main.js): opened from the
 tray or the ring, a plain `show()` landed behind everything (Windows does
@@ -411,10 +424,12 @@ focused, and stays topmost while General > "Keep this window on top" is on
 (default, `menu.settingsOnTop`; Sina asked for it always on top). The
 proofread window and the reference viewer use the same call.
 
-Left-click: Settings. Right-click: Open the ring, Settings..., Edit rings...,
-AI tools..., Shortcuts..., helper state line (click to start it), close
-conflicting tools, Pause the ring, Start with Windows, Status and help...,
-Quit (also stops the helper).
+Left-click: Settings. Right-click: Open the ring; Settings..., Edit rings...,
+AI tools..., Shortcuts..., Functions..., Reference Library..., Add clipboard
+to the Reference Library; Prior checklist >, AI >; helper state line (click to
+start it), close conflicting tools, Pause the ring, Start with Windows,
+Status and help..., Advanced >; Quit (also stops the helper). The e2e hooks
+`trayLabels`/`clickTray` name submenu items "Parent > Item".
 
 ### The menu data (`config/default-menu.json` -> `%APPDATA%\RadGesture\menu.json`)
 

@@ -467,9 +467,9 @@ SetGui_Test:
     Gui, SetGui:+OwnDialogs
     res := PingClaude(testKey, testModel)
     if (res.ok)
-        MsgBox, 64, RadGesture - API Test, OK. Model "%testModel%" responded.
+        MsgBox, 4160, RadGesture - API Test, OK. Model "%testModel%" responded.
     else
-        MsgBox, 16, RadGesture - API Test, % "Failed:`n`n" . res.error
+        MsgBox, 4112, RadGesture - API Test, % "Failed:`n`n" . res.error
     return
 }
 
@@ -491,7 +491,7 @@ ProofreadActiveReport() {
     global g_ApiKey, g_StripHeader, g_ShowOnEmpty
 
     if (!HaveKey()) {
-        MsgBox, 48, RadGesture, No API key yet.`n`nPaste it in RadGesture Settings > AI tools (left-click the RadGesture tray icon).
+        MsgBox, 4144, RadGesture, No API key yet.`n`nPaste it in RadGesture Settings > AI tools (left-click the RadGesture tray icon).
         OpenAiSettings()
         return
     }
@@ -607,12 +607,16 @@ ShowLastApiCall() {
     reqPath  := g_DataDir . "\RadProofread_lastrequest.txt"
     respPath := g_DataDir . "\RadProofread_lastresponse.txt"
     if !FileExist(reqPath) {
-        MsgBox, 64, RadGesture, No API calls made yet this session.
+        MsgBox, 4160, RadGesture, No API calls made yet this session.
         return
     }
-    Run, notepad.exe "%reqPath%"
+    Run, notepad.exe "%reqPath%", , , reqPid
     Sleep, 200
-    Run, notepad.exe "%respPath%"
+    Run, notepad.exe "%respPath%", , , respPid
+    ; Started by a program in the background, Notepad would open behind.
+    WinWait, ahk_pid %respPid%, , 3
+    if !ErrorLevel
+        WinActivate, ahk_pid %respPid%
 }
 
 
@@ -621,7 +625,7 @@ ShowHistoryViewer() {
     global IE_HIST  ; ActiveX control variable must be global/static inside a function
 
     if !FileExist(HISTORY_PATH) {
-        MsgBox, 64, RadGesture, No history yet. Run a proofreading session to start logging.
+        MsgBox, 4160, RadGesture, No history yet. Run a proofreading session to start logging.
         return
     }
 
@@ -638,7 +642,7 @@ ShowHistoryViewer() {
     }
 
     if (sessions.Length() = 0) {
-        MsgBox, 64, RadGesture, History file is empty.
+        MsgBox, 4160, RadGesture, History file is empty.
         return
     }
 
@@ -731,7 +735,7 @@ ShowHistoryViewer() {
     FileAppend, %htmlDoc%, %htmlPath%, UTF-8
 
     Gui, HistGui:Destroy
-    Gui, HistGui:+Resize +LastFound -DPIScale
+    Gui, HistGui:+AlwaysOnTop +Resize +LastFound -DPIScale
     Gui, HistGui:Color, 1e1e1e
     Gui, HistGui:Margin, 0, 0
     Gui, HistGui:Add, ActiveX, x0 y0 w920 h600 vIE_HIST, Shell.Explorer
@@ -742,6 +746,7 @@ ShowHistoryViewer() {
     IE_HIST.Navigate("file:///" . StrReplace(htmlPath, "\", "/"))
 
     Gui, HistGui:Show, w920 h645, RadGesture - History
+    WinActivate, RadGesture - History
     return
 
 HistGui_Open:
@@ -840,14 +845,14 @@ PingClaude(apiKey, model) {
 TestApiKey() {
     global g_ApiKey, g_Model
     if (!HaveKey()) {
-        MsgBox, 48, RadGesture, No API key yet. Paste it in RadGesture Settings > AI tools.
+        MsgBox, 4144, RadGesture, No API key yet. Paste it in RadGesture Settings > AI tools.
         return
     }
     res := PingClaude(g_ApiKey, g_Model)
     if (res.ok)
-        MsgBox, 64, RadGesture - API Test, OK. Model "%g_Model%" responded.
+        MsgBox, 4160, RadGesture - API Test, OK. Model "%g_Model%" responded.
     else
-        MsgBox, 16, RadGesture - API Test, % "Failed:`n`n" . res.error
+        MsgBox, 4112, RadGesture - API Test, % "Failed:`n`n" . res.error
 }
 
 ; ----------------------------------------------------------------------------
@@ -3413,6 +3418,10 @@ RunHubAction(a) {
         OpenAiSettings()
     } else if (a = "history") {
         ShowHistoryViewer()
+    } else if (a = "testkey") {
+        TestApiKey()
+    } else if (a = "lastcall") {
+        ShowLastApiCall()
     } else if (SubStr(a, 1, 6) = "proof:") {
         ProofHubAction(a)
     } else if (SubStr(a, 1, 4) = "run:") {

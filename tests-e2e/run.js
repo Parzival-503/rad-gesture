@@ -84,7 +84,7 @@ async function waitFor(fn, ms, step = 200) {
 
     // ---------------- tray
     const labels = await rg((r) => r.trayLabels());
-    for (const l of ['Open the ring', 'Settings...', 'Edit rings...', 'AI tools...', 'Shortcuts...', 'Pause the ring', 'Start with Windows', 'Status and help...', 'Show the Priors toolbar', 'Proofread history...', 'Quit RadGesture']) {
+    for (const l of ['Open the ring', 'Settings...', 'Edit rings...', 'AI tools...', 'Shortcuts...', 'Pause the ring', 'Start with Windows', 'Status and help...', 'Prior checklist > Show the Priors toolbar', 'Prior checklist > Make the checklist', 'AI > Test the API key', 'AI > Proofread history...', 'Advanced > Restart the helper', 'Quit RadGesture']) {
       check(`tray has "${l}"`, labels.includes(l));
     }
 
@@ -684,6 +684,12 @@ async function waitFor(fn, ms, step = 200) {
         await runVia('prior:clear');
         await sleep(800);
         check('Empty the list empties the prior checklist', /No priors added yet/.test(await binText()));
+        // The same from RadGesture's tray (the helper has no tray icon of its own).
+        await app.evaluate(({ clipboard }, t) => clipboard.writeText(t), 'MR BRAIN, invented prior report: no acute findings.');
+        await rg((r) => r.clickTray('Prior checklist > Add copied prior'));
+        check('tray > Prior checklist > Add copied prior reaches the helper', await waitFor(async () => /1 prior added/.test(await binText()), 6000));
+        await rg((r) => r.clickTray('Prior checklist > Empty the list'));
+        await sleep(800);
       }
 
       const ahk = process.env.AHK_EXE;

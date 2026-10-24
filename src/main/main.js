@@ -25,6 +25,12 @@ const PREFERRED_PORT = 47811;
 const RELEASE_TIMEOUT_MS = 600;
 const HIDE_AFTER_PICK_MS = 170; // lets the ring's pick animation play
 const E2E = !!process.env.RG_E2E;
+// Started with Windows, RadGesture waits in the tray; started by hand (Start
+// menu, desktop, after an install) it shows its Settings window in front.
+const LOGIN_ARGS = ['--at-login'];
+const AT_LOGIN = process.argv.includes('--at-login');
+const loginOn = () => app.getLoginItemSettings({ args: LOGIN_ARGS }).openAtLogin;
+const setLogin = (on) => app.setLoginItemSettings({ openAtLogin: !!on, args: LOGIN_ARGS });
 
 if (process.env.RG_USER_DATA) app.setPath('userData', process.env.RG_USER_DATA);
 if (process.env.RG_SMOKE) app.disableHardwareAcceleration();
@@ -590,7 +596,7 @@ function fullStatus() {
     conflicts: lastConflicts,
     libHotkeys,
     libHotkeysWanted: libraryWanted(),
-    startAtLogin: process.platform === 'win32' ? app.getLoginItemSettings().openAtLogin : false,
+    startAtLogin: process.platform === 'win32' ? loginOn() : false,
     dataFolder: userDir(),
     events: events.slice(-15),
   };
@@ -728,13 +734,14 @@ function registerSettingsIpc() {
     const r = store.writeMenu(m);
     if (r.ok) {
       loadMenu();
-      if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: menu.startAtLogin !== false });
+      if (process.platform === 'win32') setLogin(menu.startAtLogin !== false);
       logEvent('menu-saved');
     }
     return r;
   });
   ipcMain.handle('rgs:save-ai', (_e, v) => {
     store.writeAI(v);
+    aiModelName = null;
     tellHelperToReload();
     logEvent('ai-saved');
     return { ok: true };
@@ -871,8 +878,27 @@ function trayTemplate() {
     { label: 'Functions...', click: () => openSettings('functions') },
     { label: 'Reference Library...', click: () => openSettings('references') },
     { label: 'Add clipboard to the Reference Library', click: () => addReferenceFromClipboard(true) },
-    { label: 'Show the Priors toolbar', enabled: h.connected, click: () => bridge.enqueue('prior:show') },
-    { label: 'Proofread history...', enabled: h.connected, click: () => bridge.enqueue('history') },
+    { type: 'separator' },
+    {
+      label: 'Prior checklist',
+      submenu: [
+        { label: 'Show the Priors toolbar', enabled: h.connected, click: () => helperDo('prior:show') },
+        { label: 'Add copied prior', enabled: h.connected, click: () => helperDo('prior:add') },
+        { label: 'Make the checklist', enabled: h.connected, click: () => helperDo('prior:checklist') },
+        { label: 'Empty the list', enabled: h.connected, click: () => helperDo('prior:clear') },
+      ],
+    },
+    {
+      label: 'AI',
+      submenu: [
+        { label: 'Model: ' + modelName(), enabled: false },
+        { label: 'Test the API key', enabled: h.connected, click: () => helperDo('testkey') },
+        { label: 'Proofread history...', enabled: h.connected, click: () => helperDo('history') },
+        { label: 'Last AI request (troubleshooting)', enabled: h.connected, click: () => helperDo('lastcall') },
+        { type: 'separator' },
+        { label: 'AI settings...', click: () => openSettings('ai') },
+      ],
+    },
     { type: 'separator' },
     helperLine,
     ...(lastConflicts.length ? [{ label: `Close ${lastConflicts.length} conflicting old tool(s)...`, click: () => openSettings('status') }] : []),
@@ -880,24 +906,51 @@ function trayTemplate() {
     {
       label: 'Start with Windows',
       type: 'checkbox',
-      checked: process.platform === 'win32' ? app.getLoginItemSettings().openAtLogin : false,
+      checked: process.platform === 'win32' ? loginOn() : false,
       click: (mi) => {
-        if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: mi.checked });
+        if (process.platform === 'win32') setLogin(mi.checked);
         menu.startAtLogin = mi.checked;
         store.writeMenu(menu);
       },
     },
     { label: 'Status and help...', click: () => openSettings('status') },
+    {
+      label: 'Advanced',
+      submenu: [
+        { label: 'Restart the helper', click: () => supervisor.restart() },
+        { label: 'Open the settings file', click: () => shell.openPath(path.join(userDir(), 'RadGesture.ini')) },
+        { label: 'Open the settings folder', click: () => shell.openPath(userDir()) },
+      ],
+    },
     { type: 'separator' },
     { label: 'Quit RadGesture', click: () => app.quit() },
   ];
+}
+
+// Tray items the helper carries out; it picks them up on its next poll.
+function helperDo(action) {
+  if (bridge) bridge.enqueue(action);
+}
+
+// The AI model's name for the tray; read again after AI settings are saved.
+let aiModelName = null;
+function modelName() {
+  if (aiModelName === null) {
+    try {
+      const m = store.readAI().model;
+      aiModelName = String(MODEL_LABELS[m] || m).replace(/\s*\(.*\)$/, '');
+    } catch (e) {
+      aiModelName = '-';
+    }
+  }
+  return aiModelName;
 }
 
 let trayKey = '';
 function updateTray() {
   if (!tray) return;
   const h = supervisor.status();
-  const key = `${h.connected}|${paused}|${lastConflicts.length}`;
+  const key = `${h.connected}|${paused}|${lastConflicts.length}|${modelName()}`;
   if (key === trayKey) return;
   trayKey = key;
   tray.setContextMenu(Menu.buildFromTemplate(trayTemplate()));
@@ -947,7 +1000,7 @@ app.whenReady().then(async () => {
   registerProofreadIpc();
   buildTray();
   setInterval(updateTray, 2000); // helper connected/disconnected shows in the tray
-  if (process.platform === 'win32') app.setLoginItemSettings({ openAtLogin: menu.startAtLogin !== false });
+  if (process.platform === 'win32') setLogin(menu.startAtLogin !== false);
   try { store.migrateIni(); } catch (e) { logEvent('error', 'ini migration: ' + e.message); }
   try { store.syncLibrary(); } catch (e) { logEvent('error', 'library settings: ' + e.message); }
   if ((!menu.helper || menu.helper.autoStart !== false) && !process.env.RG_NO_HELPER) supervisor.start();
@@ -958,6 +1011,8 @@ app.whenReady().then(async () => {
   if (!fs.existsSync(path.join(userDir(), 'welcomed')) && !E2E && !process.env.RG_SMOKE) {
     fs.writeFileSync(path.join(userDir(), 'welcomed'), new Date().toISOString());
     openSettings('status');
+  } else if (!AT_LOGIN && !E2E && !process.env.RG_SMOKE) {
+    openSettings('general');
   }
 
   if (E2E) {
@@ -971,9 +1026,9 @@ app.whenReady().then(async () => {
       },
       openRing: (mode = 'click') => openRing('', mode),
       hideRing: () => hideRing(),
-      trayLabels: () => trayTemplate().map((i) => i.label || '---'),
+      trayLabels: () => trayTemplate().flatMap((i) => [i.label || '---', ...(i.submenu || []).map((s) => (i.label + ' > ' + (s.label || '---')))]),
       clickTray: (label) => {
-        const it = trayTemplate().find((i) => i.label === label);
+        const it = trayTemplate().flatMap((i) => [i, ...(i.submenu || []).map((s) => Object.assign({}, s, { label: i.label + ' > ' + s.label }))]).find((i) => i.label === label);
         if (!it || !it.click) return false;
         it.click({ checked: !it.checked });
         return true;
