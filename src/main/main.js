@@ -564,6 +564,7 @@ function openSettings(tab = 'rings') {
     titleBarOverlay: process.platform === 'win32' ? { color: '#111318', symbolColor: '#c9cfdb', height: 40 } : false,
     webPreferences: { preload: path.join(__dirname, '..', 'settings', 'preload.js'), contextIsolation: true, sandbox: false },
   });
+  if (settingsOnTop()) settingsWin.setAlwaysOnTop(true);
   settingsWin.loadFile(path.join(__dirname, '..', 'settings', 'index.html'), { query: { tab } });
   settingsWin.once('ready-to-show', () => bringToTop(settingsWin, settingsOnTop()));
   settingsWin.on('closed', () => (settingsWin = null));
