@@ -92,6 +92,7 @@ async function waitFor(fn, ms, step = 200) {
     await rg((r) => r.clickTray('Settings...'));
     const win = await waitFor(async () => app.windows().find((w) => w.url().includes('settings')), 15000);
     check('tray > Settings... opens the Settings window', !!win);
+    if (win) win.on('pageerror', (e) => console.log('  [settings page error] ' + (e && e.stack || e)));
     await win.waitForFunction(() => window.__settingsReady === true, null, { timeout: 15000 });
     check('Settings opens above every other window', await waitFor(() => rg((r) => r.settingsOnTop()), 3000));
     await win.setViewportSize({ width: 1200, height: 780 }).catch(() => {});
@@ -235,6 +236,14 @@ async function waitFor(fn, ms, step = 200) {
     await win.screenshot({ path: path.join(SHOTS, 'settings-workflow.png') });
     await win.click('#nav button[data-tab="functions"]');
     await sleep(300);
+    const back = await win.evaluate(() => ({
+      h1: (document.querySelector('main h1') || {}).textContent,
+      view: (document.querySelector('#fnFilters .seg button.on') || {}).textContent,
+      entries: document.querySelectorAll('.libfn').length,
+      tiles: document.querySelectorAll('.fntile').length,
+      priors: !!document.getElementById('lib-PACS_Insert_Priors'),
+    }));
+    check('Functions keeps the Detailed view after another page', back.priors && back.entries === libDef.functions.length, JSON.stringify(back));
     await win.click('#lib-PACS_Insert_Priors button:has-text("Code")');
     await sleep(200);
     check('Functions shows a function\'s code', /Lib_InsertPriors/.test(await win.textContent('#lib-PACS_Insert_Priors .libcode')));
