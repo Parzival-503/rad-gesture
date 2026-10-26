@@ -37,7 +37,12 @@ test('PowerScribe opens the AI ring first, anything else the first ring (PACS)',
 
 test('every icon in the default menu exists in the bundled icon font', () => {
   const symbols = new Set(JSON.parse(fs.readFileSync(path.join(root, 'assets/fonts/material-symbols-names.json'), 'utf8')));
-  const names = { has: (n) => ['text', 'grid'].includes(RGIcons.resolve(n).kind) || symbols.has(RGIcons.resolve(n).value) };
+  const tabler = require(path.join(root, 'assets/fonts/tabler-map.js'));
+  const names = { has: (n) => {
+    const r = RGIcons.resolve(n);
+    if (r.kind === 'tabler') return !!tabler[r.value];
+    return ['text', 'grid'].includes(r.kind) || symbols.has(r.value);
+  } };
   for (const c of menu.categories) {
     assert.ok(names.has(c.icon), `category icon ${c.icon}`);
     walk(c.items, (it) => assert.ok(names.has(it.icon), `icon "${it.icon}" for ${it.name}`));

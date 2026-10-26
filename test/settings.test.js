@@ -306,3 +306,18 @@ test('every previous/next pair the app ships uses one matching pair of icons', (
     assert.strictEqual(PAIRS[p.icon], n.icon, `${p.name} (${p.icon}) and ${n.name} (${n.icon}) are one pair`);
   }
 });
+
+test('Orthogonal gets the L-shaped ruler in place of a shipped grid icon, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-ortho-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const measure = (menu) => menu.categories.find((c) => c.id === 'pacs').items.find((i) => i.name === 'Measure').items;
+  measure(m).find((i) => i.name === 'Orthogonal').icon = 'grid';
+  measure(m).find((i) => i.name === 'Distance').icon = 'grid'; // not Orthogonal: stays
+  m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid', 'layout-grid-three', 'nav-pairs'];
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const got = measure(store.readMenu());
+  assert.strictEqual(got.find((i) => i.name === 'Orthogonal').icon, 'ti:ruler');
+  assert.strictEqual(got.find((i) => i.name === 'Distance').icon, 'grid');
+});

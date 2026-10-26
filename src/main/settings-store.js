@@ -325,6 +325,19 @@ function migrate(m, lib) {
     done.push('nav-pairs');
     changed = true;
   }
+  if (!done.includes('orthogonal-ruler')) {
+    // Orthogonal measures two distances at 90 degrees: its icon is the
+    // L-shaped ruler, in place of any icon we shipped for it before (a grid,
+    // a cube, a set square).
+    const walk = (items) => (items || []).forEach((it) => {
+      if (Array.isArray(it.items)) return walk(it.items);
+      const ortho = it.action === 'helper:lib:PACS_Orthogonal' || it.action === 'helper:keys:!o' || it.action === 'helper:keys:^!o' || /^orthogonal$/i.test(String(it.name || '').trim());
+      if (ortho && ['grid', 'grid_view', 'view_in_ar', 'square_foot'].includes(it.icon)) it.icon = 'ti:ruler';
+    });
+    m.categories.forEach((c) => walk(c.items));
+    done.push('orthogonal-ruler');
+    changed = true;
+  }
   if (changed) m.migrated = done;
   return changed;
 }

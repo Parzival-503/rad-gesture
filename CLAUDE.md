@@ -462,7 +462,10 @@ saved rings press the keys (`helper:keys:^!k`) instead of running the
 function. It finds each previous/next direction by function, key or name and
 replaces any icon we ever shipped with the pair's. A test checks every
 previous/next pair in the default menu and library.json is one matching
-pair (skip, fast, tab).
+pair (skip, fast, tab). `orthogonal-ruler`: Orthogonal measures two
+distances at 90 degrees, so its icon is Tabler's L-shaped `ti:ruler` (Sina
+saw four squares: the first builds shipped `grid`); shipped icons for it
+(grid, grid_view, view_in_ar, square_foot) are replaced.
 
 ### Helper notes
 

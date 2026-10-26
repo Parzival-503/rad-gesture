@@ -56,7 +56,7 @@
             },
             {
               "name": "Orthogonal",
-              "icon": "square_foot",
+              "icon": "ti:ruler",
               "action": "helper:lib:PACS_Orthogonal"
             },
             {
