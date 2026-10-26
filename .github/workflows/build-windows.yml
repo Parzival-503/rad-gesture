@@ -53,10 +53,19 @@ jobs:
           retention-days: 14
 
   windows:
-    name: Windows - helper check, build, real-key end-to-end
+    name: Windows - helper check, build, real-key end-to-end (${{ matrix.variant }})
     needs: checks
     runs-on: windows-2022
     timeout-minutes: 25
+    # Temporary: the same test three ways on three machines, to find what
+    # freezes the Windows machine. Only "full" installs and publishes.
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [full, no-panels, skip-panel-checks]
+    env:
+      RG_NO_PANELS: ${{ matrix.variant == 'no-panels' && '1' || '' }}
+      RG_E2E_SKIP_PANELS: ${{ matrix.variant == 'skip-panel-checks' && '1' || '' }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -163,12 +172,19 @@ jobs:
             $bmp.Save("$PWD\e2e-shots\hang-screen.png")
             Get-Process | Where-Object { $_.ProcessName -match 'RadGesture|AutoHotkey|node|notepad|electron' } | Format-Table Id, ProcessName, CPU, WorkingSet64, MainWindowTitle -AutoSize | Out-String -Width 200 | Write-Host
             taskkill /F /T /PID $p.Id 2>$null
-            Get-Process RadGesture, RadGestureHelper, AutoHotkeyU64, notepad -ErrorAction SilentlyContinue | Stop-Process -Force
-            exit 1
           }
+          # Anything still running would hold this step open (that is how a
+          # finished test once ran out the job's clock): list it, end it.
+          $left = Get-Process RadGesture, RadGestureHelper, AutoHotkeyU64, notepad -ErrorAction SilentlyContinue
+          if ($left) {
+            Write-Host "::warning::still running after the test: $($left.ProcessName -join ', ')"
+            $left | Stop-Process -Force
+          }
+          if (-not $done) { exit 1 }
           exit $p.ExitCode
 
       - name: Install over a running copy, then uninstall it while running
+        if: matrix.variant == 'full'
         shell: pwsh
         timeout-minutes: 10
         run: ./tests-e2e/installer.ps1
@@ -177,12 +193,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-screenshots-windows
+          name: e2e-screenshots-windows-${{ matrix.variant }}
           path: e2e-shots/
           if-no-files-found: ignore
           retention-days: 14
 
       - name: Upload the installer + portable zip
+        if: matrix.variant == 'full'
         uses: actions/upload-artifact@v7
         with:
           name: RadGesture-Windows
@@ -193,6 +210,7 @@ jobs:
           retention-days: 30
 
       - name: Publish to the "radgesture-latest" release (fixed download link)
+        if: matrix.variant == 'full'
         uses: svenstaro/upload-release-action@2.11.5
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -209,10 +227,12 @@ jobs:
           file: dist/RadGesture-Setup.exe
 
       - name: Publish the portable zip too (fixed link, nothing to install)
+        if: matrix.variant == 'full'
         shell: pwsh
         run: Copy-Item (Get-ChildItem dist\RadGesture-*-win-x64.zip | Select-Object -First 1).FullName dist\RadGesture-portable.zip
 
       - name: Upload the portable zip to "radgesture-latest"
+        if: matrix.variant == 'full'
         uses: svenstaro/upload-release-action@2.11.5
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}

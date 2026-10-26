@@ -198,6 +198,8 @@ function createPanels({ BrowserWindow, screen, ipcMain, clipboard, userDir, them
   return {
     handle,
     hideAll: () => Object.keys(wins).forEach(hide),
+    // Quitting: close them outright, so none can hold the app open.
+    destroyAll: () => Object.keys(wins).forEach((m) => { if (alive(m)) wins[m].destroy(); }),
     retheme: () => Object.keys(wins).forEach((m) => { if (alive(m) && wins[m].isVisible()) wins[m].webContents.send('rgpn:data', payload(m)); }),
     // e2e
     windows: () => Object.fromEntries(Object.keys(wins).filter(alive).map((m) => [m, wins[m].isVisible()])),

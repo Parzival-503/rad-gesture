@@ -575,6 +575,7 @@ async function waitFor(fn, ms, step = 200) {
       // The helper's small windows, drawn by the hub: the toolbar, a result
       // card with a tick-off checklist, the one-liner picker and a toast.
       // Their buttons must reach the helper's queue.
+      if (!process.env.RG_NO_PANELS && !process.env.RG_E2E_SKIP_PANELS) {
       const panel = (m) => waitFor(async () => app.windows().find((w) => w.url().includes('panel') && w.url().includes('mode=' + m)), 6000);
       const tbShown = await call('POST', '/ui', JSON.stringify({ t: 'toolbar', visible: true,
         priors: [{ peek: '3/14/2025  CT CHEST WITH CONTRAST' }, { peek: '1/5/2024  CT CHEST WITHOUT CONTRAST' }], chart: [{ peek: 'Oncology note: invented example, stage II.' }] }));
@@ -642,6 +643,7 @@ async function waitFor(fn, ms, step = 200) {
       await call('POST', '/ui', JSON.stringify({ t: 'toolbar', visible: false }));
       await call('POST', '/ui', JSON.stringify({ t: 'card-close' }));
       await call('POST', '/ui', JSON.stringify({ t: 'toast-hide' }));
+      }
     }
 
     // The ring editor offers Library functions, with the key note.
@@ -971,7 +973,14 @@ async function waitFor(fn, ms, step = 200) {
   } finally {
     let helperPid = null;
     try { helperPid = (await rg((r) => r.status())).helper.pid; } catch (_) {}
-    await app.close().catch(() => {});
+    // Never wait forever for the app to quit: a RadGesture that stays running
+    // also kept the CI step open with no log.
+    const quit = await Promise.race([app.close().then(() => true, () => true), sleep(15000).then(() => false)]);
+    check('RadGesture quits when asked (within 15 s)', quit);
+    if (!quit) {
+      try { app.process().kill(); } catch (_) {}
+      if (WIN) for (const im of ['RadGesture.exe', 'RadGestureHelper.exe']) try { execFileSync('taskkill', ['/F', '/T', '/IM', im], { timeout: 15000 }); } catch (_) {}
+    }
     if (WIN && helperPid) {
       await sleep(1500);
       let alive = false;
@@ -983,5 +992,7 @@ async function waitFor(fn, ms, step = 200) {
   const failed = results.filter((r) => !r.ok);
   fs.writeFileSync(path.join(SHOTS, 'results.json'), JSON.stringify(results, null, 2));
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
+  // Nothing left behind to hold the CI step open.
+  if (WIN) for (const im of ['notepad.exe', 'RadGesture.exe', 'RadGestureHelper.exe']) try { execFileSync('taskkill', ['/F', '/T', '/IM', im], { timeout: 15000, stdio: 'ignore' }); } catch (_) {}
   process.exit(failed.length ? 1 : 0);
 })();

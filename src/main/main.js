@@ -1099,7 +1099,8 @@ app.whenReady().then(async () => {
     log: (m) => logEvent('helper', m),
   });
   const bridgeInfo = await startBridge();
-  panels = createPanels({ BrowserWindow, screen, ipcMain, clipboard, userDir, theme: () => menu && menu.theme, enqueue: (id) => bridge.enqueue(id), log: logEvent });
+  // RG_NO_PANELS: the helper keeps its own windows (a CI comparison run).
+  if (!process.env.RG_NO_PANELS) panels = createPanels({ BrowserWindow, screen, ipcMain, clipboard, userDir, theme: () => menu && menu.theme, enqueue: (id) => bridge.enqueue(id), log: logEvent });
   registerSettingsIpc();
   registerViewerIpc();
   registerProofreadIpc();
@@ -1151,4 +1152,10 @@ app.whenReady().then(async () => {
 
 app.on('second-instance', () => openSettings('general'));
 app.on('window-all-closed', (e) => e.preventDefault()); // tray app: keep running
-app.on('before-quit', () => supervisor && supervisor.stop());
+app.on('before-quit', () => {
+  supervisor && supervisor.stop();
+  if (panels) panels.destroyAll();
+  // Quit always finishes: a window that will not close must never leave
+  // RadGesture running half-quit (Setup then cannot replace it).
+  setTimeout(() => app.exit(0), 3000);
+});
