@@ -150,6 +150,16 @@ global g_HubToken        := ""
 global g_RingOpen        := false
 global g_HubLastErr      := ""    ; why the last HubRequest got no answer
 
+; Proofread windows (the old built-in one, and RadGesture's).
+global g_PopupFlags := []   ; flags backing the currently-open popup
+global g_PopupHwnd  := 0    ; HWND of the PowerScribe window we copied from
+global g_FindBusy   := false ; true while a Find action is in progress
+global g_ResolvedMap := {}  ; idx -> bool, tracks user "resolved" checkbox state
+global g_PopupReport := ""  ; report text for the currently-open popup (for logging on close)
+global g_ProofHub := false  ; true while RadGesture's own proofread window shows the results
+global g_ProofSeq := 0      ; which proofread the hub window shows (its messages carry it)
+global g_ProofSessions := {} ; seq -> {report, flags}, until the hub says the window closed
+
 FileCreateDir, %g_DataDir%
 MigrateOldSettings()
 LoadSettings()
@@ -1449,14 +1459,8 @@ ExtractJsonString(obj, key) {
 ; ----------------------------------------------------------------------------
 ; Results popup (HTML / IE ActiveX) -- with interactive flag actions
 ; ----------------------------------------------------------------------------
-global g_PopupFlags := []   ; flags backing the currently-open popup
-global g_PopupHwnd  := 0    ; HWND of the PowerScribe window we copied from
-global g_FindBusy   := false ; true while a Find action is in progress
-global g_ResolvedMap := {}  ; idx -> bool, tracks user "resolved" checkbox state
-global g_PopupReport := ""  ; report text for the currently-open popup (for logging on close)
-global g_ProofHub := false  ; true while RadGesture's own proofread window shows the results
-global g_ProofSeq := 0      ; which proofread the hub window shows (its messages carry it)
-global g_ProofSessions := {} ; seq -> {report, flags}, until the hub says the window closed
+; (The proofread window's globals are set up at the top of the script: an
+; assignment down here, after the start-up section, would never run.)
 
 ShowProofreadPopup(reportText, flags) {
     global IE  ; ActiveX control variable must be global/static inside a function

@@ -537,6 +537,30 @@ def check_autoexec_truncated(lines):
         return []
     return [(first_hk + 1, lines[first_hk].strip()[:60], stranded)]
 
+def check_late_global_init(lines):
+    """A top-level `global x := value` after the auto-execute section never
+    runs: AHK v1 makes the variable global but skips the assignment, so x
+    stays "" (and `{}` / `[]` are never objects). The proofread counter
+    `global g_ProofSeq := 0` sat there; "" + 1 is "" in AHK v1, so every
+    hand-off to RadGesture's window sent `{"seq":,...}` and fell back to the
+    old window. Initialise globals at the top.
+    """
+    end = None
+    for idx, raw in enumerate(lines):
+        if raw == 'return' or HOTKEY_DEF_RE.match(raw):
+            end = idx
+            break
+    if end is None:
+        return []
+    # Top level = not indented (lines inside a function are, in this script;
+    # counting braces is fooled by braces inside strings like "{""seq"":").
+    out = []
+    for idx in range(end + 1, len(lines)):
+        raw = lines[idx]
+        if re.match(r'^global\s+[A-Za-z_]\w*\s*:=', raw):
+            out.append((idx + 1, raw.strip()[:70]))
+    return out
+
 # ---- RadProofread-specific checks ------------------------------------------
 
 KEYISH_RE = re.compile(r'"[^"]*(?:sk-ant-[A-Za-z0-9]+-[A-Za-z0-9_\-]{8,}|[A-Za-z0-9_\-]{40,})[^"]*"')
@@ -733,6 +757,15 @@ def main():
             print(f"  L{ln}: {msg}  |  {src}")
     else:
         print("[ok] braces balanced")
+
+    lg = check_late_global_init(lines)
+    if lg:
+        ok = False
+        print(f"\n[FAIL] global initialised after the auto-execute section: the value is never set ({len(lg)}):")
+        for ln, src in lg:
+            print(f"  L{ln}: {src}")
+    else:
+        print("[ok] no globals initialised after the auto-execute section")
 
     ug, mixedg = check_undeclared_globals(lines)
     if ug:

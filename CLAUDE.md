@@ -553,6 +553,14 @@ saw four squares: the first builds shipped `grid`); shipped icons for it
   helper polls every 150 ms while the window is open so Find feels instant.
   Helper toasts go to `/proofread-toast`. Keys: arrows, Enter = Find,
   C = copy fix, Space = resolve, Esc. The e2e drives it over the bridge.
+  **It never reached Sina until 2026-10-26**: `global g_ProofSeq := 0` sat
+  below the auto-execute section, so it never ran; "" + 1 is "" in AHK v1,
+  every hand-off sent `{"seq":,...}`, the hub answered "bad json" and the
+  helper showed its old IE window. The globals now sit at the top,
+  `ahk_check.py` fails on a top-level `global x := ...` after the
+  auto-execute section, and the Windows e2e runs the REAL path
+  (`proof:demo`: invented report with a tab, x, mu, an em dash, curly
+  quotes). A failed hand-off is logged as `proof-fallback:<why>` in Status.
 - `WinHttp.SetProxy(1)`: a hospital WinHTTP proxy must not swallow localhost.
 - **PowerScribe pick lists**: the helper CHANGES PowerScribe only by
   PostMessage, and asks the pick lists read-only questions
