@@ -122,7 +122,7 @@ const shots = path.join(__dirname, 'shots');
   await shot('8-phone');
 
   // 8b. Ring left open after a tap: moving past a direction that holds more
-  // opens it (Sina's default); with passOpens off it waits for a click.
+  // opens it (the default); with passOpens off it waits for a click.
   await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.waitForTimeout(300);

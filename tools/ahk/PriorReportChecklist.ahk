@@ -1,4 +1,4 @@
-; SPDX-FileCopyrightText: Sina Mazaheri
+; SPDX-FileCopyrightText: Avicina Studio
 ; SPDX-License-Identifier: MIT
 ;
 ; PriorReportChecklist.ahk

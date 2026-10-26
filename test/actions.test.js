@@ -10,8 +10,8 @@ test('helper and url actions pass through', () => {
 });
 
 test('file paths expand %VARS% case-insensitively', () => {
-  const r = resolveAction('file:%USERPROFILE%\\Documents', { env: { UserProfile: 'C:\\Users\\sina' } });
-  assert.deepStrictEqual(r, { kind: 'file', value: 'C:\\Users\\sina\\Documents' });
+  const r = resolveAction('file:%USERPROFILE%\\Documents', { env: { UserProfile: 'C:\\Users\\reader' } });
+  assert.deepStrictEqual(r, { kind: 'file', value: 'C:\\Users\\reader\\Documents' });
 });
 
 test('search fills copied text, trimmed and capped', () => {

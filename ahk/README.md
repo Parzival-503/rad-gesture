@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: Sina Mazaheri <mazaheri.sina@gmail.com>
+SPDX-FileCopyrightText: Avicina Studio
 SPDX-License-Identifier: MIT
 -->
 

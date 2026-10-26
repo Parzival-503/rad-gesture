@@ -299,3 +299,12 @@ test('the one-liner\'s chart bin: on the One-liner ring, and added to saved ring
   assert.ok(ahk.includes('ChartClear(true)'), 'the bin empties itself after a one-liner');
   assert.ok(/ChartExpireCheck\(\)\s*\n\s*if \(g_Chart\.Length\(\) > 0\)/.test(ahk), 'and expires when idle, like the priors');
 });
+
+test('the app is published as Avicina Studio, never a person', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.strictEqual(pkg.author, 'Avicina Studio', 'Windows shows this as the Publisher in Installed apps');
+  assert.match(pkg.build.copyright, /Avicina Studio/);
+  for (const t of [pkg.description, pkg.build.copyright, fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8')]) {
+    assert.ok(!/\bSina\b|Mazaheri/i.test(t), 'names a person: ' + t.slice(0, 80));
+  }
+});

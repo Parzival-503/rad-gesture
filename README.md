@@ -1,6 +1,6 @@
 # RadGesture
 
-Sina's radiology tool hub. Hold **Ctrl+CapsLock** anywhere: a ring opens at the
+A radiology tool hub. Hold **Ctrl+CapsLock** anywhere: a ring opens at the
 mouse. Flick toward a tool and let go, or tap and click.
 
 - **AI Tools**: Proofread, Impression, One-liner (4 flavors; collect several parts of a chart first with **Add chart text**, the bin empties itself after), Priors checklist

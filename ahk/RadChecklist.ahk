@@ -1,4 +1,4 @@
-; SPDX-FileCopyrightText: Sina Mazaheri <mazaheri.sina@gmail.com>
+; SPDX-FileCopyrightText: Avicina Studio
 ; SPDX-License-Identifier: MIT
 ;
 ; RadChecklist - turns a prior radiology report (built for FDG PET/CT) into a
@@ -530,7 +530,7 @@ EditSettings() {
 WriteDefaultIni(path) {
     FileAppend("
 (
-; SPDX-FileCopyrightText: Sina Mazaheri <mazaheri.sina@gmail.com>
+; SPDX-FileCopyrightText: Avicina Studio
 ; SPDX-License-Identifier: MIT
 
 [api]

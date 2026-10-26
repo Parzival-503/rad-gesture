@@ -290,6 +290,13 @@ who wanted it, which old script it came from, or "Change:" notes. Backstory
 belongs here in CLAUDE.md. `test/library.test.js` fails on "Sina", old
 version dates, "; Change:" or work links in shipped files.
 
+**Published as Avicina Studio** (Sina, 2026-10-26: he does not want his name
+as the author in Windows' installed-programs list). `package.json` author
+(Windows' Publisher and the exe's company), `build.copyright`, the
+description, README and the old scripts' SPDX lines say Avicina Studio;
+`test/library.test.js` fails if a person's name comes back there. Git history
+still carries the old name.
+
 **Names people see** (Sina, 2026-10-23): this page is **Functions** ("the
 function collection"), never "Library": a library is reading material. The
 ring of reading material is the **Reference Library** (it was "Gallery";

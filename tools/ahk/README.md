@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: Sina Mazaheri
+SPDX-FileCopyrightText: Avicina Studio
 SPDX-License-Identifier: CC-BY-4.0
 -->
 

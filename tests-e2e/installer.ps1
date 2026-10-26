@@ -1,5 +1,5 @@
 # Installer / uninstaller test on the Windows build machine.
-# Sina hit "RadGesture cannot be closed. Please close it manually" both when
+# Users hit "RadGesture cannot be closed. Please close it manually" both when
 # installing over a running copy and when uninstalling. This runs both while
 # the app (and its helper) are running, with the silent installer, where
 # that dialog's default answer is Cancel, so a failure shows as "did not
@@ -32,7 +32,7 @@ Check 'app and helper running' ($running.Count -ge 2)
 
 # 3. The polite way the installer now closes it: POST /quit over the bridge.
 #    (Works even when RadGesture runs as administrator and Setup does not,
-#    which is what produced "RadGesture cannot be closed" on Sina's PC.)
+#    which is what produced "RadGesture cannot be closed" on a workstation.)
 $ini = Get-Content (Join-Path $env:APPDATA 'RadGesture\bridge.ini')
 $port = (($ini | ? { $_ -like 'Port=*' }) -replace 'Port=', '').Trim()
 $tok = (($ini | ? { $_ -like 'Token=*' }) -replace 'Token=', '').Trim()
