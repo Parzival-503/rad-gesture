@@ -131,8 +131,6 @@ These run inside RadGesture (Rad Optimizer is not needed). The key is what the f
 | PACS > Enhance > Enhance | Enhance | Alt+E |
 | PACS > Enhance > Sharpen | Sharpen | Alt+B |
 | PACS > Insert priors | Insert priors into Comparison | Ctrl+P |
-| PACS > PowerScribe > Previous field | Previous field | Shift+Tab |
-| PACS > PowerScribe > Next field | Next field | Tab |
 | Apps > Epic | Epic | - |
 | Apps > Teams | Teams | - |
 | Apps > Chrome tabs | Open my websites | - |

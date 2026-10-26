@@ -12,13 +12,16 @@ const menu = JSON.parse(read('config/default-menu.json'));
 // opens on it (the shipped menu starts on PACS).
 const aiAt = menu.categories.findIndex((c) => c.id === 'ai');
 if (aiAt > 0) menu.categories.unshift(menu.categories.splice(aiAt, 1)[0]);
-const js = ['src/common/menu.js', 'src/common/themes.js', 'src/renderer/geometry.js', 'src/renderer/icons.js', 'src/renderer/ring.js', 'src/renderer/demo.js']
+const js = ['assets/fonts/tabler-map.js', 'src/common/menu.js', 'src/common/themes.js', 'src/renderer/geometry.js', 'src/renderer/icons.js', 'src/renderer/ring.js', 'src/renderer/demo.js']
   .map((p) => `/* ${p} */\n${read(p)}`)
   .join('\n');
 
-// The icon font goes in as a data URI so the page works as a single file.
+// The icon fonts go in as data URIs so the page works as a single file.
 const fontB64 = fs.readFileSync(path.join(root, 'assets/fonts/material-symbols-rounded.woff2')).toString('base64');
-const css = read('src/renderer/ring.css').replace("url('../../assets/fonts/material-symbols-rounded.woff2')", `url(data:font/woff2;base64,${fontB64})`);
+const tablerB64 = fs.readFileSync(path.join(root, 'assets/fonts/tabler-icons.woff2')).toString('base64');
+const css = read('src/renderer/ring.css')
+  .replace("url('../../assets/fonts/material-symbols-rounded.woff2')", `url(data:font/woff2;base64,${fontB64})`)
+  .replace("url('../../assets/fonts/tabler-icons.woff2')", `url(data:font/woff2;base64,${tablerB64})`);
 
 const page = `<!doctype html>
 <html lang="en">

@@ -352,6 +352,42 @@ function migrate(m, lib) {
     done.push('openevidence-search');
     changed = true;
   }
+  if (!done.includes('pacs-no-fields')) {
+    // Previous / Next field are PowerScribe keys, not PACS tools: they leave
+    // the PACS ring and keep working from their shortcuts. Anything else the
+    // person put in that smaller ring stays.
+    const pacs = m.categories.find((c) => c.id === 'pacs');
+    const field = (it) => ['helper:lib:PS_PrevField', 'helper:lib:PS_NextField', 'helper:keys:^!v', 'helper:keys:^!f'].includes(it.action) ||
+      /^(previous|next) field$/i.test(String(it.name || '').trim());
+    if (pacs) {
+      pacs.items = (pacs.items || []).filter((it) => {
+        if (!(it.name === 'PowerScribe' && Array.isArray(it.items))) return true;
+        it.items = it.items.filter((x) => !field(x));
+        return it.items.length > 0;
+      });
+    }
+    done.push('pacs-no-fields');
+    changed = true;
+  }
+  if (!done.includes('organ-icons')) {
+    // Window / level presets show their organ (stomach, bone, brain), and
+    // the oncologic one-liner the cancer ribbon. Only icons we shipped change.
+    const icons = [
+      { acts: ['helper:lib:PACS_WL_SoftTissue'], name: /^soft tissue$/i, from: ['contrast'], icon: 'gastroenterology' },
+      { acts: ['helper:lib:PACS_WL_Bone'], name: /^bone$/i, from: ['skeleton'], icon: 'ti:bone' },
+      { acts: ['helper:lib:PACS_WL_Brain'], name: /^brain$/i, from: ['neurology'], icon: 'ti:brain' },
+      { acts: ['helper:lib:PACS_WL_Stroke'], name: /^stroke$/i, from: ['emergency'], icon: 'ti:brain' },
+      { acts: ['helper:oneliner:oncologic'], name: /^oncologic$/i, from: ['oncology', 'target'], icon: 'ti:ribbon-health' },
+    ];
+    const walk = (items) => (items || []).forEach((it) => {
+      if (Array.isArray(it.items)) return walk(it.items);
+      const k = icons.find((x) => x.acts.includes(it.action) || (x.name.test(String(it.name || '').trim()) && /^helper:/.test(it.action || '')));
+      if (k && k.from.includes(it.icon)) it.icon = k.icon;
+    });
+    m.categories.forEach((c) => walk(c.items));
+    done.push('organ-icons');
+    changed = true;
+  }
   if (changed) m.migrated = done;
   return changed;
 }

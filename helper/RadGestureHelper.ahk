@@ -108,6 +108,7 @@ global g_ChartLast       := ""   ; A_Now of the last add
 global g_ChartAddHotkey  := ""   ; optional (Settings > Shortcuts)
 global g_BoundChartAdd   := ""
 global g_FromChart       := false ; the one-liner being made came from the bin
+global g_ChartAskHwnd    := 0     ; the "empty the chart text?" box, while shown
 
 ; One-liner and impression helper.
 global g_OneLinerHotkey  := "^!u" ; Ctrl+Alt+U
@@ -2283,6 +2284,16 @@ PriorBin_ChartAdd:
     ChartAdd()
 return
 
+ChartAsk_Empty:
+    ChartAskClose()
+    ChartClear()
+return
+
+ChartAsk_Keep:
+    ChartAskClose()
+    Notify("Chart text kept. Empty it from the toolbar or the ring when done.", 2500)
+return
+
 PriorBin_ChartClear:
     ChartClear()
 return
@@ -2295,7 +2306,7 @@ return
 ; Copy a part of the chart (note, path report, oncology history...), press
 ; "+ Add chart text" (toolbar, ring or its shortcut); repeat for each part.
 ; The next One-liner (any kind) is made from all of them together, in the
-; order added, and the bin then empties itself. Nothing is sent anywhere
+; order added, and then a box asks whether to empty the bin. Nothing is sent anywhere
 ; until the one-liner is made.
 ChartExpireCheck() {
     global g_Chart, g_ChartLast, g_PriorExpireMin
@@ -2313,6 +2324,7 @@ ChartExpireCheck() {
 
 ChartAdd() {
     global g_Chart, g_ChartLast
+    ChartAskClose()
     expired := ChartExpireCheck()
     text := Trim(Clipboard, " `t`r`n")
     if (StrLen(text) < 10) {
@@ -2337,6 +2349,7 @@ ChartAdd() {
 
 ChartClear(quiet := false) {
     global g_Chart, g_ChartLast
+    ChartAskClose()
     g_Chart := []
     g_ChartLast := ""
     UpdatePriorBin()
@@ -2691,6 +2704,7 @@ Trigger_OneLiner() {
     g_Busy := true
 
     ; Chart pieces collected? Then the one-liner is made from them (no copy).
+    ChartAskClose()
     g_FromChart := false
     ChartExpireCheck()
     if (g_Chart.Length() > 0) {
@@ -3016,15 +3030,53 @@ RunFlavor(flavor) {
     ; Success: replace clipboard with the one-liner
     Clipboard := StripPreamble(result.text)
     if (g_FromChart) {
-        ; Made from the chart bin: empty it, so the next patient starts clean.
-        ChartClear(true)
+        ; Made from the chart bin: ask before emptying it, since the same
+        ; pieces may be wanted for another kind of one-liner.
         g_FromChart := false
-        Toast(Chr(0x2713) . " Copied (" . FlavorLabel(flavor) . "); chart bin emptied", "ok")
+        Toast(Chr(0x2713) . " Copied (" . FlavorLabel(flavor) . ")", "ok")
+        ChartAskEmpty()
     } else
         Toast(Chr(0x2713) . " Copied (" . FlavorLabel(flavor) . ")", "ok")
     g_Busy := false
     g_PendingText := ""
     g_SavedClip := ""  ; we kept the one-liner; don't restore old content later
+}
+
+; After a one-liner made from the chart pieces: a small box above the toast
+; asks whether to empty them. It never takes focus (the one-liner can be
+; pasted while it shows), stays until answered, and closes (keeping the
+; pieces) when more chart text is added or another one-liner starts.
+ChartAskEmpty() {
+    global g_Chart, g_ChartAskHwnd
+    ChartAskClose()
+    n := g_Chart.Length()
+    if (n = 0)
+        return
+    Gui, ChartAsk:+AlwaysOnTop -Caption +ToolWindow +E0x08000000 +LastFound +HwndAskHwnd
+    Gui, ChartAsk:Color, 1e1e1e
+    Gui, ChartAsk:Font, s10 cE6E6E6, Segoe UI
+    Gui, ChartAsk:Margin, 14, 10
+    Gui, ChartAsk:Add, Progress, w280 h2 c3a7bd5 Background3a7bd5, 100
+    msg := "Empty the chart text (" . n . " piece" . (n = 1 ? "" : "s") . ") for the next patient?"
+    Gui, ChartAsk:Add, Text, xm y+8 w280, %msg%
+    Gui, ChartAsk:Add, Button, xm y+10 w136 h28 gChartAsk_Empty, Empty it
+    Gui, ChartAsk:Add, Button, x+8 w136 h28 gChartAsk_Keep, Keep for another
+    g_ChartAskHwnd := AskHwnd
+    SysGet, MonW, 16
+    SysGet, MonH, 17
+    Gui, ChartAsk:Show, x%MonW% y%MonH% NoActivate AutoSize, RadGesture Chart text
+    WinGetPos,,, aw, ah, ahk_id %AskHwnd%
+    newX := MonW - aw - 20
+    newY := MonH - ah - 150
+    WinMove, ahk_id %AskHwnd%,, %newX%, %newY%
+}
+
+ChartAskClose() {
+    global g_ChartAskHwnd
+    if (g_ChartAskHwnd) {
+        Gui, ChartAsk:Destroy
+        g_ChartAskHwnd := 0
+    }
 }
 
 FlavorLabel(flavor) {

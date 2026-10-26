@@ -9,6 +9,16 @@ const { classify } = require('../src/main/conflicts');
 const { createStore, MODELS } = require('../src/main/settings-store');
 const { createBridge } = require('../src/main/bridge');
 
+
+// The PACS ring's PowerScribe smaller ring, as builds before pacs-no-fields
+// shipped it (older menus are built from the default menu plus this).
+const withPS = (m) => {
+  m.categories.find((c) => c.id === 'pacs').items.push({ name: 'PowerScribe', icon: 'mic', items: [
+    { name: 'Previous field', icon: 'keyboard_tab_rtl', action: 'helper:lib:PS_PrevField' },
+    { name: 'Next field', icon: 'keyboard_tab', action: 'helper:lib:PS_NextField' }] });
+  return m;
+};
+
 test('ini keeps sections, writes CRLF and plain ASCII', () => {
   const s = ini.parse('[API]\r\nApiKey=abc\r\nModel=m\r\n[Behavior]\r\nHotkey=^!q\r\n');
   assert.strictEqual(ini.get(s, 'API', 'ApiKey'), 'abc');
@@ -178,6 +188,7 @@ test('an older menu loses Lung-RADS, gets paired icons and clearer names, once',
   const m = JSON.parse(fs.readFileSync(def, 'utf8'));
   const sub = (menu, ring, name) => menu.categories.find((c) => c.id === ring).items.find((i) => i.name === name);
   // As an older build saved it.
+  withPS(m);
   const ps = sub(m, 'pacs', 'PowerScribe');
   ps.items.unshift({ name: 'Lung-RADS (auto)', icon: 'pulmonology', action: 'helper:lungrads' });
   ps.items.push({ name: 'Lung screening 2', icon: 'pulmonology', action: 'helper:lib:LungScreening2' });
@@ -201,7 +212,7 @@ test('an older menu loses Lung-RADS, gets paired icons and clearer names, once',
   (function w(a) { for (const x of a) { flat.push(x); if (x.items) w(x.items); } })(got.categories.flatMap((c) => c.items));
   assert.ok(!flat.some((i) => /lungrads|LungScreening2/.test(i.action || '')), 'no Lung-RADS left');
   assert.ok(!flat.some((i) => i.name === 'Lung' && Array.isArray(i.items)), 'the empty smaller ring is gone');
-  assert.deepStrictEqual(sub(got, 'pacs', 'PowerScribe').items.map((i) => i.icon), ['keyboard_tab_rtl', 'keyboard_tab']);
+  assert.strictEqual(sub(got, 'pacs', 'PowerScribe'), undefined, 'the field keys left the PACS ring');
   assert.deepStrictEqual(sub(got, 'pacs', 'Crosshair & link').items.map((i) => i.name), ['Crosshair', 'Link priors']);
   assert.strictEqual(sub(got, 'pacs', 'Layout').items[0].icon, 'skip_previous');
   assert.deepStrictEqual(sub(got, 'pacs', 'Key images').items.map((i) => i.icon), ['fast_rewind', 'star']);
@@ -245,10 +256,10 @@ test('an older menu loses Paste indication from the ring, once', () => {
   const store = createStore({ userDir: () => dir, defaultMenuPath: def });
   const m = JSON.parse(fs.readFileSync(def, 'utf8'));
   const ps = (menu) => menu.categories.find((c) => c.id === 'pacs').items.find((i) => i.name === 'PowerScribe');
-  assert.ok(!ps(m).items.some((i) => i.action === 'helper:keys:^!g'), 'not in the default menu');
+  withPS(m);
   ps(m).items.splice(1, 0, { name: 'Paste indication', icon: 'content_paste', action: 'helper:keys:^!g' });
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
-  assert.ok(!ps(store.readMenu()).items.some((i) => i.action === 'helper:keys:^!g'));
+  assert.strictEqual(ps(store.readMenu()), undefined, 'and then the field keys leave too, taking the ring');
 });
 
 test('rings saved with six layouts keep only 2x2, 3x2 and 3x3, once', () => {
@@ -277,10 +288,11 @@ test('rings saved with "back" beside "play" get matching previous/next icons, on
   const lay = sub(m, 'Layout');
   lay.find((i) => i.action === 'helper:lib:PACS_Prev_Layout').icon = 'back';
   lay.find((i) => i.action === 'helper:lib:PACS_Next_Layout').icon = 'star'; // the person's own choice stays
+  withPS(m);
   const ps = sub(m, 'PowerScribe');
   ps.find((i) => i.action === 'helper:lib:PS_PrevField').icon = 'arrow_back';
   ps.find((i) => i.action === 'helper:lib:PS_NextField').icon = 'play';
-  m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid', 'layout-grid-three'];
+  m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid', 'layout-grid-three', 'pacs-no-fields'];
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
   const got = store.readMenu();
   const icon = (n, name) => sub(got, n).find((i) => i.name === name).icon;
@@ -333,4 +345,37 @@ test('"Search copied text" gains OpenEvidence, once', () => {
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
   assert.deepStrictEqual(search(store.readMenu()).items.map((i) => i.name), ['Radiopaedia', 'Google', 'OpenEvidence']);
   assert.deepStrictEqual(search(store.readMenu()).items.map((i) => i.name), ['Radiopaedia', 'Google', 'OpenEvidence'], 'not added twice');
+});
+
+test('the field keys leave the PACS ring, keeping what the person added there, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-fields-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = withPS(JSON.parse(fs.readFileSync(def, 'utf8')));
+  const ps = (menu) => menu.categories.find((c) => c.id === 'pacs').items.find((i) => i.name === 'PowerScribe');
+  ps(m).items.push({ name: 'Sign', icon: 'draw', action: 'helper:keys:{F12}' });
+  m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid', 'layout-grid-three', 'nav-pairs', 'orthogonal-ruler', 'openevidence-search'];
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  assert.deepStrictEqual(ps(store.readMenu()).items.map((i) => i.name), ['Sign']);
+  const lib = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'library.json'), 'utf8'));
+  assert.ok(['PS_PrevField', 'PS_NextField'].every((id) => lib.functions.find((f) => f.id === id && f.on && f.hotkey)), 'still functions with their shortcuts');
+});
+
+test('window / level presets show their organ and Oncologic the ribbon, on saved rings too', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-organs-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const flat = (menu) => { const o = {}; (function w(a) { for (const x of a) { if (x.items) w(x.items); else o[x.action] = x; } })(menu.categories.flatMap((c) => c.items)); return o; };
+  const old = { PACS_WL_SoftTissue: 'contrast', PACS_WL_Bone: 'skeleton', PACS_WL_Brain: 'neurology', PACS_WL_Stroke: 'star' };
+  for (const [id, icon] of Object.entries(old)) flat(m)['helper:lib:' + id].icon = icon;
+  flat(m)['helper:oneliner:oncologic'].icon = 'oncology';
+  m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid', 'layout-grid-three', 'nav-pairs', 'orthogonal-ruler', 'openevidence-search', 'pacs-no-fields'];
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const got = flat(store.readMenu());
+  assert.strictEqual(got['helper:lib:PACS_WL_SoftTissue'].icon, 'gastroenterology');
+  assert.strictEqual(got['helper:lib:PACS_WL_Bone'].icon, 'ti:bone');
+  assert.strictEqual(got['helper:lib:PACS_WL_Brain'].icon, 'ti:brain');
+  assert.strictEqual(got['helper:lib:PACS_WL_Stroke'].icon, 'star', 'an icon the person chose stays');
+  assert.strictEqual(got['helper:oneliner:oncologic'].icon, 'ti:ribbon-health');
 });

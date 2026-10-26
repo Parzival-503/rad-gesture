@@ -361,15 +361,20 @@
       const p = G.polar(cx, cy, back, R * 0.72);
       box.append(h('div', { class: 'n back', title: 'Back', style: `left:${p.x}px;top:${p.y}px`, onclick: () => { ui.path.pop(); ui.sel = null; render(); } }, msym('arrow_back')));
     }
+    const pts = items.map((it, i) => G.polar(cx, cy, slots.items[i], R));
     items.forEach((it, i) => {
-      const a = slots.items[i];
-      const p = G.polar(cx, cy, a, R);
+      const p = pts[i];
       box.append(h('div', { class: 'n' + (ui.sel === i ? ' on' : ''), title: it.name, style: `left:${p.x}px;top:${p.y}px`, onclick: () => { ui.sel = i; render(); } }, icon(it.icon)));
-      // Each name sits on its own button's outer side, one line, so it never
-      // runs over a neighbour or the center (the column is too narrow for
-      // names beside them): above the buttons in the upper half, else under.
-      const above = p.y < cy - 10;
-      box.append(h('div', { class: 't', title: it.name, style: `left:${p.x}px;top:${above ? p.y - 41 : p.y + 27}px` }, it.name));
+      // Each name sits on one line above or under its own button (the column
+      // is too narrow for names beside them): above in the upper half, else
+      // under, unless that spot runs into another button or the center, as a
+      // long name under a side button can with seven directions.
+      const w = Math.min(84, it.name.length * 6.2 + 4);
+      const hits = (top) => pts.some((q, j) => j !== i && Math.abs(q.x - p.x) < w / 2 + 23 && top < q.y + 23 && top + 14 > q.y - 23) ||
+        (Math.abs(cx - p.x) < w / 2 + 42 && top < cy + 42 && top + 14 > cy - 42);
+      const spots = p.y < cy - 10 ? [p.y - 41, p.y + 27] : [p.y + 27, p.y - 41];
+      const top = spots.find((t) => !hits(t)) ?? spots[0];
+      box.append(h('div', { class: 't', title: it.name, style: `left:${p.x}px;top:${top}px` }, it.name));
     });
     return box;
   }

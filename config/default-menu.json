@@ -20,7 +20,7 @@
           "items": [
             {
               "name": "Soft tissue",
-              "icon": "contrast",
+              "icon": "gastroenterology",
               "action": "helper:lib:PACS_WL_SoftTissue"
             },
             {
@@ -30,17 +30,17 @@
             },
             {
               "name": "Bone",
-              "icon": "skeleton",
+              "icon": "ti:bone",
               "action": "helper:lib:PACS_WL_Bone"
             },
             {
               "name": "Brain",
-              "icon": "neurology",
+              "icon": "ti:brain",
               "action": "helper:lib:PACS_WL_Brain"
             },
             {
               "name": "Stroke",
-              "icon": "emergency",
+              "icon": "ti:brain",
               "action": "helper:lib:PACS_WL_Stroke"
             }
           ]
@@ -185,22 +185,6 @@
           "name": "Insert priors",
           "icon": "history",
           "action": "helper:lib:PACS_Insert_Priors"
-        },
-        {
-          "name": "PowerScribe",
-          "icon": "mic",
-          "items": [
-            {
-              "name": "Previous field",
-              "icon": "keyboard_tab_rtl",
-              "action": "helper:lib:PS_PrevField"
-            },
-            {
-              "name": "Next field",
-              "icon": "keyboard_tab",
-              "action": "helper:lib:PS_NextField"
-            }
-          ]
         }
       ]
     },
@@ -234,7 +218,7 @@
             },
             {
               "name": "Oncologic",
-              "icon": "oncology",
+              "icon": "ti:ribbon-health",
               "action": "helper:oneliner:oncologic"
             },
             {

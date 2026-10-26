@@ -100,7 +100,7 @@
       "description": "Soft tissue window/level preset.",
       "hotkey": "^!1",
       "on": true,
-      "icon": "contrast",
+      "icon": "gastroenterology",
       "target": "sectra",
       "params": [
         {
@@ -138,7 +138,7 @@
       "description": "Bone window/level preset.",
       "hotkey": "^!3",
       "on": true,
-      "icon": "skeleton",
+      "icon": "ti:bone",
       "target": "sectra",
       "params": [
         {
@@ -157,7 +157,7 @@
       "description": "Brain window/level preset.",
       "hotkey": "^!4",
       "on": true,
-      "icon": "neurology",
+      "icon": "ti:brain",
       "target": "sectra",
       "params": [
         {
@@ -176,7 +176,7 @@
       "description": "Stroke window/level preset.",
       "hotkey": "^!6",
       "on": true,
-      "icon": "emergency",
+      "icon": "ti:brain",
       "target": "sectra",
       "params": [
         {

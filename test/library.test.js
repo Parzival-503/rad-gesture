@@ -298,7 +298,10 @@ test('the one-liner\'s chart bin: on the One-liner ring, and added to saved ring
   assert.deepStrictEqual(old.categories[0].items[0].items.map((i) => i.action).slice(2), ['helper:chart:add', 'helper:chart:clear']);
   migrate(old, lib);
   assert.strictEqual(old.categories[0].items[0].items.length, 4, 'once');
-  assert.ok(ahk.includes('ChartClear(true)'), 'the bin empties itself after a one-liner');
+  const run = ahk.slice(ahk.indexOf('RunFlavor(flavor) {'), ahk.indexOf('\nFlavorLabel(flavor) {'));
+  assert.ok(run.includes('ChartAskEmpty()'), 'after a one-liner it asks whether to empty the bin');
+  assert.ok(!/ChartClear\(/.test(run.slice(0, run.indexOf('ChartAskEmpty() {'))), 'and never empties it by itself');
+  for (const l of ['ChartAsk_Empty:', 'ChartAsk_Keep:']) assert.ok(ahk.includes('\n' + l), l);
   assert.ok(/ChartExpireCheck\(\)\s*\n\s*if \(g_Chart\.Length\(\) > 0\)/.test(ahk), 'and expires when idle, like the priors');
 });
 

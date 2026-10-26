@@ -561,10 +561,10 @@ async function waitFor(fn, ms, step = 200) {
         const tr = r(t);
         if (tr.left < card.left || tr.right > card.right) out.push(`${t.textContent} outside its card`);
       }
-      return { names: names.length, out };
+      return { names: names.length, dirs: box.querySelectorAll('.n:not(.back)').length, out };
     });
     await (await win.$('.mini')).screenshot({ path: path.join(SHOTS, 'settings-ring-picture.png') }).catch(() => {});
-    check('the ring picture keeps every name clear of the buttons', miniHits.names === 8 && !miniHits.out.length, miniHits.out.join('; ') || `${miniHits.names} names`);
+    check('the ring picture keeps every name clear of the buttons', miniHits.names >= 7 && miniHits.names === miniHits.dirs && !miniHits.out.length, miniHits.out.join('; ') || `${miniHits.names} names for ${miniHits.dirs} directions`);
     await win.click('.rings .card:nth-child(2) .lrow:has-text("Insert priors")');
     await sleep(200);
     check('a PACS direction is a Function in the ring editor', (await win.$eval('#libPick', (e) => e.value)) === 'PACS_Insert_Priors');

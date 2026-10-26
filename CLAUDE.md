@@ -516,6 +516,13 @@ pair (skip, fast, tab). `orthogonal-ruler`: Orthogonal measures two
 distances at 90 degrees, so its icon is Tabler's L-shaped `ti:ruler` (the owner
 saw four squares: the first builds shipped `grid`); shipped icons for it
 (grid, grid_view, view_in_ar, square_foot) are replaced.
+`pacs-no-fields` (owner, 2026-10-26): Previous / Next field are PowerScribe
+keys, not PACS tools, so the PACS ring's PowerScribe smaller ring is gone;
+both stay library functions on their shortcuts (his mouse sends them).
+Functions can live in the helper without being on a ring. `organ-icons`:
+window / level presets show their organ (Soft tissue `gastroenterology`,
+Bone `ti:bone`, Brain and Stroke `ti:brain`), the Oncologic one-liner
+`ti:ribbon-health`; only icons we shipped are replaced.
 
 ### Helper notes
 
@@ -547,8 +554,12 @@ saw four squares: the first builds shipped `grid`); shipped icons for it
   `helper:chart:add`, optional `[OneLiner] ChartAddHotkey`). While the bin
   holds pieces, every one-liner (Ctrl+Alt+U, toolbar, ring flavours) is made
   from all of them (`ChartText()`, "[Chart excerpt n]") instead of a fresh
-  copy, and **the bin empties itself after a successful one-liner** (kept on
-  an error or a cancelled picker). Idle expiry is the priors' setting.
+  copy. **After a successful one-liner a box asks "Empty the chart text?"**
+  (`ChartAskEmpty()`: Empty it / Keep for another; never takes focus, so the
+  one-liner can be pasted meanwhile; closes, keeping the pieces, on the next
+  add or one-liner). It used to empty itself, which lost pieces the owner
+  still wanted for a second kind of one-liner (2026-10-26). An error or a
+  cancelled picker keeps the bin. Idle expiry is the priors' setting.
   Migration `chart-bin` adds the two ring buttons to saved One-liner rings.
 - **Impression** (`ImpressionPrompt()`): a high-level SYNTHESIS, not a
   summary (the owner: the first one just reworded the findings). Answers the
