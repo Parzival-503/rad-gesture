@@ -423,6 +423,9 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
 .refsec b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .refsec .count { font-size: 11.5px; color: var(--ink-3); background: rgba(255,255,255,0.06); border-radius: 999px; padding: 0 7px; }
 .reftree .refrow { margin-left: 14px; }
+.reftree .refrow.deep { margin-left: 34px; }
+.reftree .reftopic .ic { color: var(--accent); }
+.reftree .reftopic b { color: var(--ink); }
 .refnone { margin: 2px 0 4px 24px; color: var(--ink-3); font-size: 12px; }
 .refkind { display: flex; align-items: center; gap: 10px; margin: -2px 0 10px; }
 .reffile { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin: 4px 0 12px; border-radius: 12px; border: 1px solid var(--line-hi); background: var(--well); cursor: pointer; }

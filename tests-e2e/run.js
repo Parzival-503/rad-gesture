@@ -424,6 +424,30 @@ async function waitFor(fn, ms, step = 200) {
       await pv.keyboard.press('Escape').catch(() => {});
       await sleep(400);
     } else check('a picture zooms with the wheel and fits again', false, 'no viewer');
+    // A topic: the LI-RADS link becomes a topic, and a PDF and a picture join it.
+    await win.click('.refrow[data-link="LI-RADS v2018"]');
+    await sleep(200);
+    await win.click('#refMakeTopic');
+    await sleep(250);
+    await win.fill('#topicName', 'LI-RADS');
+    await sleep(150);
+    check('new things go into the topic being looked at', (await win.$eval('#refTarget', (e) => e.selectedOptions[0].textContent)) === 'Abdomen › LI-RADS');
+    for (const f of [pdfSrc, pngSrc]) {
+      await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] }); }, f);
+      await win.click('.reftopic[data-topic="LI-RADS"]');
+      await sleep(200);
+      await win.click('#refAddFile');
+      await sleep(800);
+    }
+    await win.click('#saveAll');
+    await sleep(700);
+    const liTopic = (secOnRing('Abdomen').items || []).find((i) => i.name === 'LI-RADS' && i.items);
+    const liKinds = liTopic ? liTopic.items.map((i) => i.action.split(':')[0]).join(',') : '';
+    check('a topic holds a link, a PDF and a picture together on the ring', liKinds === 'url,ref,ref', liKinds || 'no topic');
+    await win.click('.reftopic[data-topic="LI-RADS"]');
+    await sleep(200);
+    await win.$eval('main', (el) => el.scrollTo(0, 0));
+    await win.screenshot({ path: path.join(SHOTS, 'settings-references-topic.png') });
     await win.$eval('main', (el) => el.scrollTo(0, 0));
     await win.screenshot({ path: path.join(SHOTS, 'settings-references.png') });
     await app.evaluate(({ clipboard }) => { clipboard.clear(); clipboard.writeText('# Bosniak 2019\n\n- **IIF**: follow up at 6 months'); });

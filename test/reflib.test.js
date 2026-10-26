@@ -72,3 +72,38 @@ test('a link sitting directly on the ring stays there', () => {
   R.pack(ring, lib);
   assert.ok(ring.items.some((i) => i.name === 'direct'));
 });
+
+test('a topic holds several sources, and survives read and pack', () => {
+  const ring = shipped();
+  const lib = R.read(ring);
+  const abd = lib.sections[1];
+  const pdf = { name: 'LI-RADS article', icon: 'picture_as_pdf', action: 'ref:rabcdef' };
+  const pic = { name: 'LI-RADS table', icon: 'image', action: 'ref:rghijkl' };
+  abd.items.splice(0, 1, { name: 'LI-RADS', icon: 'topic', topic: true, items: [abd.items[0], pdf, pic] });
+  R.pack(ring, lib);
+  assert.ok(validateMenu({ categories: [ring] }).ok);
+  const t = R.read(ring).sections[1].items[0];
+  assert.ok(t.topic);
+  assert.deepStrictEqual(t.items.map((x) => x.name), ['LI-RADS v2018', 'LI-RADS article', 'LI-RADS table']);
+});
+
+test('an empty topic waits off the ring, in its place inside its section', () => {
+  const ring = shipped();
+  const lib = R.read(ring);
+  lib.sections[0].items.splice(1, 0, { name: 'Nodules', icon: 'topic', topic: true, items: [] });
+  R.pack(ring, lib);
+  assert.ok(validateMenu({ categories: [ring] }).ok);
+  assert.ok(!ring.items[0].items.some((i) => i.name === 'Nodules'));
+  const back = R.read(ring).sections[0].items;
+  assert.deepStrictEqual(back.map((x) => x.name), ['Lung-RADS v2022', 'Nodules', 'Fleischner 2017']);
+  assert.ok(back[1].topic);
+});
+
+test('a topic with more than 8 sources rolls the rest into "More"', () => {
+  const ring = shipped();
+  const lib = R.read(ring);
+  lib.sections[0].items.push({ name: 'Big', icon: 'topic', topic: true, items: Array.from({ length: 11 }, (_, i) => link('b' + i)) });
+  R.pack(ring, lib);
+  assert.ok(validateMenu({ categories: [ring] }).ok);
+  assert.strictEqual(R.read(ring).sections[0].items.find((x) => x.topic).items.length, 11);
+});

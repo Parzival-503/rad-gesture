@@ -5,6 +5,10 @@
 // and files ("ref:<id>") and documents on this PC ("file:"). The Settings page
 // edits a flat list of sections; pack() writes it back as a ring.
 //
+// Inside a section, a topic (LI-RADS, PI-RADS...) is a smaller ring holding
+// several sources on one subject: a link, a PDF, a picture. read() gives a
+// topic as { name, icon, topic: true, items }.
+//
 // A ring holds at most 8 directions, so pack() rolls what does not fit into a
 // "More" smaller ring (marked more: true), at the top (sections) and inside a
 // section (entries); sections() reads those back as one list. A section with
@@ -21,11 +25,13 @@
   const act = (it) => String((it && it.action) || '');
   const isTool = (it) => (isRing(it) ? it.items.length > 0 && it.items.every((x) => /^(search|hub):/.test(act(x))) : !/^(url|ref):/.test(act(it)));
 
-  // Entries of a section, following its "More" rings.
-  function entries(items) {
+  // Entries of a section (or a topic), following its "More" rings; a smaller
+  // ring inside a section is a topic, its own entries read the same way.
+  function entries(items, inTopic) {
     const out = [];
     for (const it of items || []) {
-      if (isRing(it) && it.more) out.push(...entries(it.items));
+      if (isRing(it) && it.more) out.push(...entries(it.items, inTopic));
+      else if (isRing(it) && !inTopic) out.push({ name: it.name, icon: it.icon || 'topic', topic: true, items: entries(it.items, true) });
       else out.push(it);
     }
     return out;
@@ -43,13 +49,20 @@
     });
     walk(ring && ring.items);
     for (const e of (ring && ring.emptySections) || []) {
-      if (e && e.name && !sections.some((s) => s.name === e.name)) sections.push({ name: e.name, icon: e.icon || 'folder', items: [], at: e.at });
+      if (!e || !e.name || e.in) continue;
+      if (!sections.some((s) => s.name === e.name)) sections.push({ name: e.name, icon: e.icon || 'folder', items: [], at: e.at });
     }
     // An empty section goes back where it was in the list.
     const placed = sections.filter((s) => s.at === undefined);
     sections.filter((s) => s.at !== undefined).sort((a, b) => a.at - b.at)
       .forEach((s) => placed.splice(Math.min(s.at, placed.length), 0, s));
     placed.forEach((s) => delete s.at);
+    // Empty topics wait the same way, inside their section.
+    for (const e of (ring && ring.emptySections) || []) {
+      if (!e || !e.name || !e.in) continue;
+      const s = placed.find((x) => x.name === e.in);
+      if (s && !s.items.some((x) => x.topic && x.name === e.name)) s.items.splice(Math.min(e.at || 0, s.items.length), 0, { name: e.name, icon: e.icon || 'topic', topic: true, items: [] });
+    }
     return { sections: placed, loose, tools };
   }
 
@@ -65,7 +78,13 @@
     const empty = [];
     const full = [];
     sections.forEach((s, i) => {
-      if (s.items.length) full.push({ name: s.name, icon: s.icon || 'folder', items: fit(s.items, 'More') });
+      const live = [];
+      s.items.forEach((it, j) => {
+        if (!it.topic) return live.push(it);
+        if (it.items.length) live.push({ name: it.name, icon: it.icon || 'topic', items: fit(it.items, 'More') });
+        else empty.push({ name: it.name, icon: it.icon || 'topic', in: s.name, at: j });
+      });
+      if (live.length) full.push({ name: s.name, icon: s.icon || 'folder', items: fit(live, 'More') });
       else empty.push({ name: s.name, icon: s.icon || 'folder', at: i });
     });
     const fixed = (loose || []).concat(tools || []);

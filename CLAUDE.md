@@ -379,6 +379,13 @@ goes to Settings). Screenshots are kept at most 2400 px wide.
   back: past 8 directions the rest roll into a "More" smaller ring
   (`more: true`; "More sections" at the top), and an empty section, which
   cannot be a ring, waits in the ring's `emptySections` with its place.
+  **Topics** (Sina: "for liver, one link, one PDF, one JPEG, all under the
+  same topic"): a smaller ring inside a section, `{ topic: true }` in
+  reflib's reading, holding several sources; "Make a topic" turns any
+  section entry into one, "Add to" and every Section picker list each
+  section and each topic in it (`destinations()`), an empty topic waits in
+  `emptySections` with `in: <section>`, Remove topic leaves its sources in
+  the section.
   Search copied text / My documents / Add from clipboard stay as tools
   after the sections. Ring changes need Save; notes save themselves, and a
   note's ring name follows its title.

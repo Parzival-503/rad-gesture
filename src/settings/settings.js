@@ -1446,7 +1446,7 @@
     const lib = RL.read(ring);
     const save = () => { RL.pack(ring, lib); markDirty('menu'); };
     const placedIds = new Set();
-    lib.sections.forEach((s) => s.items.forEach((it) => { const id = refIdOf(it); if (id) placedIds.add(id); }));
+    lib.sections.forEach((s) => s.items.forEach((it) => (it.topic ? it.items : [it]).forEach((x) => { const id = refIdOf(x); if (id) placedIds.add(id); })));
     lib.loose.forEach((it) => { const id = refIdOf(it); if (id) placedIds.add(id); });
     const unplaced = refsList.filter((r) => !placedIds.has(r.id));
 
@@ -1454,8 +1454,8 @@
     const sel = parseSel(ui.refSel, lib, unplaced);
     if (!sel) ui.refSel = lib.sections.length ? 'sec:0' : null;
     const cur = parseSel(ui.refSel, lib, unplaced);
-    // Where new things go: the section being looked at, else the first.
-    const target = cur && cur.sec >= 0 ? cur.sec : (lib.sections.length ? 0 : -1);
+    // Where new things go: the topic or section being looked at, else the first section.
+    const target = cur && cur.sec >= 0 ? (cur.topicIdx !== undefined ? `t:${cur.sec}:${cur.topicIdx}` : 's:' + cur.sec) : (lib.sections.length ? 's:0' : 'none');
 
     $main.append(refAddBar(lib, target, save));
 
@@ -1482,9 +1482,18 @@
         onclick: () => { ui.refSel = 'sec:' + si; ui.refConfirmDelete = null; render(); } },
       h('span', { class: 'ic' }, icon(s.icon || 'folder')), h('b', {}, s.name), h('span', { class: 'count' }, String(s.items.length))));
       if (!s.items.length) list.append(h('div', { class: 'refnone' }, 'Empty. Pick the section, then add to it.'));
+      const attrs = (it) => { const info = entryInfo(it); return info.kind === 'link' ? { 'data-link': it.name } : info.ref ? { 'data-ref': info.ref.id } : {}; };
       for (const { it, ii } of items) {
-        const info = entryInfo(it);
-        list.append(row(`it:${si}:${ii}`, it, info.kind === 'link' ? { 'data-link': it.name } : info.ref ? { 'data-ref': info.ref.id } : {}));
+        if (it.topic) {
+          list.append(h('div', { class: 'lrow refrow reftopic' + (ui.refSel === `it:${si}:${ii}` ? ' on' : ''), role: 'button', tabindex: '0', 'data-topic': it.name,
+            onclick: () => { ui.refSel = `it:${si}:${ii}`; ui.refConfirmDelete = null; render(); } },
+          h('span', { class: 'ic' }, icon(it.icon || 'topic')),
+          h('span', { class: 'tx' }, h('b', {}, it.name), h('small', {}, it.items.length ? `Topic · ${it.items.length} source${it.items.length > 1 ? 's' : ''}` : 'Topic · empty: add to it'))));
+          it.items.forEach((x, jj) => {
+            if (words.length && !hit(s.name + ' ' + it.name + ' ' + entryText(x))) return;
+            list.append(row(`it:${si}:${ii}:${jj}`, x, Object.assign({ class: 'lrow refrow deep' + (ui.refSel === `it:${si}:${ii}:${jj}` ? ' on' : '') }, attrs(x))));
+          });
+        } else list.append(row(`it:${si}:${ii}`, it, attrs(it)));
         shown++;
       }
     });
@@ -1511,6 +1520,7 @@
     let editor;
     if (!cur) editor = h('div', { class: 'card editor refeditor' }, h('div', { class: 'empty' }, 'Make a section, then add to it.'));
     else if (cur.kind === 'sec') editor = sectionEditor(lib, cur.sec, save);
+    else if (cur.kind === 'topic') editor = topicEditor(cur, lib, save);
     else if (cur.ref) editor = refEditor(cur, lib, save);
     else if (cur.kind === 'link') editor = linkEditor(cur, lib, save);
     else editor = otherEditor(cur, lib, save);
@@ -1522,26 +1532,47 @@
     if (!key) return null;
     let m = /^sec:(\d+)$/.exec(key);
     if (m) return lib.sections[+m[1]] ? { kind: 'sec', sec: +m[1] } : null;
-    m = /^it:(\d+):(\d+)$/.exec(key);
+    m = /^it:(\d+):(\d+)(?::(\d+))?$/.exec(key);
     if (m) {
       const s = lib.sections[+m[1]];
       const it = s && s.items[+m[2]];
-      return it ? Object.assign({ sec: +m[1], idx: +m[2], item: it, list: s.items }, entryInfo(it)) : null;
+      if (!it) return null;
+      if (m[3] === undefined) {
+        if (it.topic) return { kind: 'topic', sec: +m[1], idx: +m[2], topicIdx: +m[2], item: it, list: s.items };
+        return Object.assign({ sec: +m[1], idx: +m[2], item: it, list: s.items }, entryInfo(it));
+      }
+      const x = it.topic && it.items[+m[3]];
+      return x ? Object.assign({ sec: +m[1], topicIdx: +m[2], idx: +m[3], item: x, list: it.items, topic: it }, entryInfo(x)) : null;
     }
     m = /^loose:(\d+)$/.exec(key);
     if (m) { const it = lib.loose[+m[1]]; return it ? Object.assign({ sec: -2, idx: +m[1], item: it, list: lib.loose }, entryInfo(it)) : null; }
     m = /^ref:(r[a-z0-9]+)$/.exec(key);
     if (m) {
-      // A library entry: in a section if it is placed, else on its own.
+      // A library entry: where it is placed, else on its own.
       for (let si = 0; si < lib.sections.length; si++) {
-        const ii = lib.sections[si].items.findIndex((it) => refIdOf(it) === m[1]);
-        if (ii >= 0) { ui.refSel = `it:${si}:${ii}`; return parseSel(ui.refSel, lib, unplaced); }
+        const items = lib.sections[si].items;
+        for (let ii = 0; ii < items.length; ii++) {
+          if (refIdOf(items[ii]) === m[1]) { ui.refSel = `it:${si}:${ii}`; return parseSel(ui.refSel, lib, unplaced); }
+          const jj = items[ii].topic ? items[ii].items.findIndex((x) => refIdOf(x) === m[1]) : -1;
+          if (jj >= 0) { ui.refSel = `it:${si}:${ii}:${jj}`; return parseSel(ui.refSel, lib, unplaced); }
+        }
       }
       const r = unplaced.find((x) => x.id === m[1]);
       return r ? Object.assign({ sec: -1, idx: -1, item: null, list: null }, entryInfo(refEntry(r))) : null;
     }
     return null;
   }
+
+  // Every place something can go: each section, and each topic in it.
+  function destinations(lib) {
+    const out = [];
+    lib.sections.forEach((s, si) => {
+      out.push({ key: 's:' + si, label: s.name, list: s.items, sel: (i) => `it:${si}:${i}` });
+      s.items.forEach((it, ii) => { if (it.topic) out.push({ key: `t:${si}:${ii}`, label: `${s.name} › ${it.name}`, list: it.items, sel: (j) => `it:${si}:${ii}:${j}` }); });
+    });
+    return out;
+  }
+  const curDest = (cur) => (cur.sec < 0 ? 'none' : cur.topicIdx !== undefined && cur.kind !== 'topic' ? `t:${cur.sec}:${cur.topicIdx}` : 's:' + cur.sec);
 
   const refIdOf = (it) => (/^ref:(r[a-z0-9]+)$/.exec((it && it.action) || '') || [])[1] || '';
   const KIND_ICON = { note: 'description', picture: 'image', pdf: 'picture_as_pdf', file: 'attach_file' };
@@ -1563,6 +1594,7 @@
     return { kind: 'other', title: it.name, sub: a.split(':')[0], icon: 'bolt' };
   }
   function entryText(it) {
+    if (it.topic) return it.name + ' ' + it.items.map(entryText).join(' ');
     const i = entryInfo(it);
     return [it.name, i.title, i.sub, it.action, i.ref ? i.ref.body : ''].join(' ');
   }
@@ -1576,10 +1608,14 @@
 
   // Adding: everything lands in the chosen section (or in none).
   function refAddBar(lib, target, save) {
-    const to = ui.refTarget !== undefined && ui.refTarget >= -1 && ui.refTarget < lib.sections.length ? ui.refTarget : target;
+    const dests = destinations(lib);
+    // A place picked here holds while the same thing stays selected.
+    const picked = ui.refTargetFor === ui.refSel && ui.refTarget && (ui.refTarget === 'none' || dests.some((d) => d.key === ui.refTarget));
+    const to = picked ? ui.refTarget : target;
+    const dest = dests.find((d) => d.key === to) || null;
     const place = (r) => {
-      if (to >= 0) { lib.sections[to].items.push(refEntry(r)); save(); }
-      ui.refSel = 'ref:' + r.id;
+      if (dest) { dest.list.push(refEntry(r)); save(); ui.refSel = dest.sel(dest.list.length - 1); }
+      else ui.refSel = 'ref:' + r.id;
     };
     const add = async (fn, okMsg) => {
       const r = await fn();
@@ -1587,11 +1623,11 @@
       await loadRefs();
       for (const x of r.refs || [r.ref]) place(refById(x.id) || x);
       render();
-      toast(okMsg + (to >= 0 ? ` In ${lib.sections[to].name}; Save puts it on the ring.` : ''));
+      toast(okMsg + (dest ? ` In ${dest.label}; Save puts it on the ring.` : ''));
     };
-    const where = h('select', { id: 'refTarget', onchange: (e) => { ui.refTarget = Number(e.target.value); render(); } },
-      lib.sections.map((s, i) => h('option', { value: i, selected: i === to }, s.name)),
-      h('option', { value: -1, selected: to === -1 }, 'No section (not on the ring)'));
+    const where = h('select', { id: 'refTarget', onchange: (e) => { ui.refTarget = e.target.value; ui.refTargetFor = ui.refSel; render(); } },
+      dests.map((d) => h('option', { value: d.key, selected: d.key === to }, d.label)),
+      h('option', { value: 'none', selected: to === 'none' }, 'No section (not on the ring)'));
     return h('div', { class: 'card refadd' },
       h('div', { class: 'addrow', style: 'margin:0;align-items:center' },
         h('span', { class: 'fxlabel' }, 'Add to'), where,
@@ -1599,15 +1635,16 @@
           const r = await api.refSave({ title: 'New note', body: '# New note\n\n' });
           await loadRefs();
           place(refById(r.id) || r);
+          if (!dest) ui.refSel = 'ref:' + r.id;
           ui.refMode = 'split';
           render();
           const ta = document.getElementById('refBody');
           if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
         } }, msym('note_add'), 'Note'),
-        h('button', { class: 'btn', id: 'refAddLink', disabled: to < 0, title: to < 0 ? 'A link lives on the ring: pick a section' : 'A website, a journal article...', onclick: () => {
-          lib.sections[to].items.push({ name: 'New link', icon: 'menu_book', action: 'url:https://' });
+        h('button', { class: 'btn', id: 'refAddLink', disabled: !dest, title: dest ? 'A website, a journal article...' : 'A link lives on the ring: pick a section', onclick: () => {
+          dest.list.push({ name: 'New link', icon: 'menu_book', action: 'url:https://' });
           save();
-          ui.refSel = `it:${to}:${lib.sections[to].items.length - 1}`;
+          ui.refSel = dest.sel(dest.list.length - 1);
           render();
           const n = document.getElementById('linkName');
           if (n) { n.focus(); n.select(); }
@@ -1624,7 +1661,7 @@
     lib.sections.push({ name: n === 1 ? 'New section' : 'New section ' + n, icon: 'folder', items: [] });
     save();
     ui.refSel = 'sec:' + (lib.sections.length - 1);
-    ui.refTarget = undefined;
+    ui.refTarget = null;
     render();
     const el = document.getElementById('secName');
     if (el) { el.focus(); el.select(); }
@@ -1649,6 +1686,7 @@
         save();
         const head = document.querySelector('.refsec.on');
         if (head) { head.dataset.section = s.name; head.querySelector('b').textContent = s.name; }
+        document.querySelectorAll(`#refTarget option[value="s:${si}"]`).forEach((o) => { o.textContent = s.name; });
       } }), 'The heading here, and the name on the ring.'),
       field('Icon', iconPicker(s.icon, (v) => { s.icon = v; save(); render(); })),
       h('div', { class: 'addrow' },
@@ -1673,24 +1711,90 @@
     return box;
   }
 
-  // "Section" for anything: moves it to another section (or out of all).
+  // "Section" for anything: moves it to another section or topic (or out of all).
   function sectionPicker(cur, lib, save, { allowNone }) {
+    const dests = destinations(lib);
+    const here = curDest(cur);
     return field('Section', h('select', { id: 'refSection', onchange: (e) => {
-      const to = Number(e.target.value);
+      const d = dests.find((x) => x.key === e.target.value);
       const item = cur.item || refEntry(cur.ref);
       if (cur.list) cur.list.splice(cur.idx, 1);
-      if (to >= 0) {
-        lib.sections[to].items.push(item);
-        ui.refSel = `it:${to}:${lib.sections[to].items.length - 1}`;
-      } else {
-        ui.refSel = cur.ref ? 'ref:' + cur.ref.id : null;
-      }
+      if (d) {
+        // Splicing above may have shifted it: find the list again.
+        const again = destinations(lib).find((x) => x.label === d.label) || d;
+        again.list.push(item);
+        ui.refSel = again.sel(again.list.length - 1);
+      } else ui.refSel = cur.ref ? 'ref:' + cur.ref.id : null;
       save();
       render();
     } },
-    lib.sections.map((s, i) => h('option', { value: i, selected: i === cur.sec }, s.name)),
-    allowNone ? h('option', { value: -1, selected: cur.sec === -1 }, 'No section (not on the ring)') : null),
-    allowNone ? 'Where it sits on the ring. "No section" keeps it here only.' : 'The smaller ring it sits in.');
+    dests.map((d) => h('option', { value: d.key, selected: d.key === here }, d.label)),
+    allowNone ? h('option', { value: 'none', selected: here === 'none' }, 'No section (not on the ring)') : null),
+    allowNone ? 'Where it sits on the ring: a section, or a topic in it. "No section" keeps it here only.' : 'The section, or the topic in it, where it sits.');
+  }
+
+  // A section entry becomes a topic holding it, so more sources can join it.
+  function makeTopicButton(cur, lib, save) {
+    if (cur.sec < 0 || cur.topicIdx !== undefined) return null;
+    return h('button', { class: 'btn', id: 'refMakeTopic', title: 'Keep a link, an article and a picture on one subject together', onclick: () => {
+      const it = cur.item;
+      const title = (entryInfo(it).title || it.name || 'Topic').slice(0, 40);
+      cur.list.splice(cur.idx, 1, { name: title, icon: 'topic', topic: true, items: [it] });
+      save();
+      ui.refSel = `it:${cur.sec}:${cur.idx}`;
+      ui.refTarget = null;
+      render();
+      toast('Now a topic. Add more sources to it with the buttons above.');
+    } }, msym('library_add'), 'Make a topic');
+  }
+
+  function topicEditor(cur, lib, save) {
+    const tp = cur.item;
+    const box = h('div', { class: 'card editor refeditor', id: 'topicEditor' });
+    const move = (d) => {
+      const j = cur.idx + d;
+      if (j < 0 || j >= cur.list.length) return;
+      [cur.list[cur.idx], cur.list[j]] = [cur.list[j], cur.list[cur.idx]];
+      save();
+      ui.refSel = `it:${cur.sec}:${j}`;
+      render();
+    };
+    box.append(
+      h('div', { class: 'refhead' }, h('span', { class: 'chip' }, msym('topic'), 'Topic'), h('span', { class: 'hint' }, 'Changes here are saved with Save.')),
+      field('Name', h('input', { type: 'text', id: 'topicName', value: tp.name, maxlength: 40, oninput: (e) => {
+        tp.name = e.target.value || 'Topic';
+        save();
+        const row = document.querySelector('.reftopic.on');
+        if (row) { row.dataset.topic = tp.name; row.querySelector('b').textContent = tp.name; }
+        document.querySelectorAll(`#refTarget option[value="t:${cur.sec}:${cur.idx}"]`).forEach((o) => { o.textContent = `${lib.sections[cur.sec].name} › ${tp.name}`; });
+      } }), 'Several sources on one subject: a link, an article, a picture. A smaller ring inside its section.'),
+      field('Icon', iconPicker(tp.icon || 'topic', (v) => { tp.icon = v; save(); render(); })),
+      field('Section', h('select', { id: 'topicSection', onchange: (e) => {
+        const to = Number(e.target.value);
+        if (to === cur.sec) return;
+        cur.list.splice(cur.idx, 1);
+        lib.sections[to].items.push(tp);
+        save();
+        ui.refSel = `it:${to}:${lib.sections[to].items.length - 1}`;
+        render();
+      } }, lib.sections.map((s, i) => h('option', { value: i, selected: i === cur.sec }, s.name)))),
+      h('div', { class: 'addrow' },
+        h('button', { class: 'btn small', disabled: cur.idx === 0, onclick: () => move(-1) }, msym('arrow_upward'), 'Move up'),
+        h('button', { class: 'btn small', disabled: cur.idx === cur.list.length - 1, onclick: () => move(1) }, msym('arrow_downward'), 'Move down')),
+      h('p', { class: 'hint' }, tp.items.length ? `${tp.items.length} source${tp.items.length > 1 ? 's' : ''}. Add more with the buttons above (they go into this topic).` : 'Empty: it waits off the ring until you add a source with the buttons above.'),
+      h('div', { class: 'addrow', style: 'margin-top:12px' },
+        h('span', { class: 'grow' }),
+        ui.refConfirmDelete === 'topic' ? h('span', { class: 'confirm' }, tp.items.length ? 'Remove the topic? Its sources stay, in the section.' : 'Remove the topic?',
+          h('button', { class: 'btn small danger', id: 'topicDeleteYes', onclick: () => {
+            cur.list.splice(cur.idx, 1, ...tp.items);
+            save();
+            ui.refConfirmDelete = null;
+            ui.refSel = 'sec:' + cur.sec;
+            render();
+          } }, 'Remove'),
+          h('button', { class: 'btn small ghost', onclick: () => { ui.refConfirmDelete = null; render(); } }, 'Keep'))
+          : h('button', { class: 'btn ghost danger', id: 'topicDelete', onclick: () => { ui.refConfirmDelete = 'topic'; render(); } }, msym('delete'), 'Remove topic')));
+    return box;
   }
 
   function removeButton(cur, lib, save, label) {
@@ -1713,6 +1817,7 @@
       field('Icon', iconPicker(it.icon, (v) => { it.icon = v; save(); render(); })),
       h('div', { class: 'addrow', style: 'margin-top:12px' },
         h('button', { class: 'btn', id: 'linkOpen', onclick: () => api.openUrl(it.action.slice(4)) }, msym('open_in_new'), 'Open'),
+        makeTopicButton(cur, lib, save),
         h('span', { class: 'grow' }),
         removeButton(cur, lib, save)));
     return box;
@@ -1838,6 +1943,7 @@
       h('div', { class: 'refwork ' + mode }, mode !== 'preview' ? ta : null, mode !== 'write' ? preview : null),
       h('div', { class: 'addrow', style: 'margin-top:12px' },
         h('button', { class: 'btn', id: 'refOpen', onclick: () => api.refOpen(r.id) }, msym('open_in_new'), 'Open'),
+        cur.list ? makeTopicButton(cur, lib, saveRing) : null,
         r.image || r.file ? null : h('button', { class: 'btn ghost', onclick: async () => { const x = await api.refPaste(r.id); if (!x.ok) return toast(x.error); await loadRefs(); render(); } }, msym('add_photo_alternate'), 'Add a screenshot'),
         h('span', { class: 'grow' }),
         ui.refConfirmDelete === r.id
