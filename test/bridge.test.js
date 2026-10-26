@@ -72,3 +72,25 @@ test('bridge: the helper can open Settings on a page', async () => {
     await b.close();
   }
 });
+
+test('bridge: the helper teaches the impression style and asks for examples', async () => {
+  const got = [];
+  const b = createBridge({ token: 't0k', onShow() {}, onRelease: async () => 'none', onCancel() {}, isOpen: () => false,
+    onStyleLearn: (d) => { got.push(d); return 'saved:3:CT chest'; },
+    onStyleExamples: (r) => 'EXAMPLES FOR ' + r });
+  const port = await b.listen(47960);
+  const post = async (p, body) => {
+    const r = await fetch(`http://127.0.0.1:${port}${p}`, { method: 'POST', headers: { 'X-RG-Token': 't0k' }, body });
+    return r.text();
+  };
+  try {
+    assert.strictEqual(await post('/style/learn', '{"source":"proofread","draft":"","report":"FINDINGS: x \\u00b5"}'), 'saved:3:CT chest');
+    assert.deepStrictEqual(got[0], { source: 'proofread', draft: '', report: 'FINDINGS: x µ' });
+    assert.strictEqual(await post('/style/learn', 'not json'), 'bad json');
+    assert.strictEqual(await post('/style/examples', '{"report":"CT CHEST"}'), 'EXAMPLES FOR CT CHEST');
+    assert.strictEqual(await post('/style/examples', 'plain text'), 'EXAMPLES FOR plain text');
+    assert.strictEqual((await call(port, 'GET', '/style/examples')).status, 405);
+  } finally {
+    await b.close();
+  }
+});

@@ -30,6 +30,8 @@ const AI_FIELDS = {
   sensitivity: ['Behavior', 'Sensitivity', 'moderate'],
   impressionRules: ['Impression', 'ExtraRules', 'Keep it very short. No measurements or other numbers.'],
   impressionModel: ['Impression', 'Model', ''],
+  styleLearn: ['Impression', 'LearnStyle', '1'],
+  styleUse: ['Impression', 'UseStyle', '1'],
   priorExpireMinutes: ['Priors', 'ExpireMinutes', '30'],
   priorCapture: ['Priors', 'CaptureMode', 'clipboard'],
   toolbarAtStartup: ['Priors', 'ShowAtStartup', '1'],
@@ -386,6 +388,18 @@ function migrate(m, lib) {
     });
     m.categories.forEach((c) => walk(c.items));
     done.push('organ-icons');
+    changed = true;
+  }
+  if (!done.includes('impression-style')) {
+    // "Learn this impression" goes right after Impression on the AI Tools
+    // ring, when there is room and it is not there yet.
+    const ai = m.categories.find((c) => c.id === 'ai');
+    const has = (items) => (items || []).some((it) => it.action === 'helper:style:learn' || (Array.isArray(it.items) && has(it.items)));
+    if (ai && !has(ai.items) && (ai.items || []).length < M_MAX) {
+      const i = ai.items.findIndex((it) => it.action === 'helper:impression');
+      ai.items.splice(i >= 0 ? i + 1 : ai.items.length, 0, { name: 'Learn this impression', icon: 'school', action: 'helper:style:learn' });
+    }
+    done.push('impression-style');
     changed = true;
   }
   if (changed) m.migrated = done;

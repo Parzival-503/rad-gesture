@@ -41,14 +41,14 @@ const shots = path.join(__dirname, 'shots');
   assert.match(await toast(), /Impression/);
   assert.strictEqual(await state(), null, 'ring closes after a flick');
 
-  // 2. Flick through One-liner (3rd item, ~144 deg: down-right) into its sub-ring.
+  // 2. Flick through One-liner (4th of 6 items, 180 deg: straight down) into its sub-ring.
   await page.waitForTimeout(400);
   await page.mouse.move(cx, cy);
   await page.mouse.down();
-  await page.mouse.move(cx + 110, cy + 150, { steps: 10 });
+  await page.mouse.move(cx, cy + 185, { steps: 10 });
   s = await state();
   assert.strictEqual(s.levels, 2, 'moving past One-liner opens its smaller ring');
-  await page.mouse.move(cx + 110 + 60, cy + 150 + 40, { steps: 5 });
+  await page.mouse.move(cx + 60, cy + 185 + 50, { steps: 5 });
   await shot('2-oneliner-subring');
   await page.waitForTimeout(250);
   assert.deepStrictEqual(await dockOverlaps(), [], 'the ring buttons stay clear of a smaller ring opened down-right');
@@ -130,7 +130,7 @@ const shots = path.join(__dirname, 'shots');
     await page.evaluate((v) => { if (v) delete window.RG_DEMO_MENU.passOpens; else window.RG_DEMO_MENU.passOpens = false; }, on);
     await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.up();
     assert.strictEqual((await state()).mode, 'click');
-    await page.mouse.move(cx + 110, cy + 150, { steps: 8 }); // past One-liner (down-right)
+    await page.mouse.move(cx, cy + 185, { steps: 8 }); // past One-liner (straight down)
     await page.waitForTimeout(300);
     assert.strictEqual((await state()).levels, on ? 2 : 1, on ? 'after a tap, moving past One-liner opens its smaller ring' : 'with the switch off it does not');
     if (on) await shot('8b-pass-after-tap');

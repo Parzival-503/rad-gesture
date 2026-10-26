@@ -523,6 +523,9 @@ ProofreadActiveReport() {
     Clipboard := savedClip
 
     reportText := Trim(reportText, " `t`r`n")
+    ; A finished report teaches Impression this radiologist's style (the hub
+    ; keeps findings + impression only, and only while that setting is on).
+    StyleLearn(reportText, "proofread")
     if (g_StripHeader)
         reportText := StripPatientHeader(reportText)
 
@@ -3155,8 +3158,12 @@ ImpressionRun() {
     userMsg := (context != "" ? "CLINICAL CONTEXT (exam, history, comparison):`n" . context . "`n`n" : "")
         . "FINDINGS:`n" . findings
 
+    ; The radiologist's own closest impressions, so it comes out in their style.
+    styleBlock := HubRequest("POST", "/style/examples", 2000, "{""report"":" . JsonAscii(report) . "}")
+    system := ImpressionPrompt() . (styleBlock != "" ? "`n`n" . styleBlock : "")
+
     Toast("Writing impression...", "info", 0)
-    res := PostClaude(ImpressionPrompt(), userMsg, g_ImpMaxTokens, "medium", ImpressionModel())
+    res := PostClaude(system, userMsg, g_ImpMaxTokens, "medium", ImpressionModel())
     KillToast()
 
     if (res.error != "") {
@@ -3178,6 +3185,48 @@ ImpressionContext(t) {
     if (p <= 1)
         return ""
     return SubStr(Trim(SubStr(t, 1, p - 1), " `t`r`n"), 1, 1500)
+}
+
+; Hands a finished report to the hub, which keeps its findings and impression
+; as an example of this radiologist's style. When Impression wrote a draft for
+; these findings, it goes along, so the edits can be seen. Returns the hub's
+; answer: "saved:<count>:<kind>", "skip:<why>", "off", or "" (hub not running).
+StyleLearn(report, source) {
+    global g_ImpLastFindings, g_ImpLastText
+    draft := ""
+    if (g_ImpLastText != "" && g_ImpLastFindings != "" && InStr(report, SubStr(g_ImpLastFindings, 1, 80)))
+        draft := g_ImpLastText
+    body := "{""source"":" . JsonAscii(source) . ",""draft"":" . JsonAscii(draft) . ",""report"":" . JsonAscii(report) . "}"
+    return HubRequest("POST", "/style/learn", 1500, body)
+}
+
+; "Learn this impression" (ring): the report open in PowerScribe, finished,
+; becomes an example now, whatever the proofread setting.
+StyleLearnNow() {
+    savedClip := ClipboardAll
+    Clipboard := ""
+    Send, {Ctrl up}{Alt up}{Shift up}
+    Send, ^a
+    Sleep, 50
+    Send, ^c
+    ClipWait, 2
+    report := ErrorLevel ? "" : Clipboard
+    Clipboard := savedClip
+    Send, {Right}
+    if (StrLen(Trim(report)) < 40) {
+        Toast("Learn this impression: nothing copied. Click in the PowerScribe report first.", "warn", 3500)
+        return
+    }
+    r := StyleLearn(report, "manual")
+    if (SubStr(r, 1, 6) = "saved:") {
+        parts := StrSplit(r, ":")
+        Toast(Chr(0x2713) . " Learned" . (parts[3] != "" ? " (" . parts[3] . ")" : "") . ". " . parts[2] . " examples of your impressions.", "ok", 2500)
+    } else if (r = "skip:no impression")
+        Toast("Nothing learned: this report has no IMPRESSION yet.", "warn", 3000)
+    else if (r = "skip:no findings")
+        Toast("Nothing learned: no FINDINGS found in this report.", "warn", 3000)
+    else
+        Toast("Nothing learned: RadGesture is not answering. Is it running?", "error", 3500)
 }
 
 ; Impression can use its own model (Settings > AI tools); default: the same one.
@@ -3208,6 +3257,7 @@ ImpressionPrompt() {
     . "`n- Put related findings together into one conclusion (for example, several signs of one process become one line naming the process), instead of one line per finding."
     . "`n- Say what the findings mean, not what they look like, when the findings support it. Keep the radiologist's level of certainty; never make it stronger."
     . "`n- Rank by what changes management: acute or urgent findings, then the answer to the clinical question, then new findings that need follow-up or workup."
+    . "`n- Never leave out a finding that needs follow-up or workup, even when the exam was ordered for something else: a lung nodule that meets Fleischner criteria, a solid or indeterminate liver, kidney, adrenal, pancreatic or thyroid lesion, an aneurysm, suspected malignancy. It gets its own line."
     . "`n`nLEAVE OUT:"
     . "`n- Chronic, stable, degenerative and incidental findings that need no follow-up, unless they explain the symptoms in the history. These almost never belong in the impression: atelectasis, scarring, coronary or vascular calcification, degenerative spine or joint changes, granulomas, simple cysts, small hiatal hernia, diverticulosis without inflammation, gallstones. Example: gallstones go in only if the history mentions abdominal pain, RUQ pain or similar."
     . "`n- Lists of negative findings. Do not answer the history item by item. When nothing acute or actionable is found, the whole impression is ONE short line for the body part, such as: No acute findings in the chest."
@@ -3474,6 +3524,8 @@ RunHubAction(a) {
     } else if (a = "impression") {
         if (!g_Busy)
             ImpressionRun()
+    } else if (a = "style:learn") {
+        StyleLearnNow()
     } else if (a = "oneliner") {
         if (!g_Busy)
             Trigger_OneLiner()

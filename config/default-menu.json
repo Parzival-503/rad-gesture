@@ -208,6 +208,11 @@
           "action": "helper:impression"
         },
         {
+          "name": "Learn this impression",
+          "icon": "school",
+          "action": "helper:style:learn"
+        },
+        {
           "name": "One-liner",
           "icon": "short_text",
           "items": [

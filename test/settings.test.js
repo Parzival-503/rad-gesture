@@ -379,3 +379,17 @@ test('window / level presets show their organ and Oncologic the ribbon, on saved
   assert.strictEqual(got['helper:lib:PACS_WL_Stroke'].icon, 'star', 'an icon the person chose stays');
   assert.strictEqual(got['helper:oneliner:oncologic'].icon, 'ti:ribbon-health');
 });
+
+test('saved AI Tools rings get "Learn this impression" after Impression, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-style-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const ai = (menu) => menu.categories.find((c) => c.id === 'ai');
+  ai(m).items = ai(m).items.filter((i) => i.action !== 'helper:style:learn');
+  m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid', 'layout-grid-three', 'nav-pairs', 'orthogonal-ruler', 'openevidence-search', 'pacs-no-fields', 'organ-icons'];
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const got = ai(store.readMenu()).items.map((i) => i.action || i.name);
+  assert.strictEqual(got[got.indexOf('helper:impression') + 1], 'helper:style:learn');
+  assert.strictEqual(got.filter((a) => a === 'helper:style:learn').length, 1);
+});

@@ -479,3 +479,13 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
 .fntile .fnclash .msym { font-size: 15px; color: var(--warn); }
 .fndetail { grid-column: 1 / -1; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 14px; background: var(--card); padding: 4px 18px 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
 .fndetail > .libfn { border-top: 0; }
+
+/* Your impression style (AI tools) */
+.stylepaste { margin: 4px 0 12px; }
+.stylelist { margin-top: 10px; }
+.stylelist summary { cursor: pointer; color: var(--ink-2); font-weight: 600; padding: 6px 0; }
+.styleex { border-top: 1px solid var(--line); padding: 8px 0; font-size: 12.5px; }
+.styleexh { display: flex; align-items: center; gap: 10px; }
+.styleexh b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.styleimp, .styledraft { white-space: pre-wrap; margin-top: 4px; color: var(--ink); }
+.styledraft { color: var(--ink-2); text-decoration: line-through; text-decoration-color: rgba(255,255,255,0.25); }

@@ -541,6 +541,24 @@ async function waitFor(fn, ms, step = 200) {
       const q2 = await reached('proof:closed:7:1');
       check('closing it tells the helper what was resolved (for the history)', q2.ok, q2.got);
       check('Esc closes the proofread window', !app.windows().some((w) => w.url().includes('proofread')));
+
+      // Impression style: a finished report (as proofread sends it) becomes an
+      // example, the next impression gets it back, and Settings shows it.
+      const signed = 'EXAMINATION: CT CHEST WITHOUT CONTRAST\nHISTORY: Cough.\nFINDINGS:\nLungs: A 5 mm nodule in the right middle lobe. No consolidation.\nPleura: No effusion.\nIMPRESSION:\n1. No acute findings in the chest.\nElectronically signed by Dr. Invented Name 1/2/2026 10:00';
+      const learned = await call('POST', '/style/learn', JSON.stringify({ source: 'proofread', draft: '', report: signed }));
+      check('a proofread report becomes an impression example', learned === 'saved:1:CT chest', learned);
+      const ex = await call('POST', '/style/examples', JSON.stringify({ report: 'EXAMINATION: CT CHEST\nFINDINGS:\nLungs: clear. No nodule.' }));
+      check('Impression gets the closest example back, without the signer', /EXAMPLE 1 \(CT CHEST WITHOUT CONTRAST\)/.test(ex) && /No acute findings in the chest/.test(ex) && !/Invented|1\/2\/2026/.test(ex), ex.slice(0, 120));
+      await win.click('#nav button[data-tab="ai"]');
+      await win.waitForSelector('#styleCount', { timeout: 5000 }).catch(() => {});
+      await sleep(300);
+      check('Settings shows the example', /1 saved/.test(await win.textContent('#styleCount').catch(() => '')));
+      await win.click('#stylePaste');
+      await win.fill('#stylePasteText', 'EXAMINATION: US ABDOMEN RUQ\nFINDINGS:\nGallbladder: Shadowing gallstones, wall thickening and a positive sonographic Murphy sign.\nIMPRESSION:\nAcute calculous cholecystitis.\n\nEXAMINATION: MRI BRAIN\nFINDINGS:\nNo acute infarct, hemorrhage or mass. Ventricles normal for age.\nIMPRESSION:\nNo acute intracranial abnormality.');
+      await win.click('#stylePasteAdd');
+      await waitFor(async () => /3 saved/.test(await win.textContent('#styleCount').catch(() => '')), 5000);
+      check('pasting reports adds one example each', /3 saved/.test(await win.textContent('#styleCount').catch(() => '')));
+      await (await win.$('#styleCard')).screenshot({ path: path.join(SHOTS, 'settings-style.png') }).catch(() => {});
     }
 
     // The ring editor offers Library functions, with the key note.

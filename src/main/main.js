@@ -45,6 +45,8 @@ const icons = createIconStore({ dir: () => path.join(userDir(), 'icons'), native
 const { codeFor } = require('./library-code');
 const { createReferences } = require('./references');
 const refs = createReferences({ dir: () => path.join(userDir(), 'references') });
+const { createStyleStore } = require('./style-store');
+const style = createStyleStore({ userDir });
 const resourcesHelperDir = () => (app.isPackaged ? path.join(process.resourcesPath, 'helper') : path.join(ROOT, 'helper'));
 
 let overlay = null;
@@ -338,6 +340,18 @@ function bridgeToken() {
   return crypto.randomBytes(16).toString('hex');
 }
 
+// A finished report from the helper (proofread, or "Learn this impression").
+// Proofread only teaches while Settings > AI tools > "Learn from reports I
+// proofread" is on; the button always does.
+function styleLearn(d) {
+  const source = String((d && d.source) || 'manual');
+  if (source === 'proofread' && store.readAI().styleLearn === '0') return 'off';
+  const r = style.learn(String((d && d.report) || ''), { source, draft: String((d && d.draft) || '') });
+  logEvent('style', r.saved ? `${source}: ${r.example.kind || 'report'} (${r.count})` : `${source}: ${r.skip}`);
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('rgs:style-changed');
+  return r.saved ? `saved:${r.count}:${r.example.kind || ''}` : 'skip:' + r.skip;
+}
+
 async function startBridge() {
   const token = bridgeToken();
   bridge = createBridge({
@@ -371,6 +385,8 @@ async function startBridge() {
     },
     onOpenSettings: (tab) => openSettings(tab || 'general'),
     onProofread: (d) => openProofread(d),
+    onStyleLearn: (d) => styleLearn(d),
+    onStyleExamples: (report) => (store.readAI().styleUse === '0' ? '' : style.promptFor(report)),
     onProofToast: (msg) => { if (proofWin && !proofWin.isDestroyed()) proofWin.webContents.send('rgp:toast', String(msg).slice(0, 300)); },
     onQuit: () => {
       logEvent('quit', 'asked by Setup');
@@ -733,6 +749,16 @@ function registerSettingsIpc() {
   ipcMain.handle('rgs:ref-save', (_e, v) => refForPage(refs.save({ id: v.id, title: v.title, tags: v.tags, body: v.body }), true));
   ipcMain.handle('rgs:ref-delete', (_e, id) => refs.remove(id));
   ipcMain.handle('rgs:ref-open', (_e, id) => openReference(id));
+  ipcMain.handle('rgs:style-list', () => style.list());
+  ipcMain.handle('rgs:style-remove', (_e, id) => style.remove(String(id)));
+  ipcMain.handle('rgs:style-clear', () => style.clear());
+  ipcMain.handle('rgs:style-import', (_e, text) => style.importText(String(text || '')));
+  ipcMain.handle('rgs:style-import-file', async () => {
+    const r = await dialog.showOpenDialog(settingsWin, { title: 'Import reports', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Text', extensions: ['txt', 'text', 'rtf', 'csv'] }, { name: 'All files', extensions: ['*'] }] });
+    if (r.canceled || !r.filePaths.length) return { canceled: true };
+    const text = r.filePaths.map((f) => fs.readFileSync(f, 'utf8')).join('\n\n');
+    return style.importText(text);
+  });
   ipcMain.handle('rgs:open-url', (_e, url) => { if (/^https?:\/\//i.test(String(url))) shell.openExternal(url); });
   // A picture for a reference (new, or added to one): from the clipboard or a file.
   ipcMain.handle('rgs:ref-paste', async (_e, id) => {

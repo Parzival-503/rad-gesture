@@ -12,12 +12,16 @@
 //   POST /done?action=<id> helper: finished running an action
 //   POST /proofread       helper: proofread results (JSON body) -> "ok" when shown
 //   POST /proofread-toast helper: a short message for the proofread window (body)
+//   POST /style/learn     helper: a finished report to learn the impression style
+//                         from (JSON: report, draft, source) -> "saved:<n>:<kind>" | "skip:<why>" | "off"
+//   POST /style/examples  helper: the report about to get an impression (JSON: report)
+//                         -> the radiologist's closest examples as prompt text, or ""
 //
 // Plain-text replies, because the helper is AutoHotkey v1 and has no JSON.
 
 const http = require('http');
 
-function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {}, onQuit = () => {}, onOpenSettings = () => {}, onProofread = () => 'no', onProofToast = () => {} }) {
+function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {}, onQuit = () => {}, onOpenSettings = () => {}, onProofread = () => 'no', onProofToast = () => {}, onStyleLearn = () => 'off', onStyleExamples = () => '' }) {
   const queue = [];
 
   const server = http.createServer(async (req, res) => {
@@ -68,6 +72,24 @@ function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () 
         case '/proofread-toast':
           onProofToast(await body());
           return reply(200, 'ok');
+        case '/style/learn': {
+          if (req.method !== 'POST') return reply(405, 'POST only');
+          let data;
+          try {
+            data = JSON.parse(await body());
+          } catch (_) {
+            return reply(400, 'bad json');
+          }
+          return reply(200, (await onStyleLearn(data)) || 'off');
+        }
+        case '/style/examples': {
+          if (req.method !== 'POST') return reply(405, 'POST only');
+          // JSON { report } (all ASCII, as the helper sends it), or the bare text.
+          const raw = await body();
+          let report = raw;
+          try { report = String(JSON.parse(raw).report || ''); } catch (_) { /* bare text */ }
+          return reply(200, (await onStyleExamples(report)) || '');
+        }
         case '/ping':
           return reply(200, 'radgesture');
         case '/open-settings':

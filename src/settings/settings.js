@@ -175,6 +175,8 @@
   }
   document.querySelectorAll('#nav button').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
   api.onTab((t) => setTab(t));
+  // A report was learned while this window is open: refresh the count.
+  api.onStyleChanged(async () => { if (ui.style) { ui.style.list = await api.styleList(); if (ui.tab === 'ai' && !dirty.ai) render(); } });
 
   const saveBar = h('div', { class: 'savebar' });
   document.body.append(saveBar);
@@ -761,6 +763,7 @@
         seg([['', 'Same as above'], ['claude-opus-5-5', 'Opus 5.5']], a.impressionModel === 'claude-opus-5-5' ? 'claude-opus-5-5' : '', (v) => { a.impressionModel = v; markDirty('ai'); render(); })),
       row('Your rules', 'Added to every impression, and they win over the built-in rules.',
         h('textarea', { class: 'wide', id: 'rules', rows: 3, oninput: (e) => { a.impressionRules = e.target.value; markDirty('ai'); } }, a.impressionRules))));
+    $main.append(styleCard(a));
     $main.append(h('div', { class: 'card' },
       h('h2', {}, 'Prior checklist'),
       h('p', { class: 'hint', style: 'margin:-6px 0 8px' }, 'A short list of what to check on today\'s study, from the prior reports. Copy a prior report, press Add copied prior (repeat for each prior), then Make checklist. Empty the list starts over. On the ring under AI Tools > Prior checklist, and on the toolbar. Not the same as Insert priors on the PACS ring, which fills PowerScribe\'s Comparison field.'),
@@ -770,6 +773,52 @@
       row('Adding a prior takes', null,
         seg([['clipboard', 'What I copied'], ['selectall', 'Select all + copy']], a.priorCapture, (v) => { a.priorCapture = v; markDirty('ai'); render(); })),
       row('Show the toolbar at startup', 'The small window with the prior checklist, the one-liner\'s chart text, Impression and One-liner.', sw(a.toolbarAtStartup === '1', (v) => { a.toolbarAtStartup = v ? '1' : '0'; markDirty('ai'); render(); }, 'Show toolbar at startup'))));
+  }
+
+  // The radiologist's own impressions, which Impression copies the style of.
+  // Learned from each report proofread (findings + the impression signed),
+  // from "Learn this impression" on the ring, or from reports imported here.
+  function styleCard(a) {
+    if (!ui.style) {
+      ui.style = { list: null, paste: false, open: false, all: false };
+      api.styleList().then((l) => { ui.style.list = l; render(); });
+    }
+    const st = ui.style;
+    const list = st.list || [];
+    const kinds = {};
+    for (const x of list) kinds[x.kind || 'other'] = (kinds[x.kind || 'other'] || 0) + 1;
+    const top = Object.entries(kinds).sort((x, y) => y[1] - x[1]).slice(0, 8);
+    const reload = async (msg) => { st.list = await api.styleList(); render(); if (msg) toast(msg); };
+    const said = (r) => (r.canceled ? null : `Added ${r.added} report${r.added === 1 ? '' : 's'}` + (r.skipped ? ` (${r.skipped} had no FINDINGS and IMPRESSION, skipped)` : '') + `. ${r.count} examples now.`);
+    const src = { proofread: 'proofread', manual: 'saved from the ring', import: 'imported' };
+    const shown = list.slice().reverse().slice(0, st.all ? list.length : 30);
+    return h('div', { class: 'card', id: 'styleCard' },
+      h('h2', {}, 'Your impression style'),
+      h('p', { class: 'hint', style: 'margin:-6px 0 8px' }, 'Impression learns how you write impressions from your own signed reports, then writes new ones the same way: your wording, length, and what you leave out. Before each impression it picks your closest examples (same kind of study first). Kept on this PC only, without the patient header; dates and long numbers are blanked out.'),
+      row('Write in my style', 'Uses your examples in every impression.', sw(a.styleUse !== '0', (v) => { a.styleUse = v ? '1' : '0'; markDirty('ai'); render(); }, 'Write in my style')),
+      row('Learn from reports I proofread', 'Each time you proofread a finished report, its findings and your impression become an example. Proofread right before signing, so the impression is the one you sign.', sw(a.styleLearn !== '0', (v) => { a.styleLearn = v ? '1' : '0'; markDirty('ai'); render(); }, 'Learn from reports I proofread')),
+      row('Examples', st.list === null ? 'Loading...' : list.length ? null : 'None yet. Proofread a few finished reports, or import some below.',
+        h('span', { class: 'chip' + (list.length ? ' good' : ''), id: 'styleCount' }, msym('school'), `${list.length} saved`),
+        ...top.map(([k, n]) => h('span', { class: 'chip' }, `${k} ${n}`))),
+      row('Add many at once', 'Open several of your signed reports in PowerScribe, copy each one, and paste them here one after another (or import a text file). Each needs FINDINGS: and IMPRESSION:.',
+        h('button', { class: 'btn small', id: 'stylePaste', onclick: () => { st.paste = !st.paste; render(); } }, msym('content_paste'), 'Paste reports...'),
+        h('button', { class: 'btn small', id: 'styleImportFile', onclick: async () => { const r = await api.styleImportFile(); const m = said(r); if (m) reload(m); } }, msym('upload_file'), 'Import a text file...'),
+        list.length ? h('button', { class: 'btn small', id: 'styleClear', onclick: async () => { if (!confirm(`Delete all ${list.length} examples? Impression goes back to the built-in style.`)) return; await api.styleClear(); reload('All examples deleted.'); } }, msym('delete_sweep'), 'Delete all') : null),
+      st.paste ? h('div', { class: 'stylepaste' },
+        h('textarea', { class: 'wide', id: 'stylePasteText', rows: 8, placeholder: 'EXAMINATION: ...\nFINDINGS: ...\nIMPRESSION: ...\n\nEXAMINATION: ...' }),
+        h('div', { class: 'addrow' },
+          h('button', { class: 'btn', id: 'stylePasteAdd', onclick: async () => { const t = document.getElementById('stylePasteText').value; const r = await api.styleImport(t); st.paste = !r.added; reload(said(r)); } }, msym('add'), 'Add these'),
+          h('span', { class: 'hint' }, 'Use reports you wrote. Anything identifying in the findings themselves (a name typed into the text) is not removed.'))) : null,
+      list.length ? h('details', { class: 'stylelist', open: st.open, ontoggle: (e) => { st.open = e.target.open; } },
+        h('summary', {}, `See the examples (${list.length})`),
+        ...shown.map((x) => h('div', { class: 'styleex', 'data-id': x.id },
+          h('div', { class: 'styleexh' },
+            h('b', {}, x.exam || x.kind || 'Report'),
+            h('span', { class: 'hint' }, `${src[x.source] || x.source}, ${String(x.added || '').slice(0, 10)}`),
+            h('button', { class: 'iconbtn', title: 'Delete this example', 'aria-label': 'Delete this example', onclick: async () => { await api.styleRemove(x.id); reload(); } }, msym('delete'))),
+          x.draft ? h('div', { class: 'styledraft' }, h('span', { class: 'hint' }, 'AI wrote: '), x.draft) : null,
+          h('div', { class: 'styleimp' }, x.draft ? h('span', { class: 'hint' }, 'You signed: ') : null, x.impression))),
+        !st.all && list.length > shown.length ? h('button', { class: 'btn small', onclick: () => { st.all = true; render(); } }, `Show all ${list.length}`) : null) : null);
   }
 
   // ---------------------------------------------------------------- Shortcuts

@@ -574,6 +574,31 @@ Bone `ti:bone`, Brain and Stroke `ti:brain`), the Oncologic one-liner
   list of answered negatives, and gets no closing line; the prompt carries
   that case as a wrong/right example because the first synthesis prompt
   still listed negatives, atelectasis and coronary calcification.
+- **Impression style** (the owner, 2026-10-26: "our Rad AI version"). Rad AI
+  (public sources only: its patents US 11342055 / 11810654 and the npj
+  Digital Medicine 2026 study) tunes a model to each radiologist on years
+  of their own reports. Ours does the same with no training: the
+  radiologist's own signed findings -> impression pairs are kept as
+  examples, and Impression puts the closest 4 (same kind of exam first,
+  then similar findings; `src/common/impstyle.js`, tested) in the prompt
+  with "match their style, never copy a finding". Examples come from
+  (1) **every proofread** (`StyleLearn(report, "proofread")` in
+  `ProofreadActiveReport`; he proofreads finished reports, so the
+  impression is the signed one; Settings > AI tools "Learn from reports I
+  proofread", `[Impression] LearnStyle`), (2) ring AI Tools > **Learn this
+  impression** (`helper:style:learn`, migration `impression-style`), and
+  (3) Settings > AI tools > Your impression style: paste reports / import
+  a text file. Only exam line, history, findings and impression are kept;
+  dates, times, numbers of 6+ digits, MRN/accession/name labels and
+  signature lines are blanked (`scrub`); same findings replace the older
+  copy; 600 at most. Stored in `%APPDATA%\RadGesture\style\examples.json`
+  (`src/main/style-store.js`), never in a repo: it is report text from
+  the workstation. When Impression wrote a draft for the same findings the
+  edited draft is kept beside it (shown struck out in Settings).
+  `[Impression] UseStyle=0` turns the examples off. Bridge:
+  `/style/learn`, `/style/examples` (JSON, ASCII). The prompt also never
+  drops an actionable incidental (Rad AI's main selling point: about 60% of
+  reports with one leave it out of the impression or give no follow-up).
 - **Proofread results show in the hub's window** (`src/proofread/`, Settings
   look, always on top): the helper POSTs `/proofread` (JSON body, ASCII via
   `JsonAscii`, with a `seq`) and only when that fails falls back to its old
