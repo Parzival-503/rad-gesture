@@ -826,6 +826,16 @@ async function waitFor(fn, ms, step = 200) {
         const inject = (mode) => spawnSync(ahk, [path.join(__dirname, 'inject.ahk'), mode], { timeout: 20000 });
         inject('flick');
         const flick = await waitFor(async () => (await ev()).some((e) => e.startsWith('done keys:{F13}')), 10000);
+        if (!flick) {
+          // What is on screen when the ring does not answer.
+          const scene = await app.evaluate(async ({ BrowserWindow, screen }) => ({
+            cursor: screen.getCursorScreenPoint(),
+            windows: BrowserWindow.getAllWindows().map((w) => ({ url: w.webContents.getURL().split('/').slice(-2).join('/'), visible: w.isVisible(), top: w.isAlwaysOnTop(), focused: w.isFocused(), bounds: w.getBounds() })),
+          }));
+          console.log('  [debug] ' + JSON.stringify(scene));
+          const ov = app.windows().find((w) => w.url().includes('renderer'));
+          if (ov) console.log('  [debug] ring ' + JSON.stringify(await ov.evaluate(() => { const s = window.RGRing.state(); return s && { levels: s.levels.length, hover: s.hover, cat: s.cat, mode: s.mode }; }).catch((e) => String(e))));
+        }
         check('real Ctrl+CapsLock + flick up runs the up direction', flick, (await ev()).slice(-8).join(' | '));
         inject('tap');
         const tap = await waitFor(async () => (await ev()).some((e) => e.startsWith('done keys:{F14}')), 10000);
