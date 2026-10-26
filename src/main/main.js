@@ -47,6 +47,8 @@ const { createReferences } = require('./references');
 const refs = createReferences({ dir: () => path.join(userDir(), 'references') });
 const { createStyleStore } = require('./style-store');
 const style = createStyleStore({ userDir });
+const { createPanels } = require('./panels');
+let panels = null;
 const resourcesHelperDir = () => (app.isPackaged ? path.join(process.resourcesPath, 'helper') : path.join(ROOT, 'helper'));
 
 let overlay = null;
@@ -385,6 +387,7 @@ async function startBridge() {
     },
     onOpenSettings: (tab) => openSettings(tab || 'general'),
     onProofread: (d) => openProofread(d),
+    onUi: (d) => (panels ? panels.handle(d) : 'no'),
     onStyleLearn: (d) => styleLearn(d),
     onStyleExamples: (report) => (store.readAI().styleUse === '0' ? '' : style.promptFor(report)),
     onProofToast: (msg) => { if (proofWin && !proofWin.isDestroyed()) proofWin.webContents.send('rgp:toast', String(msg).slice(0, 300)); },
@@ -830,6 +833,7 @@ function registerSettingsIpc() {
     if (r.ok) {
       loadMenu();
       if (process.platform === 'win32') setLogin(menu.startAtLogin !== false);
+      if (panels) panels.retheme();
       logEvent('menu-saved');
     }
     return r;
@@ -1086,10 +1090,16 @@ app.whenReady().then(async () => {
     resourcesDir: resourcesHelperDir(),
     ahkPathSetting: () => menu.helper && menu.helper.ahkPath,
     dataDir: userDir,
-    onChange: () => updateTray(),
+    onChange: (st) => {
+      updateTray();
+      // A helper that stopped can't answer its toolbar's buttons: hide them
+      // until it starts again and says what to show.
+      if (st && !st.running && panels) panels.hideAll();
+    },
     log: (m) => logEvent('helper', m),
   });
   const bridgeInfo = await startBridge();
+  panels = createPanels({ BrowserWindow, screen, ipcMain, clipboard, userDir, theme: () => menu && menu.theme, enqueue: (id) => bridge.enqueue(id), log: logEvent });
   registerSettingsIpc();
   registerViewerIpc();
   registerProofreadIpc();

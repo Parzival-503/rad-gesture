@@ -599,6 +599,41 @@ Bone `ti:bone`, Brain and Stroke `ti:brain`), the Oncologic one-liner
   `/style/learn`, `/style/examples` (JSON, ASCII). The prompt also never
   drops an actionable incidental (Rad AI's main selling point: about 60% of
   reports with one leave it out of the impression or give no follow-up).
+- **The helper's small windows are drawn by the hub** (the owner, 2026-10-26:
+  the AHK toolbar "feels like Windows 98"): `src/panel/` (one page,
+  `?mode=toolbar|card|pick|toast`) + `src/main/panels.js`, Settings look and
+  theme. The helper keeps the state and says what to show with `POST /ui`
+  (`HubUi()`, JSON via `JsonAscii`; `t` = toolbar | card | card-close | pick |
+  pick-close | toast | toast-hide); buttons go back through the bridge queue,
+  only ids matching `panels.ACTION`. Every one falls back to the helper's own
+  AHK window when the hub does not answer "ok". **toolbar**: priors and chart
+  pieces as chips (each removable: `prior:remove:<n>`, `chart:remove:<n>`),
+  drag by the header (position kept in `panels.json`), folds to one row,
+  close = `toolbar:hide` (ShowAtStartup=0). **card** (never takes focus, so
+  Insert pastes into the report): Impression (`imp:insert`, Copy,
+  `imp:oe`), the prior checklist (`checks: true`: Markdown lines
+  "- **Finding**: what to check [P2 3/14/2025]", each ticked off like
+  Proofread's findings, a progress bar, "All checked"; Insert keeps it open;
+  Copy/Insert use the plain text), "Empty the chart text?" (`chart:clear` /
+  `chart:keep`). **pick**: the one-liner picker, the only one that takes the
+  keyboard (1-4, arrows, Enter, Esc -> `pick:<flavor>` / `pick:cancel`).
+  **toast**: every `Toast()` and `Notify()`; clicks pass through. The helper
+  polls every 250 ms while the toolbar or a card is up (`HubPollRate`). The
+  hub hides them all when the helper stops. Class names in panel.css must
+  not collide with settings.css (it is loaded too): `.shell`, `.mini`, `.row`
+  and `.card` did, and laid the toolbar out sideways.
+- **Add prior / Add chart text copy for you** (`CaptureText`): Ctrl+C in the
+  window you are in (Sectra has no right-click Copy, but Ctrl+C works),
+  else what was already copied; the clipboard is put back. CaptureMode
+  `selectall` still presses Ctrl+A first.
+- **Prior dates** (the owner, 2026-10-26: findings change from exam to exam):
+  `PriorDate()` reads the exam date from the top of each prior (a labelled
+  "Exam date" first, never a DOB), `PriorTitle()` the exam line. The toolbar
+  shows "P1 3/14/2025 CT CHEST...", the checklist prompt gets each prior's
+  date, which one is newest and the order oldest -> newest
+  (`PriorOrder()`), and goes by each finding's latest status: trends,
+  resolved findings kept short and last ("confirm still gone"), done
+  follow-ups not repeated. No date found: the order added.
 - **Proofread results show in the hub's window** (`src/proofread/`, Settings
   look, always on top): the helper POSTs `/proofread` (JSON body, ASCII via
   `JsonAscii`, with a `seq`) and only when that fails falls back to its old

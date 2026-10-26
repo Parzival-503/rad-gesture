@@ -124,6 +124,12 @@ global TOAST_MS          := 2200
 global g_Busy            := false
 global g_PickerHwnd      := 0
 global g_ToastHwnd       := 0
+global g_UiHub           := false ; the hub draws the small windows (toolbar, cards, toasts)
+global g_ToolbarOn       := false ; the hub's toolbar is showing
+global g_ToastHub        := false ; the hub shows a toast now
+global g_CardUntil       := 0     ; a hub card or picker may be open until this tick
+global g_ChartAskHub     := false ; the hub card asks "empty the chart text?"
+global g_PickerHub       := false ; the hub's one-liner picker is open
 global g_SavedClip       := ""
 global g_PendingText     := ""
 global g_DirectFlavor    := ""    ; set by the ring: skip the flavor picker
@@ -570,10 +576,16 @@ StripPatientHeader(t) {
 }
 
 Notify(msg, durationMs := 0, clear := false) {
+    global g_ToastHub
     if (clear || msg = "") {
         ToolTip
+        if (g_ToastHub)
+            KillToast()
         return
     }
+    ; Shown by the hub like every other message, when it is running.
+    if (HubToast(RegExReplace(msg, "^RadGesture: ", ""), "info", durationMs))
+        return
     ToolTip, %msg%
     if (durationMs > 0)
         SetTimer, ClearNotifyTip, % -durationMs
@@ -1713,8 +1725,7 @@ ProofHubAction(a) {
     g_ProofSessions.Delete(seq)
     if (seq = g_ProofSeq) {
         g_ProofHub := false
-        if (!g_RingOpen)
-            SetTimer, HubPoll, 750
+        HubPollRefresh()
     }
     if (!IsObject(sess) || !g_LogHistory || sess.flags.Length() = 0)
         return
@@ -2157,26 +2168,95 @@ PriorExpireCheck() {
     return true
 }
 
+; What + Add takes: the text highlighted in the window you are in (it presses
+; Ctrl+C there itself, which works where there is no right-click Copy, as in
+; Sectra), else what is already on the clipboard. The clipboard is left as it
+; was. [Priors] CaptureMode=selectall presses Ctrl+A first: the whole report.
+CaptureText(ByRef src) {
+    global g_PriorCapture
+    prev := Clipboard
+    saved := ClipboardAll
+    Clipboard := ""
+    Send, {Ctrl up}{Alt up}{Shift up}{LWin up}{RWin up}
+    Sleep, 40
+    if (g_PriorCapture = "selectall") {
+        Send, ^a
+        Sleep, 50
+    }
+    Send, ^c
+    ClipWait, 0.6
+    if (ErrorLevel) {
+        SendEvent, ^c
+        ClipWait, 0.5
+    }
+    got := ErrorLevel ? "" : Clipboard
+    Clipboard := saved
+    got := Trim(got, " `t`r`n")
+    if (StrLen(got) >= 10) {
+        src := (g_PriorCapture = "selectall") ? "whole report" : "highlighted"
+        return got
+    }
+    src := "copied"
+    return Trim(prev, " `t`r`n")
+}
+
+; The exam date at the top of a prior report: { key: "yyyyMMdd", show: "M/D/YYYY" },
+; or key "" when none. A date of birth is never taken for it.
+PriorDate(text) {
+    head := SubStr(text, 1, 700)
+    mon := { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 }
+    re := "i)(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})|(\d{4})-(\d{1,2})-(\d{1,2})|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.? (\d{1,2}),? (\d{4})"
+    best := "", labelled := false
+    pos := 1
+    while (pos := RegExMatch(head, re, m, pos)) {
+        before := SubStr(head, (pos > 40 ? pos - 40 : 1), (pos > 40 ? 40 : pos - 1))
+        pos += StrLen(m)
+        if RegExMatch(before, "i)(DOB|birth|born)[^\n]{0,15}$")
+            continue
+        if (m1 != "") {
+            y := m3 + 0, mo := m1 + 0, d := m2 + 0
+            if (y < 100)
+                y += (y <= Mod(A_Year, 100) + 1) ? 2000 : 1900
+        } else if (m4 != "") {
+            y := m4 + 0, mo := m5 + 0, d := m6 + 0
+        } else {
+            y := m9 + 0, mo := mon[SubStr(m7, 1, 3)], d := m8 + 0
+        }
+        if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1950 || y > A_Year + 1)
+            continue
+        cand := { key: Format("{:04d}{:02d}{:02d}", y, mo, d), show: mo . "/" . d . "/" . y }
+        isLab := RegExMatch(before, "i)(exam|study|service|procedure|performed|date)[^\n]{0,20}$")
+        if (best = "" || (isLab && !labelled)) {
+            best := cand
+            labelled := isLab
+            if (labelled)
+                break
+        }
+    }
+    return IsObject(best) ? best : { key: "", show: "" }
+}
+
+; The exam name of a prior report ("CT CHEST WITH CONTRAST"), or "".
+PriorTitle(text) {
+    if RegExMatch(text, "im)^[ \t]*(?:EXAMINATION|EXAM|PROCEDURE|STUDY)[ \t]*:[ \t]*(.+)$", m)
+        return SubStr(Trim(m1), 1, 70)
+    return ""
+}
+
+; What the toolbar shows for a prior: its date and exam, else its first words.
+PriorPeek(p) {
+    t := (p.title != "") ? p.title : SubStr(RegExReplace(p.text, "\s+", " "), 1, 90)
+    return (p.date != "" ? p.date . "  " : "") . t
+}
+
 PriorAdd() {
     global g_Priors, g_PriorLast, g_PriorCapture
     expired := PriorExpireCheck()
 
-    if (g_PriorCapture = "selectall") {
-        savedClip := ClipboardAll
-        Clipboard := ""
-        Send, ^a
-        Sleep, 50
-        Send, ^c
-        ClipWait, 2
-        text := ErrorLevel ? "" : Clipboard
-        Clipboard := savedClip
-    } else {
-        text := Clipboard
-    }
-    text := Trim(text, " `t`r`n")
+    text := CaptureText(src)
 
     if (StrLen(text) < 20) {
-        Notify("Prior checklist: nothing copied. Copy the prior report first, then + Add prior.", 3000)
+        Notify("Prior checklist: nothing highlighted or copied. Highlight the prior report, then Add prior.", 3000)
         return
     }
     for i, p in g_Priors {
@@ -2186,16 +2266,35 @@ PriorAdd() {
         }
     }
 
-    g_Priors.Push({ text: text, added: A_Now })
+    pd := PriorDate(text)
+    p := { text: text, added: A_Now, date: pd.show, key: pd.key, title: PriorTitle(text) }
+    g_Priors.Push(p)
     g_PriorLast := A_Now
     PriorBinRefresh()
 
-    ; Echo the start of what was captured so a wrong clipboard is obvious.
-    peek := SubStr(RegExReplace(text, "\s+", " "), 1, 60)
-    msg := "Prior checklist: P" . g_Priors.Length() . " added: " . peek . "...`nAdd more, or Checklist when done."
+    ; Echo what was captured so a wrong selection is obvious.
+    msg := "P" . g_Priors.Length() . " added (" . src . "): " . SubStr(PriorPeek(p), 1, 70)
+        . (p.date = "" ? "`nNo exam date found at the top; it counts in the order added." : "")
+        . "`nAdd more, or Checklist when done."
     if (expired)
         msg := "Old priors were cleared (idle too long).`n" . msg
     Notify(msg, 2500)
+}
+
+PriorRemove(i) {
+    global g_Priors
+    if (i < 1 || i > g_Priors.Length())
+        return
+    g_Priors.RemoveAt(i)
+    UpdatePriorBin()
+}
+
+ChartRemove(i) {
+    global g_Chart
+    if (i < 1 || i > g_Chart.Length())
+        return
+    g_Chart.RemoveAt(i)
+    UpdatePriorBin()
 }
 
 PriorClear() {
@@ -2209,6 +2308,14 @@ PriorClear() {
 ; The small always-on-top bin window. Assume-global: it adds a v-named control.
 ShowPriorBin() {
     global
+    ; Drawn by the hub when it is running; this window is the fallback.
+    if (ToolbarPush(true)) {
+        if (g_PriorBinShown) {
+            Gui, PriorBin:Destroy
+            g_PriorBinShown := false
+        }
+        return
+    }
     if (!g_PriorBinShown) {
         Gui, PriorBin:Destroy
         Gui, PriorBin:+AlwaysOnTop +ToolWindow +E0x08000000 -DPIScale
@@ -2246,7 +2353,11 @@ ShowPriorBin() {
 }
 
 UpdatePriorBin() {
-    global g_Priors, g_PriorLast, g_PriorBinShown, g_Chart
+    global g_Priors, g_PriorLast, g_PriorBinShown, g_Chart, g_ToolbarOn
+    if (g_ToolbarOn) {
+        ToolbarPush(true)
+        return
+    }
     if (!g_PriorBinShown)
         return
     c := g_Chart.Length()
@@ -2329,9 +2440,9 @@ ChartAdd() {
     global g_Chart, g_ChartLast
     ChartAskClose()
     expired := ChartExpireCheck()
-    text := Trim(Clipboard, " `t`r`n")
+    text := CaptureText(src)
     if (StrLen(text) < 10) {
-        Notify("Chart: nothing copied. Copy a part of the chart, then + Add chart text.", 3000)
+        Notify("Chart text: nothing highlighted or copied. Highlight a part of the chart, then Add chart text.", 3000)
         return
     }
     for i, p in g_Chart {
@@ -2344,7 +2455,7 @@ ChartAdd() {
     g_ChartLast := A_Now
     PriorBinRefresh()
     peek := SubStr(RegExReplace(text, "\s+", " "), 1, 60)
-    msg := "Chart piece " . g_Chart.Length() . " added: " . peek . "...`nOne-liner now uses all " . g_Chart.Length() . "."
+    msg := "Chart piece C" . g_Chart.Length() . " added (" . src . "): " . peek . "...`nOne-liner now uses all " . g_Chart.Length() . "."
     if (expired)
         msg := "Old chart pieces were cleared (idle too long).`n" . msg
     Notify(msg, 3000)
@@ -2379,6 +2490,23 @@ PriorBinGuiEscape:
     Gui, PriorBin:Hide
     Notify("Toolbar hidden. Bring it back: ring > AI Tools > Prior checklist > Show toolbar.", 3500)
 return
+
+; The hub's toolbar: what it shows (each prior's date and exam, each chart
+; piece's first words). Its buttons come back as prior:/chart: actions.
+ToolbarPush(visible) {
+    global g_Priors, g_Chart, g_ToolbarOn
+    j := "{""t"":""toolbar"",""visible"":" . (visible ? "true" : "false") . ",""priors"":["
+    for i, p in g_Priors
+        j .= (i > 1 ? "," : "") . "{""peek"":" . JsonAscii(PriorPeek(p)) . "}"
+    j .= "],""chart"":["
+    for i, p in g_Chart
+        j .= (i > 1 ? "," : "") . "{""peek"":" . JsonAscii(SubStr(RegExReplace(p.text, "\s+", " "), 1, 120)) . "}"
+    j .= "]}"
+    ok := HubUi(j)
+    g_ToolbarOn := ok && visible
+    HubPollRefresh()
+    return ok
+}
 
 PriorBinSetWanted(on) {
     global g_PriorAtStartup, INI_PATH
@@ -2424,7 +2552,13 @@ PriorChecklist() {
     . "`n- incidentals that were mentioned"
     . "`n`nRULES:"
     . "`n- 3 to 8 lines. Fewer if the priors contain little. Never more than 8."
-    . "`n- Each line starts with '- ', is at most about 20 words, and ends with its source in square brackets, e.g. [P1] or [P1, P2]. Add the prior's exam date if it appears in that report, e.g. [P2 2025-03-14]."
+    . "`n- Write Markdown, one finding per line, exactly like this: '- **Finding in 2 to 5 words**: what to check or compare, at most about 18 words [P2 3/14/2025]'. Bold only the finding name."
+    . "`n- End each line with its source in square brackets, with that prior's exam date from its heading when known, e.g. [P2 3/14/2025] or [P1 1/5/2024, P2 3/14/2025]."
+    . "`n`nDATES: each prior's heading gives its exam date when one was found, and which prior is the most recent. Findings change between exams:"
+    . "`n- When a finding appears in more than one prior, go by the MOST RECENT prior that mentions it: its latest size and status. Give the trend when sizes changed, e.g. '6 mm (P1 1/5/2024) to 8 mm (P2 3/14/2025)'."
+    . "`n- A finding that a later prior calls resolved or no longer seen stays on the list, short, marked resolved and placed last, e.g. '- **RUL nodule (resolved)**: gone on P2; confirm still gone [P1 1/5/2024, P2 3/14/2025]'. Never ask to measure or follow up a finding that has resolved."
+    . "`n- A recommendation already carried out on a later prior (the follow-up CT was done) is not repeated as pending."
+    . "`n- When a date is missing, do not guess one; use the order the priors were given."
     . "`n- Put what the new exam can actually assess first. If the new exam title is known, skip findings in body parts it does not cover unless they are clinically important."
     . "`n- Skip normal and negative findings."
     . "`n- Use only what is in the priors. Do not invent findings, sizes or dates."
@@ -2432,8 +2566,16 @@ PriorChecklist() {
 
     userMsg := "NEW EXAM BEING READ: "
         . (examTitle != "" ? examTitle : "unknown (could not be read from PowerScribe)") . "`n"
+    ; Each prior's heading carries its exam date, and which one is newest.
+    newest := 0, newestKey := ""
+    for i, p in g_Priors
+        if (p.key != "" && p.key > newestKey)
+            newest := i, newestKey := p.key
+    order := PriorOrder()
+    if (order != "")
+        userMsg .= "PRIORS BY EXAM DATE, OLDEST TO NEWEST: " . order . "`n"
     for i, p in g_Priors {
-        userMsg .= "`n=== PRIOR P" . i . " ===`n" . p.text . "`n"
+        userMsg .= "`n=== PRIOR P" . i . (p.date != "" ? " (exam date " . p.date . (i = newest ? ", the most recent prior" : "") . ")" : " (no exam date found)") . " ===`n" . p.text . "`n"
     }
 
     Notify("RadGesture: making checklist from " . n . " prior" . (n = 1 ? "" : "s") . "...", 0)
@@ -2441,6 +2583,25 @@ PriorChecklist() {
     Notify("", 0, true)
 
     ShowPriorList(examTitle, n, res.text, res.error)
+}
+
+; "P2 (1/5/2024), P1 (3/14/2025)": the dated priors, oldest first. "" when none has a date.
+PriorOrder() {
+    global g_Priors
+    keys := ""
+    for i, p in g_Priors
+        if (p.key != "")
+            keys .= (keys = "" ? "" : "`n") . p.key . "|" . i
+    if (keys = "")
+        return ""
+    Sort, keys
+    out := ""
+    Loop, Parse, keys, `n
+    {
+        i := SubStr(A_LoopField, InStr(A_LoopField, "|") + 1) + 0
+        out .= (out = "" ? "" : ", ") . "P" . i . " (" . g_Priors[i].date . ")"
+    }
+    return out
 }
 
 ; Shared API call: returns {text, error}. Writes the same debug files as the
@@ -2496,24 +2657,34 @@ ShowPriorList(examTitle, nPriors, text, err) {
     global
 
     pl_body := ""
+    pl_md := ""
     if (err != "") {
         pl_body := "Could not get a checklist.`n`n" . err
     } else {
         ; Keep only list lines; drop any preamble the model adds anyway.
+        ; pl_md keeps the Markdown (bold finding names) for the hub's card;
+        ; pl_body is plain text, for pasting into the report.
         Loop, Parse, text, `n, `r
         {
             pl_ln := Trim(A_LoopField)
-            if !RegExMatch(pl_ln, "^(?:[-*]|\d+[.)])\s*(.+)$", pl_m)
+            if !RegExMatch(pl_ln, "^(?:[-*\x{2022}]|\d+[.)])\s+(.+)$", pl_m)
                 continue
-            pl_body .= (pl_body = "" ? "" : "`n") . "-  " . pl_m1
+            pl_md .= (pl_md = "" ? "" : "`n") . "- " . pl_m1
+            pl_body .= (pl_body = "" ? "" : "`n") . "-  " . RegExReplace(pl_m1, "\*\*|__|``", "")
         }
-        if (pl_body = "")
-            pl_body := text
+        if (pl_body = "") {
+            pl_body := RegExReplace(text, "\*\*|__|``", "")
+            pl_md := text
+        }
     }
 
     pl_hdr := "Check on: " . (examTitle != "" ? examTitle : "(exam title not read from PowerScribe)")
     FormatTime, pl_now,, HH:mm
-    pl_sub := "From " . nPriors . " prior" . (nPriors = 1 ? "" : "s") . "  |  " . pl_now
+    pl_order := PriorOrder()
+    pl_sub := "From " . nPriors . " prior" . (nPriors = 1 ? "" : "s") . (pl_order != "" ? ", oldest first: " . pl_order : "") . "  |  " . pl_now
+    g_PriorListText := (err != "") ? "" : pl_body
+    if (PriorListCard(pl_hdr, pl_sub, g_PriorListText, err, pl_md))
+        return
 
     Gui, PriorList:Destroy
     Gui, PriorList:+AlwaysOnTop +ToolWindow +E0x08000000 -DPIScale
@@ -2544,6 +2715,23 @@ PriorList_Insert:
     PriorListPaste()
 return
 
+; The checklist in the hub's card: each line can be ticked off once it is in
+; the report. Insert pastes the plain text where the cursor is (the card never
+; takes focus) and the card stays open for ticking; Copy; Clear priors.
+PriorListCard(hdr, sub, text, err, md) {
+    global g_ChartAskHub
+    j := "{""t"":""card"",""kind"":""checklist"",""icon"":""checklist"",""title"":" . JsonAscii(hdr) . ",""sub"":" . JsonAscii(sub)
+    if (err != "")
+        j .= ",""error"":" . JsonAscii("Could not get a checklist.`n`n" . err) . ",""buttons"":[{""id"":""prior:clear"",""label"":""Clear priors"",""icon"":""delete_sweep""},{""id"":""close"",""label"":""Close""}]}"
+    else
+        j .= ",""checks"":true,""text"":" . JsonAscii(md) . ",""copy"":" . JsonAscii(text) . ",""buttons"":[{""id"":""priorlist:insert"",""label"":""Insert into report"",""icon"":""input"",""primary"":true,""keep"":true},{""id"":""copy"",""label"":""Copy"",""icon"":""content_copy""},{""id"":""prior:clear"",""label"":""Clear priors"",""icon"":""delete_sweep""}]}"
+    if !HubUi(j)
+        return false
+    g_ChartAskHub := false
+    HubCardShown()
+    return true
+}
+
 PriorList_Copy:
     Clipboard := g_PriorListText
     Toast(Chr(0x2713) . " Checklist copied", "ok")
@@ -2561,7 +2749,13 @@ return
 ; report editor's window directly, which crashes it.
 PriorListPaste() {
     global g_PriorListText
-    if (g_PriorListText = "")
+    PasteIntoReport(g_PriorListText, "Checklist")
+}
+
+; Paste where the cursor is (normally the PowerScribe report), then put the
+; old clipboard back.
+PasteIntoReport(text, what) {
+    if (text = "")
         return
     if WinActive("RadGesture ahk_class AutoHotkeyGUI") {
         Toast("Click in the report first, then Insert.", "info", 3000)
@@ -2569,12 +2763,12 @@ PriorListPaste() {
     }
     savedClip := ClipboardAll
     Clipboard := ""
-    Clipboard := g_PriorListText . "`r`n"
+    Clipboard := text . "`r`n"
     ClipWait, 1
     Send, ^v
     Sleep, 250
     Clipboard := savedClip
-    Toast(Chr(0x2713) . " Checklist inserted", "ok")
+    Toast(Chr(0x2713) . " " . what . " inserted", "ok")
 }
 
 ; ----------------------------------------------------------------------------
@@ -2824,6 +3018,8 @@ SendCtrlC_LowLevel() {
 
 ShowFlavorPicker() {
     global
+    if (PickerHub())
+        return
     Gui, Picker:Destroy
     Gui, Picker:+AlwaysOnTop -Caption +ToolWindow +Border +LastFound +HwndPickerHwnd
     Gui, Picker:Color, 1e1e1e
@@ -2847,6 +3043,36 @@ ShowFlavorPicker() {
     MouseGetPos, mx, my
     Gui, Picker:Show, x%mx% y%my% NoActivate, RadGesture One-liner
     WinActivate, ahk_id %PickerHwnd%
+}
+
+; The one-liner picker drawn by the hub (1-4, arrows, Enter, Esc). Its choice
+; comes back as pick:<flavor> or pick:cancel.
+PickerHub() {
+    global g_PickerHub, g_FromChart, g_Chart
+    n := g_Chart.Length()
+    sub := g_FromChart ? "From " . n . " chart piece" . (n = 1 ? "" : "s") : "From the copied text"
+    j := "{""t"":""pick"",""title"":""One-liner"",""sub"":" . JsonAscii(sub) . ",""cancel"":""pick:cancel"",""options"":["
+        . "{""id"":""pick:full"",""label"":""Full medical one-liner"",""hint"":""History and surgeries in one line"",""icon"":""notes""},"
+        . "{""id"":""pick:oncologic"",""label"":""Oncologic history"",""hint"":""Cancers, staging, treatment, current status"",""icon"":""oncology""},"
+        . "{""id"":""pick:treatment"",""label"":""Treatment timeline"",""hint"":""Dated procedures and treatments, oldest first"",""icon"":""medication""},"
+        . "{""id"":""pick:indication"",""label"":""Indication"",""hint"":""One or two lines for the indication field"",""icon"":""assignment""}]}"
+    if !HubUi(j)
+        return false
+    g_PickerHub := true
+    HubCardShown()
+    return true
+}
+
+PickerHubChoice(choice) {
+    global g_PickerHub, g_PendingText
+    if (!g_PickerHub)
+        return
+    g_PickerHub := false
+    if (g_PendingText = "" || !RegExMatch(choice, "^(full|oncologic|treatment|indication)$")) {
+        PanicTeardown("Cancelled")
+        return
+    }
+    RunFlavor(choice)
 }
 
 Pick_Full:
@@ -2950,6 +3176,9 @@ StripPreamble(text) {
 
 Toast(text, kind := "info", autoCloseMs := -1) {
     global g_ToastHwnd, TOAST_MS
+    ms := (autoCloseMs >= 0) ? autoCloseMs : TOAST_MS
+    if (HubToast(text, kind, ms))
+        return
     KillToast()
 
     color := "1e1e1e"
@@ -2983,20 +3212,70 @@ Toast(text, kind := "info", autoCloseMs := -1) {
 }
 
 KillToast() {
-    global g_ToastHwnd
+    global g_ToastHwnd, g_ToastHub
+    if (g_ToastHub) {
+        g_ToastHub := false
+        HubUi("{""t"":""toast-hide""}")
+    }
     if (g_ToastHwnd) {
         Gui, Toast:Destroy
         g_ToastHwnd := 0
     }
 }
 
+; The hub draws the helper's small windows (src/panel/): a toast, the
+; toolbar, result cards and the one-liner picker. True when it showed it;
+; false sends the caller to its own old-style window.
+HubUi(json) {
+    global g_UiHub
+    g_UiHub := (HubRequest("POST", "/ui", 1500, json) = "ok")
+    return g_UiHub
+}
+
+HubToast(text, kind, ms) {
+    global g_ToastHwnd, g_ToastHub
+    if !HubUi("{""t"":""toast"",""text"":" . JsonAscii(text) . ",""kind"":" . JsonAscii(kind) . ",""ms"":" . (ms + 0) . "}")
+        return false
+    if (g_ToastHwnd) {
+        Gui, Toast:Destroy
+        g_ToastHwnd := 0
+    }
+    g_ToastHub := true
+    return true
+}
+
+; Buttons on the hub's windows come back through the poll: poll faster while
+; one is showing, so a click feels immediate.
+HubPollRate() {
+    global g_ProofHub, g_ToolbarOn, g_CardUntil
+    if (g_ProofHub)
+        return 150
+    return (g_ToolbarOn || A_TickCount < g_CardUntil) ? 250 : 750
+}
+
+HubPollRefresh() {
+    global g_RingOpen
+    if (!g_RingOpen)
+        SetTimer, HubPoll, % HubPollRate()
+}
+
+HubCardShown() {
+    global g_CardUntil
+    g_CardUntil := A_TickCount + 180000
+    HubPollRefresh()
+}
+
 ; ============================================================================
 ;  PANIC TEARDOWN  (always restores state, no matter what failed)
 ; ============================================================================
 PanicTeardown(reason := "") {
-    global g_Busy, g_PickerHwnd, g_ToastHwnd, g_SavedClip, g_PendingText
+    global g_Busy, g_PickerHwnd, g_ToastHwnd, g_SavedClip, g_PendingText, g_PickerHub
 
     KillToast()
+    if (g_PickerHub) {
+        g_PickerHub := false
+        HubUi("{""t"":""pick-close""}")
+    }
 
     if (g_PickerHwnd) {
         Gui, Picker:Destroy
@@ -3055,6 +3334,8 @@ ChartAskEmpty() {
     n := g_Chart.Length()
     if (n = 0)
         return
+    if (ChartAskCard(n))
+        return
     Gui, ChartAsk:+AlwaysOnTop -Caption +ToolWindow +E0x08000000 +LastFound +HwndAskHwnd
     Gui, ChartAsk:Color, 1e1e1e
     Gui, ChartAsk:Font, s10 cE6E6E6, Segoe UI
@@ -3074,8 +3355,24 @@ ChartAskEmpty() {
     WinMove, ahk_id %AskHwnd%,, %newX%, %newY%
 }
 
+ChartAskCard(n) {
+    global g_ChartAskHub
+    j := "{""t"":""card"",""kind"":""ask"",""icon"":""playlist_remove"",""title"":""Empty the chart text?"",""sub"":" . JsonAscii(n . " piece" . (n = 1 ? "" : "s") . " made this one-liner")
+        . ",""text"":""Empty it for the next patient, or keep it to make another kind of one-liner from the same text."""
+        . ",""buttons"":[{""id"":""chart:clear"",""label"":""Empty it"",""icon"":""delete_sweep"",""primary"":true},{""id"":""chart:keep"",""label"":""Keep for another"",""icon"":""bookmark""}]}"
+    if !HubUi(j)
+        return false
+    g_ChartAskHub := true
+    HubCardShown()
+    return true
+}
+
 ChartAskClose() {
-    global g_ChartAskHwnd
+    global g_ChartAskHwnd, g_ChartAskHub
+    if (g_ChartAskHub) {
+        g_ChartAskHub := false
+        HubUi("{""t"":""card-close""}")
+    }
     if (g_ChartAskHwnd) {
         Gui, ChartAsk:Destroy
         g_ChartAskHwnd := 0
@@ -3300,6 +3597,8 @@ ImpressionClean(t) {
 ; The result window. Never takes focus; stays until closed.
 ShowImpression(text, err) {
     global
+    if (ImpressionCard(text, err))
+        return
     if (err != "") {
         imp_hdr := "Impression: could not generate (Open in OpenEvidence still works)"
         imp_body := err
@@ -3322,6 +3621,29 @@ ShowImpression(text, err) {
     Gui, Impression:Show, x%imp_x% y220 w480 NoActivate, RadGesture Impression
 }
 
+; The impression in the hub's card: Insert into report, Copy, OpenEvidence.
+ImpressionCard(text, err) {
+    global g_ChartAskHub
+    j := "{""t"":""card"",""kind"":""impression"",""icon"":""summarize"",""title"":""Impression"""
+    if (err != "")
+        j .= ",""error"":" . JsonAscii(err) . ",""buttons"":[{""id"":""imp:oe"",""label"":""Open in OpenEvidence"",""icon"":""open_in_new""},{""id"":""close"",""label"":""Close""}]}"
+    else
+        j .= ",""sub"":""Copied to the clipboard"",""text"":" . JsonAscii(text) . ",""buttons"":[{""id"":""imp:insert"",""label"":""Insert into report"",""icon"":""input"",""primary"":true},{""id"":""copy"",""label"":""Copy"",""icon"":""content_copy""},{""id"":""imp:oe"",""label"":""OpenEvidence"",""icon"":""open_in_new"",""keep"":true}]}"
+    if !HubUi(j)
+        return false
+    g_ChartAskHub := false
+    HubCardShown()
+    return true
+}
+
+ImpressionOE() {
+    global g_ImpLastFindings
+    ; Same rules, typed for you. Opening the browser takes focus, which is the point.
+    Clipboard := ImpressionPrompt() . "`n`nFINDINGS:`n" . g_ImpLastFindings
+    Run, https://www.openevidence.com
+    Toast("Prompt + findings copied. Paste into OpenEvidence with Ctrl+V.", "info", 4000)
+}
+
 Impression_Copy:
     if (g_ImpLastText != "") {
         Clipboard := g_ImpLastText
@@ -3330,10 +3652,7 @@ Impression_Copy:
 return
 
 Impression_OE:
-    ; Same rules, typed for you. Opening the browser takes focus, which is the point.
-    Clipboard := ImpressionPrompt() . "`n`nFINDINGS:`n" . g_ImpLastFindings
-    Run, https://www.openevidence.com
-    Toast("Prompt + findings copied. Paste into OpenEvidence with Ctrl+V.", "info", 4000)
+    ImpressionOE()
 return
 
 Impression_Close:
@@ -3447,7 +3766,7 @@ HubRingClosed() {
     global g_RingOpen, g_ProofHub
     g_RingOpen := false
     try Hotkey, Esc, Off
-    SetTimer, HubPoll, % g_ProofHub ? 150 : 750
+    SetTimer, HubPoll, % HubPollRate()
 }
 
 HubReadBridge() {
@@ -3496,7 +3815,7 @@ HubRequest(method, path, timeoutMs := 400, body := "") {
 
 ; What the ring asked for. Ids match "helper:<id>" in the hub's menu.json.
 RunHubAction(a) {
-    global g_Busy, g_DirectFlavor
+    global g_Busy, g_DirectFlavor, g_ToolbarOn, g_ImpLastText, g_ChartAskHub
     ; Let the trigger keys come up first, so Ctrl isn't still held when the
     ; tool sends Ctrl+A / Ctrl+C.
     KeyWait, Control, T1
@@ -3547,6 +3866,27 @@ RunHubAction(a) {
     } else if (a = "prior:show") {
         PriorBinSetWanted(true)
         ShowPriorBin()
+    } else if (SubStr(a, 1, 13) = "prior:remove:") {
+        PriorRemove(SubStr(a, 14) + 0)
+    } else if (SubStr(a, 1, 13) = "chart:remove:") {
+        ChartRemove(SubStr(a, 14) + 0)
+    } else if (a = "chart:keep") {
+        g_ChartAskHub := false
+        Notify("Chart text kept. Empty it from the toolbar or the ring when done.", 2500)
+    } else if (a = "toolbar:hide") {
+        ; The toolbar's close button: stays hidden after restarts too.
+        PriorBinSetWanted(false)
+        g_ToolbarOn := false
+        HubPollRefresh()
+        Notify("Toolbar hidden. Bring it back: ring > AI Tools > Prior checklist > Show toolbar.", 3500)
+    } else if (a = "priorlist:insert") {
+        PriorListPaste()
+    } else if (a = "imp:insert") {
+        PasteIntoReport(g_ImpLastText, "Impression")
+    } else if (a = "imp:oe") {
+        ImpressionOE()
+    } else if (SubStr(a, 1, 5) = "pick:") {
+        PickerHubChoice(SubStr(a, 6))
     } else if (a = "settings") {
         OpenAiSettings()
     } else if (a = "history") {

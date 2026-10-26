@@ -94,3 +94,17 @@ test('bridge: the helper teaches the impression style and asks for examples', as
     await b.close();
   }
 });
+
+test('bridge: the helper says what its small windows show', async () => {
+  const got = [];
+  const b = createBridge({ token: 't0k', onShow() {}, onRelease: async () => 'none', onCancel() {}, isOpen: () => false, onUi: (d) => { got.push(d); return 'ok'; } });
+  const port = await b.listen(47970);
+  const post = async (body) => (await fetch(`http://127.0.0.1:${port}/ui`, { method: 'POST', headers: { 'X-RG-Token': 't0k' }, body })).text();
+  try {
+    assert.strictEqual(await post('{"t":"toast","text":"Saved","kind":"ok","ms":2000}'), 'ok');
+    assert.deepStrictEqual(got[0], { t: 'toast', text: 'Saved', kind: 'ok', ms: 2000 });
+    assert.strictEqual(await post('{bad'), 'bad json');
+  } finally {
+    await b.close();
+  }
+});

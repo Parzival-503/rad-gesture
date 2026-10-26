@@ -559,6 +559,77 @@ async function waitFor(fn, ms, step = 200) {
       await waitFor(async () => /3 saved/.test(await win.textContent('#styleCount').catch(() => '')), 5000);
       check('pasting reports adds one example each', /3 saved/.test(await win.textContent('#styleCount').catch(() => '')));
       await (await win.$('#styleCard')).screenshot({ path: path.join(SHOTS, 'settings-style.png') }).catch(() => {});
+
+      // The helper's small windows, drawn by the hub: the toolbar, a result
+      // card with a tick-off checklist, the one-liner picker and a toast.
+      // Their buttons must reach the helper's queue.
+      const panel = (m) => waitFor(async () => app.windows().find((w) => w.url().includes('panel') && w.url().includes('mode=' + m)), 6000);
+      const tbShown = await call('POST', '/ui', JSON.stringify({ t: 'toolbar', visible: true,
+        priors: [{ peek: '3/14/2025  CT CHEST WITH CONTRAST' }, { peek: '1/5/2024  CT CHEST WITHOUT CONTRAST' }], chart: [{ peek: 'Oncology note: invented example, stage II.' }] }));
+      check('the helper\'s toolbar opens in the hub', tbShown === 'ok', tbShown);
+      const tbw = await panel('toolbar');
+      if (tbw) await tbw.waitForSelector('#tbPriorAdd', { timeout: 5000 }).catch(() => {});
+      const tbText = tbw ? await tbw.textContent('#shell').catch(() => '') : '';
+      check('the toolbar lists each prior with its exam date', /P1\s*3\/14\/2025\s+CT CHEST WITH CONTRAST/.test(tbText) && /P2/.test(tbText) && /C1/.test(tbText), tbText.slice(0, 160));
+      if (tbw) {
+        await tbw.screenshot({ path: path.join(SHOTS, 'toolbar.png') }).catch(() => {});
+        await tbw.click('#tbPriorAdd');
+        const qa = await reached('prior:add');
+        check('Add prior on the toolbar reaches the helper', qa.ok, qa.got);
+        await tbw.click('.chip2:nth-child(2) .x');
+        const qr = await reached('prior:remove:2');
+        check('removing one prior reaches the helper', qr.ok, qr.got);
+        await tbw.click('#tbCollapse');
+        await sleep(300);
+        check('the toolbar folds down to one row', !!(await tbw.$('.tbmini')));
+        await tbw.screenshot({ path: path.join(SHOTS, 'toolbar-small.png') }).catch(() => {});
+        await tbw.click('#tbCollapse');
+      }
+      const md = '- **RUL nodule**: 6 mm to 8 mm, compare size [P1 1/5/2024, P2 3/14/2025]\n- **Left adrenal nodule**: indeterminate, washout CT advised [P2 3/14/2025]\n- **Liver lesion (resolved)**: gone on P2; confirm still gone [P1 1/5/2024, P2 3/14/2025]';
+      await call('POST', '/ui', JSON.stringify({ t: 'card', kind: 'checklist', icon: 'checklist', title: 'Check on: CT CHEST', sub: 'From 2 priors, oldest first: P2 (1/5/2024), P1 (3/14/2025)', checks: true, text: md, copy: md.replace(/\*\*/g, ''),
+        buttons: [{ id: 'priorlist:insert', label: 'Insert into report', icon: 'input', primary: true, keep: true }, { id: 'copy', label: 'Copy', icon: 'content_copy' }, { id: 'prior:clear', label: 'Clear priors', icon: 'delete_sweep' }] }));
+      const cw = await panel('card');
+      if (cw) await cw.waitForSelector('.ck', { timeout: 5000 }).catch(() => {});
+      const nItems = cw ? (await cw.$$('.ck')).length : 0;
+      const tags = cw ? await cw.$$eval('.src', (e) => e.map((x) => x.textContent)) : [];
+      check('the checklist card shows each item with its source tag', nItems === 3 && tags[1] === 'P2 3/14/2025' && !!(cw && await cw.$('.ckt strong')), `${nItems} items, tags ${tags.join(' | ')}`);
+      if (cw) {
+        await cw.click('button[data-id="priorlist:insert"]');
+        const qi = await reached('priorlist:insert');
+        await sleep(300);
+        check('Insert reaches the helper and the card stays open for ticking', qi.ok && (await cw.evaluate(() => document.visibilityState === 'visible')), qi.got);
+        await cw.click('.ck[data-i="0"]');
+        await cw.click('.ck[data-i="1"]');
+        check('ticking items counts them', /2 of 3 checked/.test(await cw.textContent('#clCount')));
+        await cw.screenshot({ path: path.join(SHOTS, 'checklist-card.png') }).catch(() => {});
+        await cw.click('.ck[data-i="2"]');
+        check('all ticked says so', await cw.isVisible('.alldone.on'));
+        await cw.click('button[data-id="copy"]');
+        const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
+        check('Copy takes the plain text, without the Markdown marks', copied.includes('RUL nodule: 6 mm') && !copied.includes('**'), copied.slice(0, 60));
+      }
+      await call('POST', '/ui', JSON.stringify({ t: 'card', kind: 'impression', icon: 'summarize', title: 'Impression', sub: 'Copied to the clipboard', text: 'No acute findings in the chest.',
+        buttons: [{ id: 'imp:insert', label: 'Insert into report', icon: 'input', primary: true }, { id: 'copy', label: 'Copy', icon: 'content_copy' }, { id: 'imp:oe', label: 'OpenEvidence', icon: 'open_in_new', keep: true }] }));
+      await sleep(600);
+      if (cw) await cw.screenshot({ path: path.join(SHOTS, 'impression-card.png') }).catch(() => {});
+      await call('POST', '/ui', JSON.stringify({ t: 'pick', title: 'One-liner', sub: 'From the copied text', cancel: 'pick:cancel', options: [
+        { id: 'pick:full', label: 'Full medical one-liner', hint: 'History and surgeries in one line', icon: 'notes' },
+        { id: 'pick:oncologic', label: 'Oncologic history', hint: 'Cancers, staging, treatment, current status', icon: 'oncology' }] }));
+      const pkw = await panel('pick');
+      if (pkw) {
+        await pkw.waitForSelector('.opt', { timeout: 5000 }).catch(() => {});
+        await pkw.screenshot({ path: path.join(SHOTS, 'picker.png') }).catch(() => {});
+        await pkw.keyboard.press('2');
+        const qp = await reached('pick:oncologic');
+        check('pressing 2 in the picker picks the second kind', qp.ok, qp.got);
+      } else check('the one-liner picker opens in the hub', false);
+      const ts = await call('POST', '/ui', JSON.stringify({ t: 'toast', text: 'Learned (CT chest). 3 examples of your impressions.', kind: 'ok', ms: 4000 }));
+      const tw = await panel('toast');
+      if (tw) { await tw.waitForSelector('.tst', { timeout: 4000 }).catch(() => {}); await tw.screenshot({ path: path.join(SHOTS, 'toast.png') }).catch(() => {}); }
+      check('a toast shows in the hub', ts === 'ok' && !!tw);
+      await call('POST', '/ui', JSON.stringify({ t: 'toolbar', visible: false }));
+      await call('POST', '/ui', JSON.stringify({ t: 'card-close' }));
+      await call('POST', '/ui', JSON.stringify({ t: 'toast-hide' }));
     }
 
     // The ring editor offers Library functions, with the key note.
@@ -787,16 +858,12 @@ async function waitFor(fn, ms, step = 200) {
         check('a Sectra function from a held Ctrl+Alt+M presses plain Alt+M in the image window (Insert measurement)', /^alt\+m\|/.test(gotKey), gotKey);
         try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe']); } catch (_) {}
 
-        // The one-liner's chart bin: two copied pieces show on the toolbar as
-        // "2 pieces"; Clear empties it.
+        // The one-liner's chart bin and the prior checklist, on the hub's
+        // toolbar (the helper says what it shows over /ui). Nothing is
+        // highlighted, so Add takes what was copied.
         const binText = async () => {
-          const out = path.join(userData, 'bin-text.txt');
-          try { fs.unlinkSync(out); } catch (_) {}
-          const f = path.join(userData, 'read-bin.ahk');
-          fs.writeFileSync(f, ['#NoTrayIcon', 'DetectHiddenText, On', 't := ""', 'WinGet, ids, List, RadGesture ahk_class AutoHotkeyGUI',
-            'Loop, %ids%', '{', '  id := ids%A_Index%', '  WinGetText, w, ahk_id %id%', '  t .= w', '}', 'FileAppend, %t%, ' + out, 'ExitApp', ''].join('\r\n'));
-          spawnSync(process.env.AHK_EXE, [f], { timeout: 15000 });
-          return fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : '';
+          const w = app.windows().find((x) => x.url().includes('panel') && x.url().includes('mode=toolbar'));
+          return w ? await w.textContent('#shell').catch(() => '') : '(no toolbar window)';
         };
         for (const piece of ['Oncology note: invented example, stage II, started chemo.', 'Path report: invented example, margins negative.']) {
           await app.evaluate(({ clipboard }, t) => clipboard.writeText(t), piece);
@@ -804,20 +871,22 @@ async function waitFor(fn, ms, step = 200) {
           await waitFor(async () => (await ev()).filter((e) => e === 'done chart:add').length >= 1, 5000);
           await sleep(500);
         }
+        await waitFor(async () => /C2/.test(await binText()), 4000);
         const bin2 = await binText();
-        check('the one-liner chart bin collects copied pieces', /2 pieces: the next One-liner uses them/.test(bin2), bin2.replace(/\s+/g, ' ').slice(0, 200));
+        check('the one-liner chart bin collects copied pieces (toolbar shows C1, C2)', /C1\s*Oncology note/.test(bin2) && /C2\s*Path report/.test(bin2), bin2.replace(/\s+/g, ' ').slice(0, 200));
         await runVia('chart:clear');
         await sleep(800);
-        check('Empty chart text empties it', /One-liner chart text\s*Nothing added yet/.test(await binText()));
-        // The prior checklist has its own heading and count on the toolbar.
-        await app.evaluate(({ clipboard }, t) => clipboard.writeText(t), 'CT CHEST, invented prior report: 6 mm nodule right upper lobe, follow-up advised.');
+        check('Empty chart text empties it', /Highlight parts of the chart/.test(await binText()));
+        // A prior with its exam date at the top: the toolbar shows the date
+        // (read by the helper's PriorDate) and the exam (PriorTitle).
+        await app.evaluate(({ clipboard }, t) => clipboard.writeText(t), 'Exam date: 03/14/2025\r\nEXAMINATION: CT CHEST WITH CONTRAST\r\nFINDINGS: invented prior report: 6 mm nodule right upper lobe, follow-up advised.\r\nIMPRESSION: Nodule.');
         await runVia('prior:add');
-        await sleep(800);
+        await waitFor(async () => /P1/.test(await binText()), 4000);
         const bin3 = await binText();
-        check('Add copied prior counts it under Prior checklist', /1 prior added/.test(bin3), bin3.replace(/\s+/g, ' ').slice(0, 200));
+        check('Add prior shows it on the toolbar with its exam date', /P1\s*3\/14\/2025\s+CT CHEST WITH CONTRAST/.test(bin3), bin3.replace(/\s+/g, ' ').slice(0, 200));
         await runVia('prior:clear');
         await sleep(800);
-        check('Empty the list empties the prior checklist', /No priors added yet/.test(await binText()));
+        check('Empty the list empties the prior checklist', /Highlight a prior report/.test(await binText()));
         // Proofread through the REAL helper path (ShowProofreadPopup ->
         // ProofreadToHub -> /proofread): an invented report with a tab, x, mu,
         // an em dash and curly quotes must open RadGesture's window, not the

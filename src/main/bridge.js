@@ -12,6 +12,8 @@
 //   POST /done?action=<id> helper: finished running an action
 //   POST /proofread       helper: proofread results (JSON body) -> "ok" when shown
 //   POST /proofread-toast helper: a short message for the proofread window (body)
+//   POST /ui              helper: what its small windows show (JSON, t = toolbar |
+//                         card | card-close | pick | pick-close | toast | toast-hide) -> "ok"
 //   POST /style/learn     helper: a finished report to learn the impression style
 //                         from (JSON: report, draft, source) -> "saved:<n>:<kind>" | "skip:<why>" | "off"
 //   POST /style/examples  helper: the report about to get an impression (JSON: report)
@@ -21,7 +23,7 @@
 
 const http = require('http');
 
-function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {}, onQuit = () => {}, onOpenSettings = () => {}, onProofread = () => 'no', onProofToast = () => {}, onStyleLearn = () => 'off', onStyleExamples = () => '' }) {
+function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () => {}, onDone = () => {}, onQuit = () => {}, onOpenSettings = () => {}, onProofread = () => 'no', onProofToast = () => {}, onStyleLearn = () => 'off', onStyleExamples = () => '', onUi = () => 'no' }) {
   const queue = [];
 
   const server = http.createServer(async (req, res) => {
@@ -72,6 +74,16 @@ function createBridge({ token, onShow, onRelease, onCancel, isOpen, onPoll = () 
         case '/proofread-toast':
           onProofToast(await body());
           return reply(200, 'ok');
+        case '/ui': {
+          if (req.method !== 'POST') return reply(405, 'POST only');
+          let data;
+          try {
+            data = JSON.parse(await body());
+          } catch (_) {
+            return reply(400, 'bad json');
+          }
+          return reply(200, (await onUi(data)) || 'no');
+        }
         case '/style/learn': {
           if (req.method !== 'POST') return reply(405, 'POST only');
           let data;

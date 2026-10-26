@@ -766,12 +766,12 @@
     $main.append(styleCard(a));
     $main.append(h('div', { class: 'card' },
       h('h2', {}, 'Prior checklist'),
-      h('p', { class: 'hint', style: 'margin:-6px 0 8px' }, 'A short list of what to check on today\'s study, from the prior reports. Copy a prior report, press Add copied prior (repeat for each prior), then Make checklist. Empty the list starts over. On the ring under AI Tools > Prior checklist, and on the toolbar. Not the same as Insert priors on the PACS ring, which fills PowerScribe\'s Comparison field.'),
+      h('p', { class: 'hint', style: 'margin:-6px 0 8px' }, 'A short list of what to check on today\'s study, from the prior reports. Highlight a prior report, press Add prior (repeat for each prior), then Checklist. Each prior\'s exam date is read from the top of the report, so the checklist goes by the newest status of each finding and marks what has resolved. Empty the list starts over. On the ring under AI Tools > Prior checklist, and on the toolbar. Not the same as Insert priors on the PACS ring, which fills PowerScribe\'s Comparison field.'),
       row('Forget priors after', 'Stops one patient\'s priors reaching the next checklist.',
         h('input', { type: 'number', min: 0, max: 240, style: 'width:90px', value: a.priorExpireMinutes, oninput: (e) => { a.priorExpireMinutes = String(Math.max(0, parseInt(e.target.value || '0', 10))); markDirty('ai'); } }),
         h('span', { class: 'hint' }, 'minutes idle (0 = never)')),
-      row('Adding a prior takes', null,
-        seg([['clipboard', 'What I copied'], ['selectall', 'Select all + copy']], a.priorCapture, (v) => { a.priorCapture = v; markDirty('ai'); render(); })),
+      row('Add prior and Add chart text take', 'RadGesture presses Ctrl+C in the window you are in, so highlighting is enough (it works where there is no right-click Copy, as in Sectra). With nothing highlighted, they take what you last copied.',
+        seg([['clipboard', 'Highlighted text, or what I copied'], ['selectall', 'Select all + copy']], a.priorCapture, (v) => { a.priorCapture = v; markDirty('ai'); render(); })),
       row('Show the toolbar at startup', 'The small window with the prior checklist, the one-liner\'s chart text, Impression and One-liner.', sw(a.toolbarAtStartup === '1', (v) => { a.toolbarAtStartup = v ? '1' : '0'; markDirty('ai'); render(); }, 'Show toolbar at startup'))));
   }
 
