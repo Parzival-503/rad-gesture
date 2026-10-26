@@ -56,7 +56,7 @@ jobs:
     name: Windows - helper check, build, real-key end-to-end
     needs: checks
     runs-on: windows-2022
-    timeout-minutes: 45
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -147,7 +147,26 @@ jobs:
         run: |
           $env:RG_APP_EXE = (Resolve-Path 'dist\win-unpacked\RadGesture.exe').Path
           $env:AHK_EXE = "$env:AHK_DIR\AutoHotkeyU64.exe"
-          node tests-e2e\run.js
+          # Run it under a watch from outside: a hang inside the test (or the
+          # app) still ends here with the full log, a picture of the screen
+          # and what was running, instead of a cancelled job with no log.
+          New-Item -ItemType Directory -Force e2e-shots | Out-Null
+          $p = Start-Process node -ArgumentList 'tests-e2e\run.js' -NoNewWindow -PassThru -RedirectStandardOutput e2e-shots\e2e-log.txt -RedirectStandardError e2e-shots\e2e-err.txt
+          $done = $p.WaitForExit(480000)
+          Get-Content e2e-shots\e2e-log.txt, e2e-shots\e2e-err.txt -ErrorAction SilentlyContinue
+          if (-not $done) {
+            Write-Host "::error::the end-to-end test was still running after 8 minutes (last lines above)"
+            Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("$PWD\e2e-shots\hang-screen.png")
+            Get-Process | Where-Object { $_.ProcessName -match 'RadGesture|AutoHotkey|node|notepad|electron' } | Format-Table Id, ProcessName, CPU, WorkingSet64, MainWindowTitle -AutoSize | Out-String -Width 200 | Write-Host
+            taskkill /F /T /PID $p.Id 2>$null
+            Get-Process RadGesture, RadGestureHelper, AutoHotkeyU64, notepad -ErrorAction SilentlyContinue | Stop-Process -Force
+            exit 1
+          }
+          exit $p.ExitCode
 
       - name: Install over a running copy, then uninstall it while running
         shell: pwsh
