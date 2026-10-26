@@ -338,6 +338,20 @@ function migrate(m, lib) {
     done.push('orthogonal-ruler');
     changed = true;
   }
+  if (!done.includes('openevidence-search')) {
+    // "Search copied text" can ask OpenEvidence too, when its ring has room.
+    const walk = (items) => (items || []).forEach((it) => {
+      if (!Array.isArray(it.items)) return;
+      const searches = it.items.length && it.items.every((x) => /^search:/.test(x.action || ''));
+      if (searches && it.items.length < M_MAX && !it.items.some((x) => x.action === 'helper:oe:clip')) {
+        it.items.push({ name: 'OpenEvidence', icon: 'clinical_notes', action: 'helper:oe:clip' });
+      }
+      walk(it.items);
+    });
+    m.categories.forEach((c) => walk(c.items));
+    done.push('openevidence-search');
+    changed = true;
+  }
   if (changed) m.migrated = done;
   return changed;
 }

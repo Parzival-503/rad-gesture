@@ -416,6 +416,11 @@
               "name": "Google",
               "icon": "travel_explore",
               "action": "search:https://www.google.com/search?q={clipboard}"
+            },
+            {
+              "name": "OpenEvidence",
+              "icon": "clinical_notes",
+              "action": "helper:oe:clip"
             }
           ]
         },

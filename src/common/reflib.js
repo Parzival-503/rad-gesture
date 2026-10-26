@@ -18,12 +18,12 @@
 //
 // Tools stay as they are, after the sections: a top-level direction that is
 // not a section (My documents, Add from clipboard) and a smaller ring that
-// only searches ("Search copied text").
+// only searches or runs tools ("Search copied text").
 (function (root) {
   const MAX = 8;
   const isRing = (it) => !!it && Array.isArray(it.items);
   const act = (it) => String((it && it.action) || '');
-  const isTool = (it) => (isRing(it) ? it.items.length > 0 && it.items.every((x) => /^(search|hub):/.test(act(x))) : !/^(url|ref):/.test(act(it)));
+  const isTool = (it) => (isRing(it) ? it.items.length > 0 && it.items.every((x) => /^(search|hub|helper):/.test(act(x))) : !/^(url|ref):/.test(act(it)));
 
   // Entries of a section (or a topic), following its "More" rings; a smaller
   // ring inside a section is a topic, its own entries read the same way.

@@ -401,6 +401,15 @@ goes to Settings). Screenshots are kept at most 2400 px wide.
   section and each topic in it (`destinations()`), an empty topic waits in
   `emptySections` with `in: <section>`, Remove topic leaves its sources in
   the section.
+  **OpenEvidence** (Sina, 2026-10-26): its site takes no question in the
+  address (none documented; a third-party extension fills the box itself,
+  and the cloud sandbox cannot reach the site to test), so
+  `OpenEvidenceAsk()` copies the question, opens openevidence.com, waits
+  for its tab to be in front (title contains "OpenEvidence"), pastes and
+  presses Enter; it never types into another window, and the question
+  stays on the clipboard. Ways in: Search copied text > OpenEvidence
+  (`helper:oe:clip`, migration `openevidence-search`) and the Search
+  selection picker (Alt+Shift+S). Not confirmed on the workstation yet.
   Search copied text / My documents / Add from clipboard stay as tools
   after the sections. Ring changes need Save; notes save themselves, and a
   note's ring name follows its title.

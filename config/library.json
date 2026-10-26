@@ -705,7 +705,7 @@
       "name": "Search selection",
       "group": "Apps",
       "sub": "Search",
-      "description": "Copies the highlighted text and offers Google Images, Radiopaedia or both.",
+      "description": "Copies the highlighted text and offers Google Images, Radiopaedia, OpenEvidence, or Google Images and Radiopaedia together.",
       "hotkey": "+!s",
       "on": true,
       "icon": "image_search",

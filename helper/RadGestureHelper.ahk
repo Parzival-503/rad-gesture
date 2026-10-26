@@ -3451,6 +3451,9 @@ RunHubAction(a) {
         ; An invented report and findings, shown the way a real proofread
         ; is (the Windows end-to-end test uses it). No AI call.
         ProofDemo()
+    } else if (a = "oe:clip") {
+        ; Search copied text > OpenEvidence: ask it what was copied.
+        OpenEvidenceAsk(Clipboard)
     } else if (a = "testkey") {
         TestApiKey()
     } else if (a = "lastcall") {
@@ -4016,11 +4019,12 @@ Lib_SearchRadiopaediaGoogle() {
     Gui, LibSearch:Add, Text,   x20 y16 w300, % """" . (StrLen(term) > 45 ? SubStr(term,1,45) "..." : term) . """"
     Gui, LibSearch:Add, Button, x20 y48  w300 h34 gLibSearch_Gimg,  Google Images
     Gui, LibSearch:Add, Button, x20 y90  w300 h34 gLibSearch_Rpad,  Radiopaedia
-    Gui, LibSearch:Add, Button, x20 y132 w300 h34 gLibSearch_Both,  Both
-    Gui, LibSearch:Add, Button, x20 y178 w300 h26 gLibSearch_Close, Cancel
+    Gui, LibSearch:Add, Button, x20 y132 w300 h34 gLibSearch_Oe,    OpenEvidence
+    Gui, LibSearch:Add, Button, x20 y174 w300 h34 gLibSearch_Both,  Google Images + Radiopaedia
+    Gui, LibSearch:Add, Button, x20 y220 w300 h26 gLibSearch_Close, Cancel
 
     ; Center GUI over the source window
-    guiW := 340, guiH := 220
+    guiW := 340, guiH := 262
     gx := wx + (ww - guiW) // 2
     gy := wy + (wh - guiH) // 2
     Gui, LibSearch:Show, x%gx% y%gy% w%guiW% h%guiH%
@@ -4044,11 +4048,46 @@ LibSearch_Both:
     LibSearch_OpenURL("https://radiopaedia.org/search?q=" . LibSearch_Enc(g_LibSearchTerm))
 return
 
+LibSearch_Oe:
+    Gui, LibSearch:Destroy
+    OpenEvidenceAsk(g_LibSearchTerm)
+return
+
 LibSearchGuiClose:
 LibSearchGuiEscape:
 LibSearch_Close:
     Gui, LibSearch:Destroy
 return
+
+; Ask OpenEvidence a question. Its site takes no question in the address, so
+; it opens in the browser, and once its tab is in front the question is
+; pasted into the box and sent. It types only when the window in front is
+; OpenEvidence; the question also stays on the clipboard, so if the box was
+; not ready it is one click and Ctrl+V away.
+OpenEvidenceAsk(term) {
+    term := Trim(term, " `t`r`n")
+    if (term = "") {
+        Notify("Copy or highlight a question first", 1500)
+        return false
+    }
+    Clipboard := term
+    ClipWait, 1
+    LibSearch_OpenURL("https://www.openevidence.com/")
+    SetTitleMatchMode, 2
+    WinWaitActive, OpenEvidence, , 15
+    if (ErrorLevel) {
+        Toast("OpenEvidence is opening. Your question is copied: click the box and press Ctrl+V.", "info", 6000)
+        return false
+    }
+    Sleep, 1800  ; the page's question box appears after the page loads
+    if !WinActive("OpenEvidence")
+        return false
+    Send, ^v
+    Sleep, 250
+    Send, {Enter}
+    Toast("Asked OpenEvidence. If the box was empty: click it and press Ctrl+V.", "info", 4000)
+    return true
+}
 
 LibSearch_OpenURL(url) {
     try Run, chrome.exe "%url%"
