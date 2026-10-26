@@ -3,9 +3,9 @@
 <!-- BEGIN radiology-family (identical in every radiology repo — if you change it, change it in all of them) -->
 ## The radiology family
 
-This repo is one of Sina's radiology tools. They are built to work together and
+This repo is one of the owner's radiology tools. They are built to work together and
 are meant to be developed together, usually in one Claude Code cloud project
-("Radiology") that clones all of them side by side. On Sina's Mac they live in
+("Radiology") that clones all of them side by side. On the owner's Mac they live in
 `~/Documents/Apps/Radiology/`.
 
 | Repo (GitHub `Parzival-503/…`) | Folder | What it is | Stack |
@@ -15,10 +15,10 @@ are meant to be developed together, usually in one Claude Code cloud project
 | `rad-gesture` | `RadGesture` | **The hub, where new tools go.** Our own radial menu (hold Ctrl+CapsLock) drawn by an Electron app, over an AutoHotkey helper that holds the AI tools (proofread, prior checklist, one-liner, impression) and does all PowerScribe work. Also the shortcut gallery | Electron + AutoHotkey **v1.1**, Windows |
 | `rad-proofread` | `RadProofread` | **Merged into RadGesture** (`helper/RadGestureHelper.ahk`). Keeps the last standalone script for reference | AutoHotkey **v1.1**, Windows only |
 | `rad-oneliner` | `RadOneLiner` | **Merged into RadGesture.** Keeps the original standalone one-liner script for reference | AutoHotkey **v1.1**, Windows only |
-| `rad-evidence` | `RadEvidence` | **Shelved 2026-10-23** (Sina uses OpenEvidence instead). Guideline library + cited Claude Q&A + guideline watcher; code kept, nothing runs. Don't build on it unless he revives it | Python (stopped) |
+| `rad-evidence` | `RadEvidence` | **Shelved 2026-10-23** (the owner uses OpenEvidence instead). Guideline library + cited Claude Q&A + guideline watcher; code kept, nothing runs. Don't build on it unless he revives it | Python (stopped) |
 
 `rad-gesture` used to be a fork of the Kando pie-menu app. Since v3 it is
-Sina's own code, inspired by Kando and DragShift but sharing no code with them
+the owner's own code, inspired by Kando and DragShift but sharing no code with them
 (Kando's code stays in git history up to commit `a782b72`).
 (An "Ask the guidelines" ring item that would send selected text to
 RadEvidence's local page was planned; with RadEvidence shelved it is not built.)
@@ -26,7 +26,7 @@ RadEvidence's local page was planned; with RadEvidence shelved it is not built.)
 ### Where the tools run
 
 - The reading workstation is **Windows**, with **PowerScribe** for dictation.
-  Sina dictates by voice, so long stretches without mouse or keyboard input are
+  The owner dictates by voice, so long stretches without mouse or keyboard input are
   normal work, not idleness.
 - Anything that touches PowerScribe should reuse what RadStopwatch already
   learned (its `CLAUDE.md` has the full list). The two that cost the most:
@@ -51,13 +51,13 @@ RadEvidence's local page was planned; with RadEvidence shelved it is not built.)
 
 **No real patient information goes into any repo, commit, test file, prompt or
 chat.** That includes names, MRNs, accession numbers, dates of birth and real
-report text. Use invented or fully de-identified samples. If Sina pastes
+report text. Use invented or fully de-identified samples. If the owner pastes
 something that looks like real patient data, stop and tell him before using it.
 
 This rule is about **development**: code, tests, commits, and chats with
 Claude. It does not cover the report text a tool sends to the Claude API at
 runtime on the workstation; that is what RadProofread is for. Whether that is
-allowed is a hospital approval question for Sina, not a reason to refuse the
+allowed is a hospital approval question for the owner, not a reason to refuse the
 work.
 <!-- END radiology-family -->
 
@@ -130,18 +130,18 @@ screenshots before handing over any visual change.
 - **Flick**: hold, move, release. The aimed direction stretches after the
   hand; moving past a direction with `items` opens its smaller ring there.
 - **Tap** (<320 ms, nothing aimed) keeps it open for clicking.
-- **Moving past** a direction that holds more opens it in both modes (Sina
+- **Moving past** a direction that holds more opens it in both modes (the owner
   wants it; he missed it once v3 required a click after a tap). With the
   ring left open it waits `PASS_DWELL_MS` so crossing on the way to the dock
   opens nothing. Settings > General can turn it off (`passOpens: false`):
   then click, or let go on it.
 - **Switching rings**: the dock (one button per ring, under the ring, above
   it near the bottom edge) jumps straight to any ring in one click; the wheel
-  and a center click step one ring (right-click the center: back one). Sina
+  and a center click step one ring (right-click the center: back one). The owner
   asked for the dock: cycling with the center took four clicks. Settings >
   General can hide it (`dock: false`), which brings back the center dots.
   **The gear at the end of the dock opens Settings** (`hub:settings`; shown
-  even with one ring): Sina could only find Settings under AI Tools >
+  even with one ring): the owner could only find Settings under AI Tools >
   Settings, which is the AI tools' own (now "AI settings": Key and model,
   Proofread history, Edit rings; migration `ai-settings`).
   The dock keeps clear of every open ring (`placeDock`: below the lowest,
@@ -194,7 +194,7 @@ screenshots before handing over any visual change.
 
 Rings (visual editor: rings list, mini ring preview (`miniRing`: each name
 one line on its button's outer side, above in the upper half, under in the
-lower; Sina saw names running over the icons; the e2e checks no name meets a
+lower; the owner saw names running over the icons; the e2e checks no name meets a
 button), directions list,
 editor with icon picker / action type / key recorder with clash warnings,
 Try it), AI tools (key + live test, model, proofread pickiness, impression
@@ -219,7 +219,7 @@ starts it directly. Choosing a program in Settings also takes its icon
 
 ### Library: Rad Optimizer's functions, built in
 
-Sina's Rad Optimizer (an AutoHotkey script + a Supabase website that
+The owner's Rad Optimizer (an AutoHotkey script + a Supabase website that
 generated it; the site is the free-org Supabase project "Radiology Workflow
 Optimizer") is now part of RadGesture. Every function it had is a **library
 function**: `config/library.json` (id = Rad Optimizer's function name, name,
@@ -245,16 +245,16 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   never stored** (asked once per session, in memory, `LibPassword`); no
   username, password or work link (kp.org, SharePoint, OneDrive) goes in the
   repo: this repo is public. `test/library.test.js` checks that.
-- **Every function ships ON** (Sina, 2026-10-23), with Rad Optimizer's keys.
+- **Every function ships ON** (the owner, 2026-10-23), with Rad Optimizer's keys.
   Earlier builds shipped Dictate, Paste indication and the logins off; the
   INI migration `functions-on` turns those on once (`FUNCTIONS_NOW_ON`).
   Dictate = F8 (Sectra's Dictate button, which opens the exam in
   PowerScribe), then PowerScribe is brought up and F4 toggles the microphone.
-- The Functions page top is short on purpose (Sina: too much to scroll): one
+- The Functions page top is short on purpose (the owner: too much to scroll): one
   line, a slim shortcut-status strip, and **Read first** (the 3 setup steps)
   folded until clicked. A running Rad Optimizer shows its own line above it.
 - Settings > Functions: the "set the keys in Sectra first" card (colleagues'
-  Sectra differs; Sina asked for that note), one entry per function
+  Sectra differs; the owner asked for that note), one entry per function
   (shortcut switch + recorder, the keys it presses, where it is on the
   rings, Try it, its code via `src/main/library-code.js`), username, websites.
   The ring editor has a "Library function" type with the same key note.
@@ -267,7 +267,7 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   `LIB_IDS`, a branch in `LibRun` (unless it is a `target` function), a line
   in `library-code.js` CODE_FUNCS. The tests fail until all are there.
   Step by step for people: `docs/adding-functions.md`.
-- **My functions** (Sina: "people can add new script functions, like Rad
+- **My functions** (the owner: "people can add new script functions, like Rad
   Optimizer's website"): written in Settings > Functions, stored as
   `%APPDATA%\RadGesture\functions\<id>.ahk` (id `my[a-z0-9]+`, wrapped by
   `wrapCustom` with UTF-8 BOM) + `[Lib.<id>] Custom=1, Name, Description, On,
@@ -276,42 +276,42 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   (`LibRunCustom` / `LibAutoHotkey`; uncompiled: `A_AhkPath`), so a broken one
   shows AutoHotkey's error and never stops the helper. **Copy** on a target
   function starts one from it. **New function / Import functions / Export my
-  functions** sit at the top of the Functions page (Sina: importing a
+  functions** sit at the top of the Functions page (the owner: importing a
   function under Shortcuts made no sense); same `.rgkeys` format with
   `keys: []`, so either page reads either file. Shortcuts > Export/Import
   still carries them for a whole-setup share (`set.functions`, code
   included; import never runs them). The Windows e2e writes one and
   checks it ran.
 
-**Nothing that ships mentions a person or the project's history** (Sina,
+**Nothing that ships mentions a person or the project's history** (the owner,
 2026-10-23: colleagues will read it). Comments in the helper, src/, config/
 and the code shown by the "Code" button explain what the code does, never
 who wanted it, which old script it came from, or "Change:" notes. Backstory
-belongs here in CLAUDE.md. `test/library.test.js` fails on "Sina", old
+belongs here in CLAUDE.md. `test/library.test.js` fails on the owner's name, old
 version dates, "; Change:" or work links in shipped files.
 
-**Published as Avicina Studio** (Sina, 2026-10-26: he does not want his name
+**Published as Avecina Studio** (the owner, 2026-10-26: he does not want his name
 as the author in Windows' installed-programs list). `package.json` author
 (Windows' Publisher and the exe's company), `build.copyright`, the
-description, README and the old scripts' SPDX lines say Avicina Studio;
+description, README and the old scripts' SPDX lines say Avecina Studio;
 `test/library.test.js` fails if a person's name comes back there. Git history
 still carries the old name.
 
-**Names people see** (Sina, 2026-10-23): this page is **Functions** ("the
+**Names people see** (the owner, 2026-10-23): this page is **Functions** ("the
 function collection"), never "Library": a library is reading material. The
 ring of reading material is the **Reference Library** (it was "Gallery";
 migration `reference-library` renames the shipped ring). Internal names
 (`library.json`, `[Lib.<id>]`, `helper:lib:`, `[Library]`) stay, so saved
 settings never move.
 
-- **Workflow page** (Settings > Workflow, `renderWorkflow`; Sina: username
+- **Workflow page** (Settings > Workflow, `renderWorkflow`; the owner: username
   and password belong somewhere prominent with Epic, Teams and websites):
   the username, the four login functions, Epic, Teams, every "Open a
   program" direction on the rings (start-with-RadGesture switch, Edit jumps
   to it in Rings), Open my websites, Search selection. Same `libEntry`
   entries as Functions, so one setting lives in one place; the Functions
   page's Logins group points here.
-- **Tiles** (the default view; Sina picked it from mockups, 2026-10-24: the
+- **Tiles** (the default view; the owner picked it from mockups, 2026-10-24: the
   page was hard to navigate): a small tile per function (icon, name, its
   shortcut, "-> key in Sectra"), in smaller groups by kind (Window / level,
   Measure...). A click opens the full entry (`libEntry`, same id
@@ -333,20 +333,20 @@ settings never move.
   first (a mouse button or macro pad is still holding them when the shortcut
   fires, so a plain ^c became Ctrl+Alt+C), then ^c / SendEvent / ControlSend
   / low-level, then the window under the mouse. Paste indication worked in
-  Rad Optimizer and not here until this (Sina, 2026-10-23). The Windows e2e
+  Rad Optimizer and not here until this (the owner, 2026-10-23). The Windows e2e
   highlights text in Notepad, presses Alt+Shift+S like a mouse button and
   reads what was copied.
 - **Every "press a key in Sectra/PowerScribe" function lets go of the
   shortcut's own keys first** (`LibPress`): from a macro pad, Insert
   measurement's Ctrl+Alt+M was still held, so Sectra got Ctrl+Alt+M instead
-  of Alt+M and did nothing (Sina, 2026-10-23). His pad TAPS Ctrl+Alt+M (press
+  of Alt+M and did nothing (the owner, 2026-10-23). His pad TAPS Ctrl+Alt+M (press
   and release, nothing held), but the hotkey fires on M-down, while the
   pad's Ctrl+Alt are still down for those milliseconds. Not confirmed as
   the cause on his PC. The Windows e2e holds
   Ctrl+Alt+M over a stand-in "Image Window" and checks it receives plain
   Alt+M.
 - **Layouts** (PACS > Layout > Grid, `PACS_Layout_<rows>x<cols>`): Sectra's
-  own, rows x columns as Sectra writes them: only 2x2, 3x2, 3x3 (Sina uses
+  own, rows x columns as Sectra writes them: only 2x2, 3x2, 3x3 (the owner uses
   just these; migration `layout-grid-three` drops the 2x1 / 2x3 / 3x1 one
   build shipped), with Sectra's keys preset (Ctrl+Shift+4 / 6 / 9). Icons are drawn panes, `"grid:RxC"` in `icons.js`, to
   match Sectra's pictures. Migration `layout-grid` adds the Grid to saved
@@ -357,13 +357,13 @@ settings never move.
   token).
 - **Are the shortcuts working?** After every start and reload the helper
   POSTs `lib-hotkeys:<count>:<failed>`; Functions and Status show it against
-  how many are switched on (Sina once had none working and no way to tell).
+  how many are switched on (the owner once had none working and no way to tell).
   The Windows e2e checks the shipped ones are all on from the first start
   and that a real Ctrl+Alt+2 reaches Lung window.
 
 ### Reference Library (Settings > Reference Library, `ref:<id>`)
 
-Sina: "a library is things you read". The ring of guideline links (once
+The owner: "a library is things you read". The ring of guideline links (once
 "Gallery") is the **Reference Library**, and Settings > References holds his
 own **notes** (Markdown underneath, shown formatted) and **pictures**
 (screenshots), in `%APPDATA%\RadGesture\references\` (`index.json` + `<id>.md`
@@ -382,7 +382,7 @@ goes to Settings). Screenshots are kept at most 2400 px wide.
   alignment, `> **Pearl**` callouts, rules. The editor (Write / Side by side /
   Preview) re-renders the preview on every key, continues lists on Enter
   (Enter on an empty item ends it), Ctrl+B / Ctrl+I, and a toolbar.
-- **Sections** (Sina, 2026-10-26: "revamp it so it's very editable"): the
+- **Sections** (the owner, 2026-10-26: "revamp it so it's very editable"): the
   page is a list of sections (CT Chest, Abdomen...), each a smaller ring of
   the `gallery` ring, with everything in it: links (`url:`), notes,
   pictures and files (`ref:<id>`), documents (`file:`). New section,
@@ -394,14 +394,14 @@ goes to Settings). Screenshots are kept at most 2400 px wide.
   back: past 8 directions the rest roll into a "More" smaller ring
   (`more: true`; "More sections" at the top), and an empty section, which
   cannot be a ring, waits in the ring's `emptySections` with its place.
-  **Topics** (Sina: "for liver, one link, one PDF, one JPEG, all under the
+  **Topics** (the owner: "for liver, one link, one PDF, one JPEG, all under the
   same topic"): a smaller ring inside a section, `{ topic: true }` in
   reflib's reading, holding several sources; "Make a topic" turns any
   section entry into one, "Add to" and every Section picker list each
   section and each topic in it (`destinations()`), an empty topic waits in
   `emptySections` with `in: <section>`, Remove topic leaves its sources in
   the section.
-  **OpenEvidence** (Sina, 2026-10-26): its site takes no question in the
+  **OpenEvidence** (the owner, 2026-10-26): its site takes no question in the
   address (none documented; a third-party extension fills the box itself,
   and the cloud sandbox cannot reach the site to test), so
   `OpenEvidenceAsk()` copies the question, opens openevidence.com, waits
@@ -419,11 +419,11 @@ goes to Settings). Screenshots are kept at most 2400 px wide.
   a PDF opens in the **reader** (`openReader`: Chromium's PDF viewer in an
   always-on-top window, `plugins: true`, Esc closes; zoom, fit, pages,
   search); other files open in their own program.
-- **Pictures zoom and pan** in the viewer (Sina: "I can't pan around"):
+- **Pictures zoom and pan** in the viewer (the owner: "I can't pan around"):
   wheel or pinch zooms around the pointer, drag pans, double-click fit /
   actual size, + / - / 0 / 1 / arrows, a zoom bar (-, %, +, Fit). The
   window opens larger for a picture. The e2e zooms one with the wheel.
-- **"Reference Library", capital L** (a title, Sina). Migration
+- **"Reference Library", capital L** (a title, the owner). Migration
   `reference-library-title` fixes rings saved as "Reference library".
 - Notes save themselves (450 ms after typing); there is no Save for them.
 - **Electron 44's clipboard is asynchronous** (`readText()` and `read()`
@@ -433,7 +433,7 @@ goes to Settings). Screenshots are kept at most 2400 px wide.
 
 ### Shortcuts page (made so colleagues can use RadGesture)
 
-Sina's PACS/Apps rings used to press Rad Optimizer's keys (now Library
+The owner's PACS/Apps rings used to press Rad Optimizer's keys (now Library
 functions, above); a colleague's Sectra has its own. So Settings > Shortcuts holds every key in one place: a 3-step
 setup card (give tools keys in Sectra + **Copy the list**, match them here,
 **Export / Import** a `.rgkeys` set), RadGesture's own shortcuts, and **every
@@ -452,7 +452,7 @@ Send syntax (`{F4}`, `^{Space}`, `{;}`) by `KS.hotkeyToSend`.
 ### Tray
 
 **One tray icon, one menu.** The helper hides its own (`Menu, Tray, NoIcon`)
-when the hub started it (`RG_DATA_DIR` is set); run on its own it shows. Sina
+when the hub started it (`RG_DATA_DIR` is set); run on its own it shows. The owner
 saw two RadGesture icons (2026-10-24) and liked the hub's menu (modern look,
 Open the ring) over the helper's small old-style one, so everything the
 helper's menu had now lives in the hub's: **Prior checklist** submenu (show
@@ -463,7 +463,7 @@ items go through `helperDo()` (the bridge queue; `testkey` and `lastcall`
 are helper actions for this). The helper's TrayTips became `Toast`s, since
 AHK drops a TrayTip when the script has no tray icon.
 
-**Every RadGesture window comes to the front** (Sina, 2026-10-24: "the whole
+**Every RadGesture window comes to the front** (the owner, 2026-10-24: "the whole
 RadGesture was behind all other windows"). Started by hand (Start menu, a
 second launch, after an install), RadGesture opens Settings in front; started
 with Windows (login item registered with `--at-login`) it stays in the tray.
@@ -474,7 +474,7 @@ boxes are system-modal (4096 added), and Last AI request activates Notepad.
 tray or the ring, a plain `show()` landed behind everything (Windows does
 not let a background program take the front). It is made topmost, shown and
 focused, and stays topmost while General > "Keep this window on top" is on
-(default, `menu.settingsOnTop`; Sina asked for it always on top). The
+(default, `menu.settingsOnTop`; the owner asked for it always on top). The
 proofread window and the reference viewer use the same call.
 
 Left-click: Settings. Right-click: Open the ring; Settings..., Edit rings...,
@@ -488,7 +488,7 @@ Status and help..., Advanced >; Quit (also stops the helper). The e2e hooks
 
 Actions: `helper:<id>`, `url:`, `file:` (expands `%VARS%`), `search:`
 (`{clipboard}`), `hub:`, `ref:<id>` (a Reference Library note or picture). `apps` on a ring picks which ring opens first over
-that program. The Reference Library ring (id `gallery`, once "Gallery") carries Sina's reference links from the old
+that program. The Reference Library ring (id `gallery`, once "Gallery") carries the owner's reference links from the old
 Kando gallery. Edited only through Settings.
 
 **Saved menus are migrated once** (`migrate()` in `settings-store.js`,
@@ -498,14 +498,14 @@ moves Orthogonal (a measuring tool) from Crosshair to Measure,
 next to Distance; one drops Paste indication (Rad Optimizer's Ctrl+Alt+G
 only works on a selection made by hand, never from the ring); `library`
 turns Rad Optimizer key presses into Library functions; `pacs-first` puts
-the PACS ring first, then AI Tools (Sina, 2026-10-23; PowerScribe still opens
+the PACS ring first, then AI Tools (the owner, 2026-10-23; PowerScribe still opens
 on AI Tools through its `apps`); `no-lung` drops Lung-RADS and Lung screening 2
 (and a smaller ring left empty); `nav-names` gives each previous/next pair its
 own icons (layouts `skip_*`, key images `fast_*`, fields `keyboard_tab*`; the
-saved fields showed `field` = `text_fields`, which Sina read as "TT"),
+saved fields showed `field` = `text_fields`, which the owner read as "TT"),
 renames Link crosshair to **Link priors** (Rad Optimizer's name: it links
 the study to its priors) and the Prior checklist buttons. Only names and
-icons we shipped change. `nav-pairs` finishes that job (Sina, 2026-10-26, still
+icons we shipped change. `nav-pairs` finishes that job (the owner, 2026-10-26, still
 saw Next key image as a play triangle beside a back arrow): early builds
 shipped the aliases `back` / `play`, which nav-names did not know, and some
 saved rings press the keys (`helper:keys:^!k`) instead of running the
@@ -513,7 +513,7 @@ function. It finds each previous/next direction by function, key or name and
 replaces any icon we ever shipped with the pair's. A test checks every
 previous/next pair in the default menu and library.json is one matching
 pair (skip, fast, tab). `orthogonal-ruler`: Orthogonal measures two
-distances at 90 degrees, so its icon is Tabler's L-shaped `ti:ruler` (Sina
+distances at 90 degrees, so its icon is Tabler's L-shaped `ti:ruler` (the owner
 saw four squares: the first builds shipped `grid`); shipped icons for it
 (grid, grid_view, view_in_ar, square_foot) are replaced.
 
@@ -526,7 +526,7 @@ saw four squares: the first builds shipped `grid`); shipped icons for it
 - "Press keys" directions send with `SendLevel 1` so other scripts' hotkeys
   (e.g. a timer's F4 / F12) see them.
 - **Prior checklist** (ring: AI Tools > Prior checklist; it was "Priors",
-  which Sina confused with PACS > Insert priors, a different thing that fills
+  which the owner confused with PACS > Insert priors, a different thing that fills
   PowerScribe's Comparison field): copy each prior report,
   **+ Add prior** (as many as needed), then **Checklist**; **Empty** starts
   over. The toolbar has three headed parts: Prior checklist, One-liner chart
@@ -534,14 +534,14 @@ saw four squares: the first builds shipped `grid`); shipped icons for it
   **Insert into report** (pastes with Ctrl+V where the cursor is, then
   restores the clipboard; the window never takes focus) and Copy. The
   floating Priors toolbar shows at startup, as in RadProofread: the first v3
-  builds hid it and Sina lost track of the tool (`migrateIni()` turned it
+  builds hid it and the owner lost track of the tool (`migrateIni()` turned it
   back on once for INIs those builds wrote).
   Closing the toolbar (its X button, the title-bar X) hides it AND saves
   ShowAtStartup=0, so helper restarts don't bring it back; only Show toolbar
   (ring or tray) turns it on again. The Priors tools never pop it up on
-  their own (an empty bin or nothing copied is a notification): Sina saw it
+  their own (an empty bin or nothing copied is a notification): the owner saw it
   appear "on Ctrl+CapsLock" and could not get rid of it.
-- **Chart bin for the one-liner** (Sina: "copy different parts of the chart,
+- **Chart bin for the one-liner** (the owner: "copy different parts of the chart,
   then one one-liner"): `ChartAdd()` takes what is on the clipboard (Priors
   toolbar "+ Add chart text", ring AI Tools > One-liner > Add chart text,
   `helper:chart:add`, optional `[OneLiner] ChartAddHotkey`). While the bin
@@ -551,7 +551,7 @@ saw four squares: the first builds shipped `grid`); shipped icons for it
   an error or a cancelled picker). Idle expiry is the priors' setting.
   Migration `chart-bin` adds the two ring buttons to saved One-liner rings.
 - **Impression** (`ImpressionPrompt()`): a high-level SYNTHESIS, not a
-  summary (Sina: the first one just reworded the findings). Answers the
+  summary (the owner: the first one just reworded the findings). Answers the
   clinical question first, merges related findings, leaves out chronic and
   incidental findings that need no follow-up unless the history makes them
   relevant (gallstones only with pain), and then ends with "Additional
@@ -566,7 +566,7 @@ saw four squares: the first builds shipped `grid`); shipped icons for it
 - **Proofread results show in the hub's window** (`src/proofread/`, Settings
   look, always on top): the helper POSTs `/proofread` (JSON body, ASCII via
   `JsonAscii`, with a `seq`) and only when that fails falls back to its old
-  IE window (`ShowProofreadPopup`'s ActiveX page). Sina: the old one was
+  IE window (`ShowProofreadPopup`'s ActiveX page). The owner: the old one was
   haphazard, clicks did nothing (IE ran the page in an old mode with errors
   hidden) and findings did not match the left side (finding *i* scrolled to
   the *i*-th highlight in report order). Now `src/common/proofmatch.js`
@@ -577,7 +577,7 @@ saw four squares: the first builds shipped `grid`); shipped icons for it
   helper polls every 150 ms while the window is open so Find feels instant.
   Helper toasts go to `/proofread-toast`. Keys: arrows, Enter = Find,
   C = copy fix, Space = resolve, Esc. The e2e drives it over the bridge.
-  **It never reached Sina until 2026-10-26**: `global g_ProofSeq := 0` sat
+  **It never reached the owner until 2026-10-26**: `global g_ProofSeq := 0` sat
   below the auto-execute section, so it never ran; "" + 1 is "" in AHK v1,
   every hand-off sent `{"seq":,...}`, the hub answered "bad json" and the
   helper showed its old IE window. The globals now sit at the top,
@@ -591,7 +591,7 @@ saw four squares: the first builds shipped `grid`); shipped icons for it
   (LB_FINDSTRINGEXACT, LB_GETCOUNT, LB_GETCURSEL, LB_GETITEMRECT) by
   SendMessage, because only SendMessage returns an answer. `ahk_check.py`
   enforces exactly that.
-- **Lung-RADS (auto) and Lung screening 2 are not built in** (Sina,
+- **Lung-RADS (auto) and Lung screening 2 are not built in** (the owner,
   2026-10-23: only useful to him). Lung-RADS (auto) is one of his "My
   functions" (`mylungrads`, Alt+Shift+L; Lung screening 2 was a weaker
   subset and is dropped), kept as an importable `.rgkeys` in the private
@@ -624,7 +624,7 @@ quit over the bridge (`POST /quit`), then force-close everything running
 from the install folder (the rule an older version's uninstaller checks, so
 it has nothing to trip on), wait until files can be opened, then a message
 naming the tray Quit. Log: `%TEMP%\RadGesture-Setup.log`. The stock step showed
-"RadGesture cannot be closed. Please close it manually" on Sina's PC, which
+"RadGesture cannot be closed. Please close it manually" on the owner's PC, which
 is what Windows does when the app runs as administrator and Setup does not;
 the bridge request crosses that line, a kill does not. Settings > Status
 warns when RadGesture runs elevated. `tests-e2e/installer.ps1` (Windows job)
@@ -646,17 +646,17 @@ standalone script is running.
 
 ### Not here, on purpose
 
-- **RadStopwatch** stays its own program and is not bundled. It is Sina's
+- **RadStopwatch** stays its own program and is not bundled. It is the owner's
   (his department's workload values, pay credits, reward bank), it keeps its
   data next to its script, and it has its own release rhythm; size was not
   the reason (about 1.5 MB compiled against a 117 MB installer). The default
-  menu no longer has a Stopwatch ring: Sina launches it with an "Open a
+  menu no longer has a Stopwatch ring: the owner launches it with an "Open a
   program" direction set to start with RadGesture, and can still add
   "Press keys" directions for F4 / F12.
 - **Rad Optimizer** is not needed any more: its functions are the Library
   (above). Its old script is not in any repo (it held a username and work
   links).
-- **No mention of RadStopwatch in anything that ships** (Sina, 2026-10-23:
+- **No mention of RadStopwatch in anything that ships** (the owner, 2026-10-23:
   it is his own app, not for colleagues). It is only "a program to open" in
   his own settings. Not in the clash list, not in comments, not in tests;
   `test/library.test.js` fails on "RadStopwatch" in shipped files. Its
@@ -667,7 +667,7 @@ standalone script is running.
 ## Close working sessions with a wrap summary
 
 When you finish a substantive piece of work — code written, changed, reviewed,
-debugged, or investigated — and you are handing back to Sina, **close your reply
+debugged, or investigated — and you are handing back to the owner, **close your reply
 with the summary defined in the `wrap` skill**, committed at
 `.claude/skills/wrap/SKILL.md`. Invoke it with the Skill tool (`wrap`) and follow
 it exactly.
@@ -679,7 +679,7 @@ If files changed, he gets a wrap.
 conversational replies where nothing was built or changed. A wrap on a one-line
 answer is noise.
 
-Sina is the non-technical owner of this project. Everything above the summary is
+The owner of this project is non-technical. Everything above the summary is
 your working-out — tool calls, diffs, reasoning. He should not have to read it to
 know what happened. The wrap is the part he actually reads, so it has to be in
 plain language, honest about what was and wasn't verified, and scannable.

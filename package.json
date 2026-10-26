@@ -3,7 +3,7 @@
   "productName": "RadGesture",
   "version": "3.0.0",
   "description": "A radiology tool hub: a radial menu (Ctrl+CapsLock) over an AutoHotkey helper that holds the AI tools.",
-  "author": "Avicina Studio",
+  "author": "Avecina Studio",
   "license": "UNLICENSED",
   "private": true,
   "main": "src/main/main.js",
@@ -60,6 +60,6 @@
       "shortcutName": "RadGesture",
       "include": "build/installer.nsh"
     },
-    "copyright": "Copyright © Avicina Studio"
+    "copyright": "Copyright © Avecina Studio"
   }
 }

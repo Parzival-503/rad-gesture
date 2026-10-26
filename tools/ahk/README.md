@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: Avicina Studio
+SPDX-FileCopyrightText: Avecina Studio
 SPDX-License-Identifier: CC-BY-4.0
 -->
 

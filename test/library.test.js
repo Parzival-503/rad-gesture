@@ -11,6 +11,8 @@ const { codeFor, functionSource, CODE_FUNCS } = require('../src/main/library-cod
 const ini = require('../src/main/ini');
 
 const root = path.join(__dirname, '..');
+// A person's name, built from parts so this file does not carry it.
+const PERSON = new RegExp(['\\b' + 'Si' + 'na\\b', 'Maz' + 'aheri', 'maz' + 'aheri\\.si' + 'na'].join('|'), 'i');
 const lib = JSON.parse(fs.readFileSync(path.join(root, 'config/library.json'), 'utf8'));
 const ahk = fs.readFileSync(path.join(root, 'helper/RadGestureHelper.ahk'), 'utf8');
 const defaultMenu = JSON.parse(fs.readFileSync(path.join(root, 'config/default-menu.json'), 'utf8'));
@@ -282,7 +284,7 @@ test('what ships carries no personal names or development history', () => {
   files.push('tools/external_hotkeys.json');
   for (const f of files) {
     const t = fs.readFileSync(path.join(root, f), 'utf8');
-    assert.ok(!/\bSina\b|RadStopwatch|3-16-26|5-8-26|; Change:|\bkp\.org\b/i.test(t), `${f} mentions a person or the project's history`);
+    assert.ok(!PERSON.test(t) && !/RadStopwatch|3-16-26|5-8-26|; Change:|\bkp\.org\b/i.test(t), `${f} mentions a person or the project's history`);
   }
 });
 
@@ -300,11 +302,24 @@ test('the one-liner\'s chart bin: on the One-liner ring, and added to saved ring
   assert.ok(/ChartExpireCheck\(\)\s*\n\s*if \(g_Chart\.Length\(\) > 0\)/.test(ahk), 'and expires when idle, like the priors');
 });
 
-test('the app is published as Avicina Studio, never a person', () => {
+test('the app is published as Avecina Studio, never a person', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-  assert.strictEqual(pkg.author, 'Avicina Studio', 'Windows shows this as the Publisher in Installed apps');
-  assert.match(pkg.build.copyright, /Avicina Studio/);
+  assert.strictEqual(pkg.author, 'Avecina Studio', 'Windows shows this as the Publisher in Installed apps');
+  assert.match(pkg.build.copyright, /Avecina Studio/);
   for (const t of [pkg.description, pkg.build.copyright, fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8')]) {
-    assert.ok(!/\bSina\b|Mazaheri/i.test(t), 'names a person: ' + t.slice(0, 80));
+    assert.ok(!PERSON.test(t), 'names a person: ' + t.slice(0, 80));
   }
+});
+
+test('no file in the repository names a person', () => {
+  const files = require('child_process').execSync('git ls-files', { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean);
+  const hits = [];
+  for (const f of files) {
+    if (PERSON.test(f)) { hits.push(f); continue; }
+    let t;
+    try { t = fs.readFileSync(path.join(root, f), 'utf8'); } catch { continue; }
+    if (t.includes('\u0000')) continue; // a picture or other binary file
+    if (PERSON.test(t)) hits.push(f);
+  }
+  assert.deepStrictEqual(hits, [], 'names a person');
 });
