@@ -455,7 +455,14 @@ own icons (layouts `skip_*`, key images `fast_*`, fields `keyboard_tab*`; the
 saved fields showed `field` = `text_fields`, which Sina read as "TT"),
 renames Link crosshair to **Link priors** (Rad Optimizer's name: it links
 the study to its priors) and the Prior checklist buttons. Only names and
-icons we shipped change.
+icons we shipped change. `nav-pairs` finishes that job (Sina, 2026-10-26, still
+saw Next key image as a play triangle beside a back arrow): early builds
+shipped the aliases `back` / `play`, which nav-names did not know, and some
+saved rings press the keys (`helper:keys:^!k`) instead of running the
+function. It finds each previous/next direction by function, key or name and
+replaces any icon we ever shipped with the pair's. A test checks every
+previous/next pair in the default menu and library.json is one matching
+pair (skip, fast, tab).
 
 ### Helper notes
 

@@ -262,3 +262,47 @@ test('rings saved with six layouts keep only 2x2, 3x2 and 3x3, once', () => {
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
   assert.deepStrictEqual(grid(store.readMenu()).items.map((i) => i.action.split('_').pop()), ['2x2', '3x2', '3x3']);
 });
+
+test('rings saved with "back" beside "play" get matching previous/next icons, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-pairs-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const pacs = (menu) => menu.categories.find((c) => c.id === 'pacs');
+  const sub = (menu, n) => pacs(menu).items.find((i) => i.name === n).items;
+  // As an early build saved them: key presses, "back" and "play".
+  sub(m, 'Key images').splice(0, 2,
+    { name: 'Previous key image', icon: 'back', action: 'helper:keys:^!k' },
+    { name: 'Next key image', icon: 'play', action: 'helper:keys:^!i' });
+  const lay = sub(m, 'Layout');
+  lay.find((i) => i.action === 'helper:lib:PACS_Prev_Layout').icon = 'back';
+  lay.find((i) => i.action === 'helper:lib:PACS_Next_Layout').icon = 'star'; // the person's own choice stays
+  const ps = sub(m, 'PowerScribe');
+  ps.find((i) => i.action === 'helper:lib:PS_PrevField').icon = 'arrow_back';
+  ps.find((i) => i.action === 'helper:lib:PS_NextField').icon = 'play';
+  m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid', 'layout-grid-three'];
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const got = store.readMenu();
+  const icon = (n, name) => sub(got, n).find((i) => i.name === name).icon;
+  assert.strictEqual(icon('Key images', 'Previous key image'), 'fast_rewind');
+  assert.strictEqual(icon('Key images', 'Next key image'), 'fast_forward');
+  assert.strictEqual(icon('Layout', 'Previous layout'), 'skip_previous');
+  assert.strictEqual(icon('Layout', 'Next layout'), 'star');
+  assert.strictEqual(icon('PowerScribe', 'Previous field'), 'keyboard_tab_rtl');
+  assert.strictEqual(icon('PowerScribe', 'Next field'), 'keyboard_tab');
+});
+
+test('every previous/next pair the app ships uses one matching pair of icons', () => {
+  const def = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'default-menu.json'), 'utf8'));
+  const lib = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'library.json'), 'utf8'));
+  const PAIRS = { skip_previous: 'skip_next', fast_rewind: 'fast_forward', keyboard_tab_rtl: 'keyboard_tab' };
+  const items = [];
+  const walk = (list) => (list || []).forEach((it) => (it.items ? walk(it.items) : items.push(it)));
+  def.categories.forEach((c) => walk(c.items));
+  const all = items.map((i) => ({ name: i.name, icon: i.icon })).concat(lib.functions.map((f) => ({ name: f.name, icon: f.icon })));
+  for (const p of all.filter((x) => /^previous /i.test(x.name))) {
+    const n = all.find((x) => x.name.toLowerCase() === p.name.toLowerCase().replace(/^previous /, 'next '));
+    assert.ok(n, 'a Next for ' + p.name);
+    assert.strictEqual(PAIRS[p.icon], n.icon, `${p.name} (${p.icon}) and ${n.name} (${n.icon}) are one pair`);
+  }
+});

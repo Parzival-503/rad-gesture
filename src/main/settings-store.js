@@ -302,6 +302,29 @@ function migrate(m, lib) {
     done.push('layout-grid-three');
     changed = true;
   }
+  if (!done.includes('nav-pairs')) {
+    // Every previous/next pair shows one matching pair of icons. Rings saved
+    // by early builds still had "back" beside "play" (a triangle), which
+    // nav-names did not know. A direction is found by the function it runs,
+    // the key it presses, or its name; only icons we ever shipped change.
+    const pairs = [
+      { name: /^previous layout$/i, acts: ['helper:lib:PACS_Prev_Layout', 'helper:keys:^!r'], icon: 'skip_previous' },
+      { name: /^next layout$/i, acts: ['helper:lib:PACS_Next_Layout', 'helper:keys:^!t'], icon: 'skip_next' },
+      { name: /^previous key image$/i, acts: ['helper:lib:PACS_Prev_Key_Image', 'helper:keys:^!k'], icon: 'fast_rewind' },
+      { name: /^next key image$/i, acts: ['helper:lib:PACS_Next_Key_Image', 'helper:keys:^!i'], icon: 'fast_forward' },
+      { name: /^previous field$/i, acts: ['helper:lib:PS_PrevField', 'helper:keys:^!v'], icon: 'keyboard_tab_rtl' },
+      { name: /^next field$/i, acts: ['helper:lib:PS_NextField', 'helper:keys:^!f'], icon: 'keyboard_tab' },
+    ];
+    const shipped = ['back', 'play', 'arrow_back', 'arrow_forward', 'play_arrow', 'field', 'text_fields'];
+    const walk = (items) => (items || []).forEach((it) => {
+      if (Array.isArray(it.items)) return walk(it.items);
+      const p = pairs.find((x) => x.acts.includes(it.action) || x.name.test(String(it.name || '').trim()));
+      if (p && shipped.includes(it.icon)) it.icon = p.icon;
+    });
+    m.categories.forEach((c) => walk(c.items));
+    done.push('nav-pairs');
+    changed = true;
+  }
   if (changed) m.migrated = done;
   return changed;
 }
