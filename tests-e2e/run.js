@@ -809,7 +809,8 @@ async function waitFor(fn, ms, step = 200) {
         const pev = (await ev()).filter((e) => /proof/.test(e));
         check('the helper\'s own proofread opens RadGesture\'s window (not the old one)', pev.includes('proofread 2 findings') && !pev.some((e) => e.startsWith('done proof-fallback')), pev.join(' | '));
         const pwin = await waitFor(async () => app.windows().find((w) => w.url().includes('proofread')), 6000);
-        const ptext = pwin ? await pwin.textContent('body').catch(() => '') : '';
+        let ptext = '';
+        if (pwin) await waitFor(async () => /EXAMINATION/.test(ptext = await pwin.textContent('body').catch(() => '')), 6000);
         check('the report arrives intact (x, mu, dash, quotes)', /6 \u00d7 4 mm/.test(ptext) && /\u00b5Ci/.test(ptext) && /\u2014/.test(ptext) && /\u201cStable\u201d/.test(ptext), ptext.replace(/\s+/g, ' ').slice(0, 160));
         await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((w) => w.webContents.getURL().includes('proofread')).forEach((w) => w.close()));
         await sleep(600);
