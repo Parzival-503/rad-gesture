@@ -24,7 +24,17 @@ const WIN = process.platform === 'win32';
 const results = [];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// A hang must fail with a log, not run out the job's clock: a cancelled job
+// keeps no log and no screenshots.
+let lastCheck = '(before the first check)';
+const WATCHDOG_MIN = Number(process.env.RG_E2E_WATCHDOG_MIN || 8);
+setTimeout(() => {
+  console.log(`FAIL  watchdog: still running after ${WATCHDOG_MIN} min; the last check was "${lastCheck}"`);
+  process.exit(2);
+}, WATCHDOG_MIN * 60000).unref();
+
 function check(name, ok, detail = '') {
+  lastCheck = name;
   results.push({ name, ok: !!ok, detail });
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  - ' + detail : ''}`);
 }
@@ -72,6 +82,7 @@ async function waitFor(fn, ms, step = 200) {
     ? { executablePath: process.env.RG_APP_EXE, args: [], env }
     : { executablePath: require(path.join(ROOT, 'node_modules', 'electron')), args: [ROOT, '--no-sandbox'], env };
   const app = await electron.launch(launch);
+  app.context().setDefaultTimeout(20000); // no click or read may wait forever
   app.process().stdout.on('data', (d) => process.stdout.write('  [app] ' + d));
 
   const rg = (fn, arg) => app.evaluate(({}, [src, a]) => {
@@ -489,6 +500,7 @@ async function waitFor(fn, ms, step = 200) {
           res.on('end', () => resolve(s));
         });
         req.on('error', () => resolve(''));
+        req.setTimeout(10000, () => { req.destroy(); resolve('(no answer in 10 s)'); });
         req.end(body || undefined);
       });
       // Invented report text (no patient data).
@@ -776,7 +788,7 @@ async function waitFor(fn, ms, step = 200) {
       check('saving settings made the helper reload', await waitFor(async () => (await ev()).some((e) => e === 'done reload'), 10000));
 
       // "Open a program" through the helper: "front" must not start a second copy.
-      const notepads = () => { try { return (execFileSync('tasklist', ['/FI', 'IMAGENAME eq notepad.exe']).toString().match(/notepad\.exe/gi) || []).length; } catch (_) { return -1; } };
+      const notepads = () => { try { return (execFileSync('tasklist', ['/FI', 'IMAGENAME eq notepad.exe'], { timeout: 15000 }).toString().match(/notepad\.exe/gi) || []).length; } catch (_) { return -1; } };
       const runVia = (spec) => win.evaluate((x) => window.rgs.runHelperAction(x), spec);
       await runVia('run:front|notepad.exe|');
       await waitFor(async () => notepads() >= 1, 8000);
@@ -788,7 +800,7 @@ async function waitFor(fn, ms, step = 200) {
       await runVia('run:new|notepad.exe|');
       await waitFor(async () => notepads() >= 2, 8000);
       check('"Open another copy" does open another', notepads() === 2, `notepad processes: ${notepads()}`);
-      try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe']); } catch (_) {}
+      try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe'], { timeout: 15000 }); } catch (_) {}
 
       // Library: from the ring (as Try it does) and from its own keyboard
       // shortcut, recorded above, pressed for real by a second script.
@@ -832,7 +844,7 @@ async function waitFor(fn, ms, step = 200) {
         spawnSync(process.env.AHK_EXE, [copyAhk], { timeout: 30000 });
         const copied = fs.existsSync(copyOut) ? fs.readFileSync(copyOut, 'utf8') : 'nothing';
         check('a shortcut copies the highlighted text (as Paste indication does)', /bosniak IIF cyst/.test(copied), copied);
-        try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe']); } catch (_) {}
+        try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe'], { timeout: 15000 }); } catch (_) {}
 
         // A Sectra function from a macro pad: Ctrl+Alt+M is still held when
         // the helper presses Alt+M in the image window. A stand-in "Image
@@ -856,7 +868,7 @@ async function waitFor(fn, ms, step = 200) {
         spawnSync(process.env.AHK_EXE, [fakeSectra], { timeout: 30000 });
         const gotKey = fs.existsSync(keyOut) ? fs.readFileSync(keyOut, 'utf8') : 'nothing';
         check('a Sectra function from a held Ctrl+Alt+M presses plain Alt+M in the image window (Insert measurement)', /^alt\+m\|/.test(gotKey), gotKey);
-        try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe']); } catch (_) {}
+        try { execFileSync('taskkill', ['/F', '/IM', 'notepad.exe'], { timeout: 15000 }); } catch (_) {}
 
         // The one-liner's chart bin and the prior checklist, on the hub's
         // toolbar (the helper says what it shows over /ui). Nothing is
@@ -963,7 +975,7 @@ async function waitFor(fn, ms, step = 200) {
     if (WIN && helperPid) {
       await sleep(1500);
       let alive = false;
-      try { alive = execFileSync('tasklist', ['/FI', `PID eq ${helperPid}`]).toString().includes(String(helperPid)); } catch (_) {}
+      try { alive = execFileSync('tasklist', ['/FI', `PID eq ${helperPid}`], { timeout: 15000 }).toString().includes(String(helperPid)); } catch (_) {}
       check('quitting RadGesture also stops the helper', !alive);
     }
   }
