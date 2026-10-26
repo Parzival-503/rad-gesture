@@ -148,6 +148,7 @@ global g_HubBoundUp      := ""
 global g_HubPort         := 47811
 global g_HubToken        := ""
 global g_RingOpen        := false
+global g_HubLastErr      := ""    ; why the last HubRequest got no answer
 
 FileCreateDir, %g_DataDir%
 MigrateOldSettings()
@@ -1636,15 +1637,22 @@ return
 
 ; Hands the results to RadGesture's proofread window. True when it shows them.
 ProofreadToHub(reportText, flags) {
-    global g_ProofHub, g_ProofSeq, g_ProofSessions, g_RingOpen
+    global g_ProofHub, g_ProofSeq, g_ProofSessions, g_RingOpen, g_HubLastErr
     seq := g_ProofSeq + 1
     json := "{""seq"":" . seq . ",""report"":" . JsonAscii(reportText) . ",""flags"":["
     for i, f in flags
         json .= (i > 1 ? "," : "") . "{""phrase"":" . JsonAscii(f.phrase) . ",""reason"":" . JsonAscii(f.reason)
             . ",""replacement"":" . JsonAscii(f.replacement) . ",""advice"":" . JsonAscii(f.advice) . "}"
     json .= "]}"
-    if (HubRequest("POST", "/proofread", 2500, json) != "ok")
+    ; Generous: on a busy workstation the window can take a few seconds.
+    resp := HubRequest("POST", "/proofread", 8000, json)
+    if (resp != "ok") {
+        ; Say why in Settings > Status (recent activity), then fall back.
+        why := (resp != "") ? resp : g_HubLastErr
+        why := RegExReplace(SubStr(why, 1, 80), "[^A-Za-z0-9._-]+", "-")
+        HubRequest("POST", "/done?action=proof-fallback:" . why)
         return false
+    }
     g_ProofSeq := seq
     g_ProofSessions[seq] := { report: reportText, flags: flags }
     g_ProofHub := true
@@ -1652,6 +1660,18 @@ ProofreadToHub(reportText, flags) {
     if (!g_RingOpen)
         SetTimer, HubPoll, 150
     return true
+}
+
+ProofDemo() {
+    tab := A_Tab
+    rpt := "EXAMINATION: CT CHEST" . "`r`n`r`n" . "FINDINGS:" . "`r`n"
+        . "Lungs:" . tab . "A 6 " . Chr(215) . " 4 mm nodule in the left upper lobe. SUV max 1.9, 4.4 " . Chr(181) . "Ci." . "`r`n"
+        . "Pleura: Small right plural effusion " . Chr(8212) . " unchanged. " . Chr(8220) . "Stable" . Chr(8221) . "." . "`r`n`r`n"
+        . "IMPRESSION:" . "`r`n" . "1. No acute findings."
+    flags := []
+    flags.Push({ phrase: "plural effusion", reason: "Spelling: pleural.", replacement: "pleural effusion", advice: "" })
+    flags.Push({ phrase: "4.4 " . Chr(181) . "Ci", reason: "Unit looks wrong for a dose.", replacement: "4.4 mCi", advice: "Check the dose." })
+    ShowProofreadPopup(rpt, flags)
 }
 
 ; JsonStr with every non-ASCII character as \uXXXX, so the body is plain
@@ -3335,11 +3355,14 @@ HubReadBridge() {
 
 ; Returns the reply text, or "" if the hub isn't there or said no.
 HubRequest(method, path, timeoutMs := 400, body := "") {
-    global g_HubPort, g_HubToken
+    global g_HubPort, g_HubToken, g_HubLastErr
+    g_HubLastErr := ""
     if (g_HubToken = "")
         HubReadBridge()
-    if (g_HubToken = "")
+    if (g_HubToken = "") {
+        g_HubLastErr := "no-bridge-token"
         return ""
+    }
     try {
         http := ComObjCreate("WinHttp.WinHttpRequest.5.1")
         http.SetProxy(1)
@@ -3354,10 +3377,12 @@ HubRequest(method, path, timeoutMs := 400, body := "") {
         st := http.Status
         if (st = 200)
             return http.ResponseText
+        g_HubLastErr := "http-" . st . "-" . SubStr(http.ResponseText, 1, 40)
         if (st = 403)
             g_HubToken := ""  ; the hub was reinstalled: re-read bridge.ini next time
     } catch e {
         ; Hub not running, or restarting. Re-read the port next time.
+        g_HubLastErr := "no-answer-" . SubStr(e.Message, 1, 60)
         g_HubToken := ""
     }
     return ""
@@ -3418,6 +3443,10 @@ RunHubAction(a) {
         OpenAiSettings()
     } else if (a = "history") {
         ShowHistoryViewer()
+    } else if (a = "proof:demo") {
+        ; An invented report and findings, shown the way a real proofread
+        ; is (the Windows end-to-end test uses it). No AI call.
+        ProofDemo()
     } else if (a = "testkey") {
         TestApiKey()
     } else if (a = "lastcall") {

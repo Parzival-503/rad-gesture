@@ -800,6 +800,19 @@ async function waitFor(fn, ms, step = 200) {
         await runVia('prior:clear');
         await sleep(800);
         check('Empty the list empties the prior checklist', /No priors added yet/.test(await binText()));
+        // Proofread through the REAL helper path (ShowProofreadPopup ->
+        // ProofreadToHub -> /proofread): an invented report with a tab, x, mu,
+        // an em dash and curly quotes must open RadGesture's window, not the
+        // helper's old fallback window.
+        await runVia('proof:demo');
+        await waitFor(async () => (await ev()).some((e) => e === 'proofread 2 findings' || e.startsWith('done proof-fallback')), 15000);
+        const pev = (await ev()).filter((e) => /proof/.test(e));
+        check('the helper\'s own proofread opens RadGesture\'s window (not the old one)', pev.includes('proofread 2 findings') && !pev.some((e) => e.startsWith('done proof-fallback')), pev.join(' | '));
+        const pwin = await waitFor(async () => app.windows().find((w) => w.url().includes('proofread')), 6000);
+        const ptext = pwin ? await pwin.textContent('body').catch(() => '') : '';
+        check('the report arrives intact (x, mu, dash, quotes)', /6 \u00d7 4 mm/.test(ptext) && /\u00b5Ci/.test(ptext) && /\u2014/.test(ptext) && /\u201cStable\u201d/.test(ptext), ptext.replace(/\s+/g, ' ').slice(0, 160));
+        await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((w) => w.webContents.getURL().includes('proofread')).forEach((w) => w.close()));
+        await sleep(600);
         // The same from RadGesture's tray (the helper has no tray icon of its own).
         await app.evaluate(({ clipboard }, t) => clipboard.writeText(t), 'MR BRAIN, invented prior report: no acute findings.');
         await rg((r) => r.clickTray('Prior checklist > Add copied prior'));
