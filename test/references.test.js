@@ -72,3 +72,18 @@ test('ring: "ref:<id>" opens a reference; the Reference Library ring can add fro
   assert.strictEqual(ring.name, 'Reference Library');
   assert.ok(ring.items.some((it) => it.action === 'hub:ref-add'));
 });
+
+test('references: a file is copied in, opens from the copy, and goes when deleted', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-refs-file-'));
+  const src = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'rg-src-')), 'Fleischner 2017.PDF');
+  fs.writeFileSync(src, '%PDF-1.4 invented test file');
+  const refs = createReferences({ dir: () => dir });
+  const f = refs.addFile(src);
+  assert.strictEqual(f.title, 'Fleischner 2017');
+  assert.strictEqual(f.fileName, 'Fleischner 2017.PDF');
+  assert.strictEqual(f.file, f.id + '.pdf');
+  fs.rmSync(src);
+  assert.strictEqual(fs.readFileSync(refs.filePath(f.id), 'utf8'), '%PDF-1.4 invented test file', 'still there after the original went');
+  assert.ok(refs.remove(f.id));
+  assert.ok(!fs.existsSync(path.join(dir, f.file)));
+});

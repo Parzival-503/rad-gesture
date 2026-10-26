@@ -367,12 +367,31 @@ goes to Settings). Screenshots are kept at most 2400 px wide.
   alignment, `> **Pearl**` callouts, rules. The editor (Write / Side by side /
   Preview) re-renders the preview on every key, continues lists on Enter
   (Enter on an empty item ends it), Ctrl+B / Ctrl+I, and a toolbar.
-- The page lists **everything** in the Reference Library: his notes and
-  pictures, then the ring's guideline links (`url:` items of the `gallery`
-  ring, grouped by the smaller ring they sit in; Sina could not find the
-  shipped references there). Links are edited in place (name, address,
-  section, icon, remove; "Add a link"); they live in the menu, so they need
-  Save. Filters: All / Links / Notes / Pictures, sections and tags as chips.
+- **Sections** (Sina, 2026-10-26: "revamp it so it's very editable"): the
+  page is a list of sections (CT Chest, Abdomen...), each a smaller ring of
+  the `gallery` ring, with everything in it: links (`url:`), notes,
+  pictures and files (`ref:<id>`), documents (`file:`). New section,
+  rename, icon, move up/down, delete (its notes/pictures/files stay, in
+  "Not in a section"). "Add to <section>" + Note / Link / Files or
+  pictures / Snip / Paste puts the new thing straight into a section; every
+  editor has a **Section** picker to move it ("No section" = off the ring).
+  `src/common/reflib.js` (tested) reads the ring as sections and packs it
+  back: past 8 directions the rest roll into a "More" smaller ring
+  (`more: true`; "More sections" at the top), and an empty section, which
+  cannot be a ring, waits in the ring's `emptySections` with its place.
+  Search copied text / My documents / Add from clipboard stay as tools
+  after the sections. Ring changes need Save; notes save themselves, and a
+  note's ring name follows its title.
+- **Files** (`refs.addFile`): a PDF or document is COPIED into the
+  references folder (`<id>.<ext>`, original name kept), so it opens even
+  after the original moves. A picture file becomes a picture. On the ring,
+  a PDF opens in the **reader** (`openReader`: Chromium's PDF viewer in an
+  always-on-top window, `plugins: true`, Esc closes; zoom, fit, pages,
+  search); other files open in their own program.
+- **Pictures zoom and pan** in the viewer (Sina: "I can't pan around"):
+  wheel or pinch zooms around the pointer, drag pans, double-click fit /
+  actual size, + / - / 0 / 1 / arrows, a zoom bar (-, %, +, Fit). The
+  window opens larger for a picture. The e2e zooms one with the wheel.
 - **"Reference Library", capital L** (a title, Sina). Migration
   `reference-library-title` fixes rings saved as "Reference library".
 - Notes save themselves (450 ms after typing); there is no Save for them.

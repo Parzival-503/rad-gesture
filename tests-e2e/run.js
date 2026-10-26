@@ -325,12 +325,27 @@ async function waitFor(fn, ms, step = 200) {
     await win.click('#nav button[data-tab="references"]');
     await sleep(500);
     check('the Reference Library page opens', (await win.textContent('main h1')) === 'Reference Library');
-    check('the shipped guideline links are listed in the Reference Library', (await win.$$('.refrow[data-link]')).length >= 13, `${(await win.$$('.refrow[data-link]')).length} links`);
+    const gal = () => menuNow().categories.find((c) => c.id === 'gallery');
+    const secOnRing = (name) => (gal().items || []).find((i) => i.name === name && i.items);
+    check('the Reference Library shows its sections', (await win.$$eval('.refsec', (els) => els.map((e) => e.dataset.section))).join('|').startsWith('CT Chest|Abdomen|Ultrasound|PET-CT'));
+    check('the shipped guideline links are listed in their sections', (await win.$$('.refrow[data-link]')).length >= 13, `${(await win.$$('.refrow[data-link]')).length} links`);
     await win.click('.refrow[data-link="Fleischner 2017"]');
     await sleep(200);
-    check('a link opens in its editor (name, address, section)', /rsna\.org/.test(await win.$eval('#linkUrl', (e) => e.value)) && (await win.$eval('#linkName', (e) => e.value)) === 'Fleischner 2017');
-    await win.click('#nav button[data-tab="references"]');
+    check('a link opens in its editor (name, address, section)', /rsna\.org/.test(await win.$eval('#linkUrl', (e) => e.value)) && (await win.$eval('#linkName', (e) => e.value)) === 'Fleischner 2017' && (await win.$eval('#refSection', (e) => e.selectedOptions[0].textContent)) === 'CT Chest');
+    // Sections: a new one, a renamed one.
+    await win.click('#refNewSection');
+    await sleep(250);
+    await win.fill('#secName', 'Neuro');
+    await sleep(150);
+    await win.click('.refsec[data-section="Ultrasound"]');
     await sleep(200);
+    await win.fill('#secName', 'US and OB');
+    await sleep(150);
+    check('a section can be added and renamed', !!(await win.$('.refsec[data-section="Neuro"]')) && !!(await win.$('.refsec[data-section="US and OB"]')));
+    // A note, a PDF and a picture, all into the Neuro section.
+    await win.click('.refsec[data-section="Neuro"]');
+    await sleep(200);
+    check('new things go into the section being looked at', (await win.$eval('#refTarget', (e) => e.selectedOptions[0].textContent)) === 'Neuro');
     await win.click('#refNew');
     await sleep(500);
     await win.click('#refBody');
@@ -343,12 +358,72 @@ async function waitFor(fn, ms, step = 200) {
     check('a note shows formatted as you type (heading, table, list)', /<h2>Lung nodules<\/h2>/.test(prev) && /<table>/.test(prev) && /<li>first<\/li><li>second<\/li>/.test(prev), prev.slice(0, 160));
     const noteId = (refIndex()[0] || {}).id;
     check('a note saves itself', !!noteId && /## Lung nodules/.test(fs.readFileSync(path.join(refsDir, noteId + '.md'), 'utf8')));
-    await win.click('#refRing');
+    const pdfSrc = path.join(userData, 'Invented article.pdf');
+    fs.writeFileSync(pdfSrc, '%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n');
+    await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] }); }, pdfSrc);
+    await win.click('.refsec[data-section="Neuro"]');
+    await sleep(200);
+    await win.click('#refAddFile');
+    await sleep(700);
+    const pdfRef = refIndex().find((r) => r.fileName === 'Invented article.pdf');
+    check('a file (PDF) is copied into the Reference Library', !!pdfRef && fs.existsSync(path.join(refsDir, pdfRef.file)));
+    const pngSrc = path.join(userData, 'Invented table.png');
+    const pngB64 = await app.evaluate(({ nativeImage }) => {
+      const w = 900, hh = 600, buf = Buffer.alloc(w * hh * 4);
+      for (let i = 0; i < w * hh; i++) { const x = i % w, y = (i / w) | 0; buf[i * 4] = 160; buf[i * 4 + 1] = (y * 255 / hh) | 0; buf[i * 4 + 2] = (x * 255 / w) | 0; buf[i * 4 + 3] = 255; }
+      return nativeImage.createFromBitmap(buf, { width: w, height: hh }).toPNG().toString('base64');
+    });
+    fs.writeFileSync(pngSrc, Buffer.from(pngB64, 'base64'));
+    await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] }); }, pngSrc);
+    await win.click('.refsec[data-section="Neuro"]');
+    await sleep(200);
+    await win.click('#refAddFile');
+    await sleep(800);
+    const picRef = refIndex().find((r) => r.image);
+    check('a picture file is added as a picture', !!picRef && picRef.title === 'Invented table');
     await win.click('#saveAll');
     await sleep(700);
-    const refRing = menuNow().categories.find((c) => c.id === 'gallery');
-    const myNotes = refRing && refRing.items.find((i) => i.name === 'My notes');
-    check('Put on the ring adds it to Reference Library > My notes', !!(myNotes && myNotes.items.some((i) => i.action === 'ref:' + noteId)), refRing ? refRing.name : 'no ring');
+    const neuro = secOnRing('Neuro');
+    const acts = neuro ? neuro.items.map((i) => i.action) : [];
+    check('the section is on the ring with what was added to it', acts.includes('ref:' + noteId) && !!pdfRef && acts.includes('ref:' + pdfRef.id) && !!picRef && acts.includes('ref:' + picRef.id), acts.join(' '));
+    check('a renamed section is renamed on the ring', !!secOnRing('US and OB') && !secOnRing('Ultrasound'));
+    // Move the note to CT Chest.
+    await win.click(`.refrow[data-ref="${noteId}"]`);
+    await sleep(200);
+    await win.selectOption('#refSection', { label: 'CT Chest' });
+    await sleep(200);
+    await win.click('#saveAll');
+    await sleep(700);
+    check('a note moves to another section', secOnRing('CT Chest').items.some((i) => i.action === 'ref:' + noteId) && !secOnRing('Neuro').items.some((i) => i.action === 'ref:' + noteId));
+    // The PDF opens in the reader.
+    await win.click(`.refrow[data-ref="${pdfRef.id}"]`);
+    await sleep(200);
+    await win.click('.reffile');
+    const readerUrl = await waitFor(async () => rg((r) => r.readerUrl()), 6000);
+    check('a PDF opens in the reader window', /\.pdf$/.test(String(readerUrl)), String(readerUrl));
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((w) => /\.pdf$/.test(w.webContents.getURL())).forEach((w) => w.close()));
+    // The picture: zoom with the wheel, back to fit.
+    await win.click(`.refrow[data-ref="${picRef.id}"]`);
+    await sleep(200);
+    await win.click('#refOpen');
+    const pv = await waitFor(async () => app.windows().find((w) => w.url().includes('viewer')), 8000);
+    if (pv) {
+      await pv.waitForFunction(() => window.__viewerReady === true, null, { timeout: 8000 }).catch(() => {});
+      const z0 = await pv.evaluate(() => window.__viewerZoom);
+      const box = await (await pv.$('#stage')).boundingBox();
+      await pv.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      for (let i = 0; i < 4; i++) { await pv.mouse.wheel(0, -120); await sleep(60); }
+      const z1 = await pv.evaluate(() => window.__viewerZoom);
+      await pv.mouse.down();
+      await pv.mouse.move(box.x + box.width / 2 - 120, box.y + box.height / 2 - 60, { steps: 5 });
+      await pv.mouse.up();
+      await pv.screenshot({ path: path.join(SHOTS, 'reference-picture-zoomed.png') });
+      await pv.click('#zoomFit');
+      const z2 = await pv.evaluate(() => window.__viewerZoom);
+      check('a picture zooms with the wheel and fits again', z1 > z0 * 1.5 && Math.abs(z2 - z0) < 0.01, `${z0} -> ${z1} -> ${z2}`);
+      await pv.keyboard.press('Escape').catch(() => {});
+      await sleep(400);
+    } else check('a picture zooms with the wheel and fits again', false, 'no viewer');
     await win.$eval('main', (el) => el.scrollTo(0, 0));
     await win.screenshot({ path: path.join(SHOTS, 'settings-references.png') });
     await app.evaluate(({ clipboard }) => { clipboard.clear(); clipboard.writeText('# Bosniak 2019\n\n- **IIF**: follow up at 6 months'); });

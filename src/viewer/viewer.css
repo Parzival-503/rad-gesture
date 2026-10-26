@@ -7,3 +7,16 @@ body.viewer { margin: 0; background: var(--bg); color: var(--ink); font-family: 
 .viewer main { overflow-y: auto; padding: 22px 28px 40px; flex: 1; }
 .viewer img.shot { display: block; max-width: 100%; border-radius: 10px; border: 1px solid var(--line-hi); cursor: zoom-in; margin-bottom: 18px; }
 .viewer img.shot.full { max-width: none; cursor: zoom-out; }
+
+/* A picture: a stage to zoom (wheel, +/-) and pan (drag, arrows) around. */
+.viewer main.pic { padding: 0; overflow: hidden; display: flex; flex-direction: column; max-width: none; }
+.viewer .stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: color-mix(in srgb, var(--bg) 70%, black); cursor: grab; touch-action: none; }
+.viewer .stage.dragging { cursor: grabbing; }
+.viewer .stage img { position: absolute; left: 0; top: 0; transform-origin: 0 0; max-width: none; user-select: none; -webkit-user-drag: none; image-rendering: auto; }
+.viewer .stage img.pixels { image-rendering: pixelated; }
+.viewer .caption { max-height: 30vh; overflow-y: auto; padding: 14px 28px 20px; border-top: 1px solid var(--line); }
+.viewer .caption:empty { display: none; }
+.viewer .stagehint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px 12px; border-radius: 999px; background: rgba(0,0,0,0.6); color: #e6e9f0; font-size: 12px; pointer-events: none; transition: opacity .6s; }
+.zoombar { display: inline-flex; align-items: center; gap: 2px; }
+.zoombar[hidden] { display: none; }
+#zoomPct { min-width: 58px; justify-content: center; }

@@ -1,8 +1,11 @@
-// The Reference Library's own entries: notes (Markdown) and pictures
-// (screenshots), kept on this PC in %APPDATA%\RadGesture\references\:
-//   index.json        [{ id, title, tags, image, created, updated }]
-//   <id>.md           the note (also the caption under a picture)
+// The Reference Library's own entries: notes (Markdown), pictures
+// (screenshots) and files (an article as PDF, a slide deck...), kept on this
+// PC in %APPDATA%\RadGesture\references\:
+//   index.json        [{ id, title, tags, image, file, fileName, created, updated }]
+//   <id>.md           the note (also the caption under a picture or file)
 //   <id>.png          the picture, if any
+//   <id>.<ext>        a copy of the file, if any (so it opens even after the
+//                     original is moved or deleted)
 // Settings > References edits them; the ring opens one with "ref:<id>" in the
 // reference viewer window. Kept free of Electron (pictures arrive as PNG
 // bytes) so it can be tested.
@@ -51,6 +54,23 @@ function createReferences({ dir }) {
     const r = get(id);
     return r && r.image ? path.join(root(), r.image) : '';
   }
+  function filePath(id) {
+    const r = get(id);
+    return r && r.file ? path.join(root(), r.file) : '';
+  }
+
+  // A copy of a file on this PC becomes an entry; titled by its file name.
+  function addFile(src, { title, tags } = {}) {
+    const ext = (path.extname(src).toLowerCase().match(/^\.[a-z0-9]{1,8}$/) || [''])[0];
+    const r = save({ title: title || path.basename(src, path.extname(src)), tags, body: '' });
+    const all = readIndex();
+    const e = all.find((x) => x.id === r.id);
+    e.file = r.id + ext;
+    e.fileName = path.basename(src).slice(0, 200);
+    fs.copyFileSync(src, path.join(root(), e.file));
+    writeIndex(all);
+    return get(r.id);
+  }
 
   // Creates (no id) or updates an entry. `png`: Buffer of a PNG to store.
   function save({ id, title, tags, body: text, png }) {
@@ -80,11 +100,11 @@ function createReferences({ dir }) {
     const r = all.find((x) => x.id === id);
     if (!r) return false;
     writeIndex(all.filter((x) => x.id !== id));
-    for (const f of [r.id + '.md', r.image].filter(Boolean)) fs.rmSync(path.join(root(), f), { force: true });
+    for (const f of [r.id + '.md', r.image, r.file].filter(Boolean)) fs.rmSync(path.join(root(), f), { force: true });
     return true;
   }
 
-  return { list, get, save, remove, imagePath, ID };
+  return { list, get, save, remove, imagePath, filePath, addFile, ID };
 }
 
 module.exports = { createReferences, ID };

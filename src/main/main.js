@@ -52,6 +52,7 @@ let overlayReady = false;
 let pendingOpen = null;
 let settingsWin = null;
 let viewerWin = null;
+let readerWin = null;
 let proofWin = null;
 let proofData = null; // the proofread results on show: { seq, report, flags }
 let proofDone = []; // which of them are ticked off (1-based)
@@ -390,7 +391,8 @@ function refForPage(r, thumb) {
     const img = nativeImage.createFromPath(path.join(userDir(), 'references', r.image));
     if (!img.isEmpty()) image = (thumb ? img.resize({ width: Math.min(320, img.getSize().width) }) : img).toDataURL();
   }
-  return { ...r, image };
+  const ext = r.file ? path.extname(r.file).slice(1).toLowerCase() : '';
+  return { ...r, image, ext, kind: r.file ? (ext === 'pdf' ? 'pdf' : 'file') : r.image ? 'picture' : 'note' };
 }
 
 // Screenshots are kept at most 2400 px wide (a 4K snip stays readable, the
@@ -423,13 +425,21 @@ async function addReferenceFromClipboard(openIt) {
   return r;
 }
 
+const PICTURE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'];
+
 function openReference(id) {
   const r = refs.get(id);
   if (!r) return notify('That reference is gone. Fix the ring direction in Settings > Rings.');
+  if (r.file) {
+    logEvent('ref-open', id);
+    if (/\.pdf$/i.test(r.file)) return openReader(refs.filePath(id), r.title);
+    return shell.openPath(refs.filePath(id)).then((err) => err && notify('Could not open ' + r.fileName + ': ' + err));
+  }
   const pt = screen.getCursorScreenPoint();
   const area = screen.getDisplayNearestPoint(pt).workArea;
   if (!viewerWin || viewerWin.isDestroyed()) {
-    const w = Math.min(820, area.width - 40), h = Math.min(900, area.height - 40);
+    // A picture gets room to look around in; a note a reading column.
+    const w = Math.min(r.image ? 1280 : 820, area.width - 40), h = Math.min(r.image ? 1000 : 900, area.height - 40);
     viewerWin = new BrowserWindow({
       width: w,
       height: h,
@@ -451,6 +461,43 @@ function openReference(id) {
     bringToTop(viewerWin, true);
   }
   logEvent('ref-open', id);
+}
+
+// A PDF from the Reference Library in Chromium's own reader: zoom, fit to
+// width, page by page, search, print. Always on top like the viewer; Esc
+// closes it.
+function openReader(file, title) {
+  const pt = screen.getCursorScreenPoint();
+  const area = screen.getDisplayNearestPoint(pt).workArea;
+  const url = require('url').pathToFileURL(file).href;
+  if (readerWin && !readerWin.isDestroyed()) {
+    readerWin.setTitle(title || 'Reference');
+    readerWin.loadURL(url);
+    bringToTop(readerWin, true);
+    return;
+  }
+  const w = Math.min(1100, area.width - 40), h = area.height - 40;
+  readerWin = new BrowserWindow({
+    width: w,
+    height: h,
+    x: Math.round(area.x + (area.width - w) / 2),
+    y: Math.round(area.y + 20),
+    show: false,
+    title: title || 'Reference',
+    backgroundColor: '#111318',
+    icon: path.join(ROOT, 'assets', 'icon.png'),
+    autoHideMenuBar: true,
+    alwaysOnTop: true,
+    webPreferences: { plugins: true, contextIsolation: true, sandbox: true },
+  });
+  const win = readerWin;
+  win.on('page-title-updated', (e) => e.preventDefault()); // keep the entry's title
+  win.webContents.on('before-input-event', (_e, input) => { if (input.type === 'keyDown' && input.key === 'Escape') win.close(); });
+  win.webContents.setWindowOpenHandler(({ url: u }) => { if (/^https?:/i.test(u)) shell.openExternal(u); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, u) => { if (!u.startsWith('file:')) { e.preventDefault(); if (/^https?:/i.test(u)) shell.openExternal(u); } });
+  win.on('closed', () => { if (readerWin === win) readerWin = null; });
+  win.once('ready-to-show', () => bringToTop(win, true));
+  win.loadURL(url);
 }
 
 // ---------------------------------------------------------------- proofread window
@@ -697,6 +744,22 @@ function registerSettingsIpc() {
     const png = pngOf(nativeImage.createFromPath(r.filePaths[0]));
     if (!png) return { ok: false, error: 'That file is not a picture RadGesture can read.' };
     return { ok: true, ref: refForPage(refs.save({ id, png, title: id ? undefined : path.basename(r.filePaths[0]).replace(/\.[^.]+$/, '') }), true) };
+  });
+  ipcMain.handle('rgs:ref-add-file', async () => {
+    const r = await dialog.showOpenDialog(settingsWin, { title: 'Add files to the Reference Library', properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Articles, pictures and documents', extensions: ['pdf', ...PICTURE_EXT, 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'txt', 'md', 'html', 'htm'] }, { name: 'All files', extensions: ['*'] }] });
+    if (r.canceled || !r.filePaths.length) return { ok: false, canceled: true };
+    const added = [];
+    for (const f of r.filePaths) {
+      const ext = path.extname(f).slice(1).toLowerCase();
+      if (PICTURE_EXT.includes(ext)) {
+        const png = pngOf(nativeImage.createFromPath(f));
+        if (png) { added.push(refs.save({ png, title: path.basename(f, path.extname(f)) })); continue; }
+      }
+      added.push(refs.addFile(f));
+    }
+    added.forEach((x) => logEvent('ref-added', x.id + ' (file)'));
+    return { ok: true, refs: added.map((x) => refForPage(x, true)), ref: refForPage(added[0], true) };
   });
   // Windows' own snipping overlay; the snip lands on the clipboard and is
   // added as soon as it appears (up to a minute).
@@ -1034,6 +1097,8 @@ app.whenReady().then(async () => {
         return true;
       },
       ringOpen: () => ringOpen,
+      refAddFile: (file) => refForPage(refs.addFile(file), true),
+      readerUrl: () => (readerWin && !readerWin.isDestroyed() ? readerWin.webContents.getURL() : ''),
       settingsOnTop: () => !!(settingsWin && !settingsWin.isDestroyed() && settingsWin.isAlwaysOnTop()),
       runAction: (action) => runItem({ name: 'e2e', action }, false),
       events: () => events.slice(),
