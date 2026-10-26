@@ -137,7 +137,13 @@ function openRing(exe, mode = 'hold', menuOverride = null) {
   ringOpen = true;
   const m = menuOverride || menu;
   overlay.webContents.send('rg:open', { x: cursor.x - b.x, y: cursor.y - b.y, menu: m, category: categoryForApp(m, exe), mode, images: icons.dataUrls(icons.usedBy(m)) });
+  // On Windows every "always on top" window shares one layer, the last one
+  // activated in front: Settings (kept on top) or the proofread / reference
+  // windows would cover the ring and take its mouse. Raise it above them
+  // each time, without taking focus from PowerScribe.
+  overlay.setAlwaysOnTop(true, 'screen-saver');
   overlay.showInactive();
+  overlay.moveTop();
   logEvent('ring-open', `${mode} ${exe || ''}`.trim());
   if (process.env.RG_SMOKE) smokeReport();
 }

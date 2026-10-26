@@ -179,6 +179,14 @@ screenshots before handing over any visual change.
   and SVG ids are per level (`svgSeq`) since a shared `url(#id)` resolves to
   the first level's gradient. Settings colours derive from theme variables
   (`--well`, `--raise`); no hard-coded greys.
+- **The ring raises itself above every other top window when it opens**
+  (`setAlwaysOnTop` + `showInactive` + `moveTop` in `openRing`). On Windows
+  all always-on-top windows share one band, ordered by activation (Electron's
+  levels like 'screen-saver' only matter on macOS), so a focused Settings
+  window kept on top covered the ring and took its mouse: Ctrl+CapsLock
+  opened it, but no flick or click registered (2026-10-26, found by the
+  Windows e2e; the debug line in run.js prints every window when the real
+  ring does not answer).
 - The overlay is `focusable: false` + `showInactive()`; the hub delays hiding
   170 ms after a pick so the pick animation plays (the action already runs).
 
