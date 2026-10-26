@@ -449,6 +449,23 @@ async function waitFor(fn, ms, step = 200) {
     await sleep(300);
     await win.click('.rings .card:first-child .lrow:has-text("PACS")');
     await sleep(200);
+    // The ring picture: no name runs over a button, and all of it stays in its card.
+    const miniHits = await win.evaluate(() => {
+      const box = document.querySelector('.mini');
+      const card = box.closest('.card').getBoundingClientRect();
+      const r = (e) => e.getBoundingClientRect();
+      const meet = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      const names = [...box.querySelectorAll('.t')], buttons = [...box.querySelectorAll('.n, .c')];
+      const out = [];
+      for (const t of names) {
+        for (const b of buttons) if (meet(r(t), r(b))) out.push(`${t.textContent} on ${b.title || 'center'}`);
+        const tr = r(t);
+        if (tr.left < card.left || tr.right > card.right) out.push(`${t.textContent} outside its card`);
+      }
+      return { names: names.length, out };
+    });
+    await (await win.$('.mini')).screenshot({ path: path.join(SHOTS, 'settings-ring-picture.png') }).catch(() => {});
+    check('the ring picture keeps every name clear of the buttons', miniHits.names === 8 && !miniHits.out.length, miniHits.out.join('; ') || `${miniHits.names} names`);
     await win.click('.rings .card:nth-child(2) .lrow:has-text("Insert priors")');
     await sleep(200);
     check('a PACS direction is a Function in the ring editor', (await win.$eval('#libPick', (e) => e.value)) === 'PACS_Insert_Priors');

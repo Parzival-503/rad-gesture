@@ -184,7 +184,10 @@ screenshots before handing over any visual change.
 
 ### Settings window (`src/settings/`)
 
-Rings (visual editor: rings list, mini ring preview, directions list,
+Rings (visual editor: rings list, mini ring preview (`miniRing`: each name
+one line on its button's outer side, above in the upper half, under in the
+lower; Sina saw names running over the icons; the e2e checks no name meets a
+button), directions list,
 editor with icon picker / action type / key recorder with clash warnings,
 Try it), AI tools (key + live test, model, proofread pickiness, impression
 rules, priors), Shortcuts (below), Library (below), General (labels, size,

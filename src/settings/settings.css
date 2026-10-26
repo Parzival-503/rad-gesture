@@ -166,7 +166,7 @@ textarea { resize: vertical; min-height: 72px; }
 .crumbs button:hover { background: rgba(255,255,255,0.06); color: var(--ink); }
 .crumbs .msym { font-size: 16px; }
 
-.mini { position: relative; height: 270px; margin: 4px 0 14px; }
+.mini { position: relative; height: 272px; margin: 4px 0 14px; }
 .mini .c, .mini .n { position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); }
 .mini .c { width: 84px; height: 84px; background: linear-gradient(170deg, var(--card-hi), var(--bg)); border: 1px solid var(--line); box-shadow: 0 8px 22px rgba(0,0,0,0.45); color: var(--accent); text-align: center; font-size: 12px; font-weight: 600; flex-direction: column; gap: 2px; padding: 6px; }
 .mini .c .msym { font-size: 28px; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
@@ -175,7 +175,7 @@ textarea { resize: vertical; min-height: 72px; }
 .mini .n.on { background: var(--accent); color: #0b0e14; transform: translate(-50%, -50%) scale(1.15); }
 .mini .n.back { width: 30px; height: 30px; opacity: 0.6; }
 .mini .n.back .msym { font-size: 16px; }
-.mini .t { position: absolute; transform: translate(-50%, -50%); font-size: 11.5px; color: var(--ink-2); white-space: nowrap; pointer-events: none; text-shadow: 0 1px 3px #000; }
+.mini .t { position: absolute; transform: translateX(-50%); max-width: 84px; overflow: hidden; text-overflow: ellipsis; text-align: center; font-size: 11px; line-height: 14px; color: var(--ink-2); white-space: nowrap; pointer-events: none; text-shadow: 0 1px 3px #000; }
 
 .addrow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 

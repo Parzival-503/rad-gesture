@@ -349,7 +349,7 @@
 
   function miniRing(items) {
     const box = h('div', { class: 'mini' });
-    const W = 300, cx = 150, cy = 135, R = 100;
+    const W = 280, cx = 140, cy = 136, R = 92;
     box.style.width = W + 'px';
     box.style.margin = '4px auto 14px';
     const back = ui.path.length ? G.norm(180) : null;
@@ -364,8 +364,11 @@
       const a = slots.items[i];
       const p = G.polar(cx, cy, a, R);
       box.append(h('div', { class: 'n' + (ui.sel === i ? ' on' : ''), title: it.name, style: `left:${p.x}px;top:${p.y}px`, onclick: () => { ui.sel = i; render(); } }, icon(it.icon)));
-      const lp = G.polar(cx, cy, a, R + 38);
-      box.append(h('div', { class: 't', style: `left:${lp.x}px;top:${lp.y}px` }, it.name.length > 16 ? it.name.slice(0, 15) + '…' : it.name));
+      // Each name sits on its own button's outer side, one line, so it never
+      // runs over a neighbour or the center (the column is too narrow for
+      // names beside them): above the buttons in the upper half, else under.
+      const above = p.y < cy - 10;
+      box.append(h('div', { class: 't', title: it.name, style: `left:${p.x}px;top:${above ? p.y - 41 : p.y + 27}px` }, it.name));
     });
     return box;
   }
