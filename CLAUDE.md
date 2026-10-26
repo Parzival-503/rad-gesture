@@ -626,6 +626,15 @@ Bone `ti:bone`, Brain and Stroke `ti:brain`), the Oncologic one-liner
   window you are in (Sectra has no right-click Copy, but Ctrl+C works),
   else what was already copied; the clipboard is put back. CaptureMode
   `selectall` still presses Ctrl+A first.
+- **Never Ctrl+C into a console** (`CopyBlocked()`): in a console or
+  terminal Ctrl+C means "interrupt". The first CaptureText pressed it in
+  whatever was in front; on the CI machine that was the test's own console
+  once Notepad closed, and the Windows run hung with no log, three times
+  (2026-10-26). Every tool that presses Ctrl+C asks `CopyBlocked()` first
+  (Add falls back to the clipboard, the others say "click in the report
+  first"); `ahk_check.py` (`check_copy_guarded`) fails one that does not.
+  The CI step also runs the test under an outside 8-minute watch and ends
+  leftover processes, and Quit always finishes (`app.exit` after 3 s).
 - **Prior dates** (the owner, 2026-10-26: findings change from exam to exam):
   `PriorDate()` reads the exam date from the top of each prior (a labelled
   "Exam date" first, never a DOB), `PriorTitle()` the exam line. The toolbar

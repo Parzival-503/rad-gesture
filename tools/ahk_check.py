@@ -615,6 +615,30 @@ def check_no_sendmessage(lines):
     return problems
 
 
+def check_copy_guarded(lines):
+    """Ctrl+C sent to a console or terminal interrupts what runs there. On the
+    CI machine that console was the test's own: the whole run hung with no
+    log (2026-10-26). Every function that sends Ctrl+C (Send/SendEvent ^c,
+    ControlSend ^c, SendCtrlC_LowLevel) must call CopyBlocked() before it."""
+    problems = []
+    func, guarded = None, False
+    for idx, raw in enumerate(lines, 1):
+        m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*)\(.*\)\s*\{?\s*$', raw)
+        if m and not raw.startswith((' ', '\t')):
+            func, guarded = m.group(1), False
+            continue
+        if raw.startswith('}'):
+            func = None
+            continue
+        code = strip_line_comment(raw)
+        if 'CopyBlocked(' in code:
+            guarded = True
+        sends = re.search(r'^\s*(?:Send\w*|ControlSend)\b[^;]*\^c\b', code, re.IGNORECASE) or re.search(r'\bSendCtrlC_LowLevel\(\)', code)
+        if sends and func not in ('SendCtrlC_LowLevel', 'CopyBlocked') and not guarded:
+            problems.append((idx, func or '(label)', raw.strip()[:80]))
+    return problems
+
+
 # Windows that must never take focus (they appear during dictation).
 NOACTIVATE_GUIS = {'PriorBin', 'PriorList', 'Impression', 'Toast'}
 
@@ -731,6 +755,15 @@ def main():
             print(f"  L{ln}: '{h}' has no earlier `Menu, ..., Add`  |  {src}")
     else:
         print("[ok] all submenu references exist before use")
+
+    cg = check_copy_guarded(lines)
+    if cg:
+        ok = False
+        print(f"\n[FAIL] Ctrl+C sent without CopyBlocked() first ({len(cg)}):")
+        for ln, fn, src in cg:
+            print(f"  L{ln}: in {fn}  |  {src}")
+    else:
+        print("[ok] every Ctrl+C asks CopyBlocked() first")
 
     gv = check_gui_control_vars(lines)
     if gv:

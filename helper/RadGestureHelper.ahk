@@ -513,6 +513,10 @@ ProofreadActiveReport() {
         OpenAiSettings()
         return
     }
+    if (CopyBlocked()) {
+        Notify("Proofread: click in the report first.", 3000)
+        return
+    }
 
     savedClip := ClipboardAll
     Clipboard := ""
@@ -2168,6 +2172,17 @@ PriorExpireCheck() {
     return true
 }
 
+; Ctrl+C in a console or terminal window stops whatever is running there
+; (it is "interrupt", not "copy"). Every tool that presses Ctrl+C asks this
+; first; ahk_check.py fails a Ctrl+C that does not.
+CopyBlocked() {
+    WinGetClass, cls, A
+    if (cls = "ConsoleWindowClass" || cls = "CASCADIA_HOSTING_WINDOW_CLASS" || cls = "mintty" || cls = "PuTTY" || cls = "VirtualConsoleClass")
+        return true
+    WinGet, exe, ProcessName, A
+    return (exe = "WindowsTerminal.exe" || exe = "OpenConsole.exe" || exe = "conhost.exe" || exe = "cmd.exe" || exe = "powershell.exe" || exe = "pwsh.exe")
+}
+
 ; What + Add takes: the text highlighted in the window you are in (it presses
 ; Ctrl+C there itself, which works where there is no right-click Copy, as in
 ; Sectra), else what is already on the clipboard. The clipboard is left as it
@@ -2175,6 +2190,10 @@ PriorExpireCheck() {
 CaptureText(ByRef src) {
     global g_PriorCapture
     prev := Clipboard
+    if (CopyBlocked()) {
+        src := "copied"
+        return Trim(prev, " `t`r`n")
+    }
     saved := ClipboardAll
     Clipboard := ""
     Send, {Ctrl up}{Alt up}{Shift up}{LWin up}{RWin up}
@@ -2917,6 +2936,12 @@ Trigger_OneLiner() {
         return
     }
 
+    if (CopyBlocked()) {
+        g_Busy := false
+        Toast("One-liner: click in the chart text first.", "warn", 3000)
+        return
+    }
+
     ; Stash whatever's currently in the clipboard -- we'll use it as a fallback
     ; for Citrix/Epic where Ctrl+C injection is blocked.
     g_SavedClip := ClipboardAll
@@ -3418,6 +3443,10 @@ ImpressionRun() {
         Toast("No API key. Tray -> Settings to add one.", "warn")
         return
     }
+    if (CopyBlocked()) {
+        Toast("Impression: click in the PowerScribe report first.", "warn", 3000)
+        return
+    }
     g_Busy := true
 
     savedClip := ClipboardAll
@@ -3500,6 +3529,10 @@ StyleLearn(report, source) {
 ; "Learn this impression" (ring): the report open in PowerScribe, finished,
 ; becomes an example now, whatever the proofread setting.
 StyleLearnNow() {
+    if (CopyBlocked()) {
+        Toast("Learn this impression: click in the PowerScribe report first.", "warn", 3000)
+        return
+    }
     savedClip := ClipboardAll
     Clipboard := ""
     Send, {Ctrl up}{Alt up}{Shift up}
@@ -4091,6 +4124,8 @@ LibAutoHotkey() {
 ; under the mouse (where the highlighted text is). Returns the text, or ""
 ; when nothing was highlighted. The clipboard is put back as it was.
 LibCopySelection() {
+    if (CopyBlocked())
+        return ""
     saved := ClipboardAll
     Clipboard := ""
     Send, {Ctrl up}{Alt up}{Shift up}{LWin up}{RWin up}
