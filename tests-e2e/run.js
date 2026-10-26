@@ -918,7 +918,7 @@ async function waitFor(fn, ms, step = 200) {
         // The same from RadGesture's tray (the helper has no tray icon of its own).
         await app.evaluate(({ clipboard }, t) => clipboard.writeText(t), 'MR BRAIN, invented prior report: no acute findings.');
         await rg((r) => r.clickTray('Prior checklist > Add copied prior'));
-        check('tray > Prior checklist > Add copied prior reaches the helper', await waitFor(async () => /1 prior added/.test(await binText()), 6000));
+        check('tray > Prior checklist > Add copied prior reaches the helper (P1 on the toolbar)', await waitFor(async () => /P1\s*MR BRAIN/.test(await binText()), 6000), (await binText()).replace(/\s+/g, ' ').slice(0, 160));
         await rg((r) => r.clickTray('Prior checklist > Empty the list'));
         await sleep(800);
       }
