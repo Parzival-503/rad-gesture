@@ -245,12 +245,30 @@
   let lastTab = null;
   function render() {
     T.apply(document.documentElement, menuDraft && menuDraft.theme, 'ui');
+    // A re-render on the same page keeps where you were scrolled: the page
+    // itself and every list marked data-keep-scroll (Move up / down, a drop,
+    // a click in a long list would otherwise jump back to the top).
+    const same = ui.tab === lastTab;
+    const kept = same ? { main: $main.scrollTop, lists: {} } : null;
+    if (kept) $main.querySelectorAll('[data-keep-scroll]').forEach((el) => { kept.lists[el.dataset.keepScroll] = el.scrollTop; });
     $main.innerHTML = '';
     // Fade in only when the page changes, not on every re-render while editing.
     $main.classList.toggle('fresh', ui.tab !== lastTab);
     lastTab = ui.tab;
     const page = { rings: renderRings, ai: renderAI, shortcuts: renderShortcuts, functions: renderLibrary, workflow: renderWorkflow, references: renderReferences, general: renderGeneral, status: renderStatus }[ui.tab] || renderRings;
     page();
+    if (kept) {
+      $main.querySelectorAll('[data-keep-scroll]').forEach((el) => { const y = kept.lists[el.dataset.keepScroll]; if (y !== undefined) el.scrollTop = y; });
+      $main.scrollTop = kept.main;
+      // What is selected stays in sight (a moved row can leave the visible part).
+      $main.querySelectorAll('[data-keep-scroll]').forEach((el) => {
+        const on = el.querySelector('.on');
+        if (!on) return;
+        const a = el.getBoundingClientRect(), b = on.getBoundingClientRect();
+        if (b.top < a.top) el.scrollTop -= a.top - b.top + 8;
+        else if (b.bottom > a.bottom) el.scrollTop += b.bottom - a.bottom + 8;
+      });
+    }
     paintStatusDot();
   }
 
@@ -1524,7 +1542,7 @@
     const hit = (text) => words.every((w) => String(text).toLowerCase().includes(w));
     const search = h('input', { type: 'text', id: 'refSearch', class: 'search', placeholder: 'Search sections, titles, tags, text and links', value: ui.refQuery || '',
       oninput: (e) => { ui.refQuery = e.target.value; const pos = e.target.selectionStart; render(); const s2 = document.getElementById('refSearch'); s2.focus(); s2.setSelectionRange(pos, pos); } });
-    const list = h('div', { class: 'list reftree' });
+    const list = h('div', { class: 'list reftree', 'data-keep-scroll': 'refs' });
     // Drag any row by its handle: onto a row = before it, onto a section's
     // heading = last in that section, onto the lower half of a topic = into it.
     const dnd = refDnd(lib, save, unplaced);
@@ -1607,7 +1625,46 @@
     else editor = otherEditor(cur, lib, save);
     // Every entry in a section or topic can move up and down from its editor too.
     if (cur && cur.kind !== 'sec' && cur.kind !== 'topic' && cur.kind !== 'tool' && cur.sec >= 0 && cur.list) editor.append(moveRow(cur, lib, save));
-    $main.append(h('div', { class: 'refgrid' }, listCard, editor));
+    const grid = h('div', { class: 'refgrid' }, listCard, refSplitter(), editor);
+    grid.style.setProperty('--refw', refWidth() + 'px');
+    $main.append(grid);
+  }
+
+  // The divider between the list and the editor: drag it to share the width,
+  // double-click to go back to the default. The width is kept for next time.
+  const REF_W = 420;
+  function refWidth() {
+    let w = REF_W;
+    try { w = +localStorage.getItem('rg.refWidth') || REF_W; } catch (e) { /* storage off: default */ }
+    return Math.max(260, Math.min(w, 900));
+  }
+  function refSplitter() {
+    const set = (grid, w) => {
+      const max = Math.max(260, grid.getBoundingClientRect().width - 380);
+      w = Math.round(Math.max(260, Math.min(w, max)));
+      grid.style.setProperty('--refw', w + 'px');
+      return w;
+    };
+    const keep = (w) => { try { localStorage.setItem('rg.refWidth', String(w)); } catch (e) { /* storage off */ } };
+    return h('div', { class: 'refsplit', id: 'refSplit', role: 'separator', 'aria-orientation': 'vertical', tabindex: '0', title: 'Drag to make the list wider or narrower. Double-click: back to the default.',
+      onpointerdown: (e) => {
+        const bar = e.currentTarget, grid = bar.parentElement;
+        const left = grid.getBoundingClientRect().left;
+        bar.setPointerCapture(e.pointerId);
+        bar.classList.add('dragging');
+        let w = refWidth();
+        const mv = (ev) => { w = set(grid, ev.clientX - left - 8); };
+        const up = () => { bar.removeEventListener('pointermove', mv); bar.removeEventListener('pointerup', up); bar.classList.remove('dragging'); keep(w); };
+        bar.addEventListener('pointermove', mv);
+        bar.addEventListener('pointerup', up);
+        e.preventDefault();
+      },
+      ondblclick: (e) => keep(set(e.currentTarget.parentElement, REF_W)),
+      onkeydown: (e) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        keep(set(e.currentTarget.parentElement, refWidth() + (e.key === 'ArrowLeft' ? -20 : 20)));
+        e.preventDefault();
+      } });
   }
 
   // The address reflib.move() takes, from a list key, and back.

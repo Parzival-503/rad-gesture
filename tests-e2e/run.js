@@ -461,6 +461,7 @@ async function waitFor(fn, ms, step = 200) {
       const chestNames = () => (secOnRing('CT Chest').items || []).map((i) => i.name);
       const before = chestNames();
       await win.$eval('main', (el) => el.scrollTo(0, 0));
+      await win.$eval('[data-keep-scroll="refs"]', (el) => { el.scrollTop = 0; }); // the list now stays where it was scrolled
       await win.dragAndDrop('[data-key="it:0:1"] .grip', '[data-key="it:0:0"]', { targetPosition: { x: 30, y: 3 } });
       await sleep(300);
       await win.click('#saveAll');
@@ -474,6 +475,42 @@ async function waitFor(fn, ms, step = 200) {
       await win.click('#saveAll');
       await sleep(600);
       check('Move down moves it one place', chestNames()[1] === afterDrag[0], chestNames().slice(0, 2).join(', '));
+      // A click or a move in a long list keeps it where it was scrolled.
+      await win.evaluate(() => { const st = document.createElement('style'); st.id = 'e2eShort'; st.textContent = '.reflist .list.reftree { max-height: 160px !important; }'; document.head.appendChild(st); });
+      await win.$eval('[data-keep-scroll="refs"]', (el) => { el.scrollTop = 70; });
+      const y0 = await win.$eval('[data-keep-scroll="refs"]', (el) => el.scrollTop);
+      const visKey = await win.$eval('[data-keep-scroll="refs"]', (el) => { const a = el.getBoundingClientRect(); const r = [...el.querySelectorAll('.refrow[data-key^="it:"]')].find((x) => { const b = x.getBoundingClientRect(); return b.top >= a.top && b.bottom <= a.bottom; }); return r && r.dataset.key; });
+      if (visKey) await win.click(`[data-key="${visKey}"]`);
+      await sleep(200);
+      const y1 = await win.$eval('[data-keep-scroll="refs"]', (el) => el.scrollTop);
+      check('clicking in the list keeps it scrolled where it was', y0 > 0 && Math.abs(y1 - y0) < 2, `${y0} -> ${y1} (${visKey})`);
+      if (await win.$eval('#entryDown', (b) => !b.disabled).catch(() => false)) {
+        await win.click('#entryDown');
+        await sleep(200);
+        const y2 = await win.$eval('[data-keep-scroll="refs"]', (el) => el.scrollTop);
+        const inView = await win.$eval('[data-keep-scroll="refs"]', (el) => { const a = el.getBoundingClientRect(), b = el.querySelector('.on').getBoundingClientRect(); return b.top >= a.top - 1 && b.bottom <= a.bottom + 1; });
+        check('Move down does not jump the list back to the top', y2 > 0 && inView, `scrollTop ${y2}, moved row in view: ${inView}`);
+      }
+      await win.evaluate(() => document.getElementById('e2eShort').remove());
+      await win.click('#saveAll');
+      await sleep(400);
+      // The divider between list and editor moves, and the width is kept.
+      const listW = () => win.$eval('.reflist', (el) => el.getBoundingClientRect().width);
+      const w0 = await listW();
+      const bar = await win.$eval('#refSplit', (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 40 }; });
+      await win.mouse.move(bar.x, bar.y);
+      await win.mouse.down();
+      await win.mouse.move(bar.x + 60, bar.y, { steps: 4 });
+      await win.mouse.move(bar.x + 120, bar.y, { steps: 4 });
+      await win.mouse.up();
+      await sleep(150);
+      const w1 = await listW();
+      await win.click('[data-key="sec:0"]');
+      await sleep(200);
+      const w2 = await listW();
+      check('dragging the divider widens the list, and it stays that wide', w1 > w0 + 60 && Math.abs(w2 - w1) < 2, `${Math.round(w0)} -> ${Math.round(w1)} -> ${Math.round(w2)}`);
+      await win.dblclick('#refSplit');
+      await sleep(150);
       const toolsOnRing = () => (gal().items || []).filter((i) => ['Search copied text', 'My documents', 'Add from clipboard'].includes(i.name)).map((i) => i.name);
       check('the ring\'s tools are listed and can be moved', (await win.$$('[data-key^="tool:"]')).length === 3);
       await win.dragAndDrop('[data-key="tool:2"] .grip', '[data-key="tool:0"]', { targetPosition: { x: 30, y: 3 } });

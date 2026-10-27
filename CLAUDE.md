@@ -430,6 +430,12 @@ goes to Settings). Screenshots are kept at most 2400 px wide.
   topic = into it; never a topic into a topic. `RL.move(lib, from, to)` in
   reflib.js (tested) does every move; Move up / Move down on every entry's
   editor uses it too. Ring changes still need Save.
+- **The divider between the list and the editor moves** (owner,
+  2026-10-27: the list was cramped): `refSplitter()`, default 420 px,
+  double-click resets, kept in localStorage `rg.refWidth`. **A re-render
+  keeps the scroll** (`render()` restores `main` and every
+  `data-keep-scroll` list, then nudges the selected row into sight): Move
+  up / down used to throw the list back to the top. The e2e checks both.
 - **Copies, named readably**: pictures and files are copies in the
   references folder named `<id> <title>.<ext>` and renamed with the title
   (`tidy` in references.js; a file Windows has open keeps its old name).
