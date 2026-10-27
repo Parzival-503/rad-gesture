@@ -118,19 +118,25 @@ These run inside RadGesture (Rad Optimizer is not needed). The key is what the f
 | PACS > Measure > Insert measurement | Insert measurement | Alt+M |
 | PACS > Crosshair & link > Crosshair | Crosshair | X |
 | PACS > Crosshair & link > Link priors | Link priors | Alt+X |
+| PACS > Crosshair & link > Pinpoint | Pinpoint | Q |
 | PACS > Layout > Previous layout | Previous layout | [ |
 | PACS > Layout > Next layout | Next layout | ] |
 | PACS > Layout > Grid > 2 × 2 | Layout 2 × 2 | Ctrl+Shift+4 |
 | PACS > Layout > Grid > 3 × 2 | Layout 3 × 2 | Ctrl+Shift+6 |
 | PACS > Layout > Grid > 3 × 3 | Layout 3 × 3 | Ctrl+Shift+9 |
-| PACS > Layout > MPR | MPR | Ctrl+M |
 | PACS > Layout > Matrix | Matrix | M |
 | PACS > Layout > Image window | Image window | N |
 | PACS > Key images > Previous key image | Previous key image | ; |
 | PACS > Key images > Next key image | Next key image | ' |
-| PACS > Enhance > Enhance | Enhance | Alt+E |
-| PACS > Enhance > Sharpen | Sharpen | Alt+B |
+| PACS > Image > MPR | MPR | Ctrl+M |
+| PACS > Image > Thick slab | Thick slab | Shift+3 |
+| PACS > Image > Slab off | Slab off | - |
+| PACS > Image > Invert | Invert | I |
+| PACS > Image > Enhance | Enhance | Alt+E |
+| PACS > Image > Sharpen | Sharpen | Alt+B |
+| PACS > Image > Reset | Reset | Bs |
 | PACS > Insert priors | Insert priors into Comparison | Ctrl+P |
+| PACS > Show report | Show report | P |
 | Apps > Epic | Epic | - |
 | Apps > Teams | Teams | - |
 | Apps > Chrome tabs | Open my websites | - |

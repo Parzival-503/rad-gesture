@@ -191,7 +191,7 @@
       "id": "PACS_Enhance",
       "name": "Enhance",
       "group": "PACS (Sectra)",
-      "sub": "Window / level",
+      "sub": "Image",
       "description": "Enhance contrast.",
       "hotkey": "^!e",
       "on": true,
@@ -210,7 +210,7 @@
       "id": "PACS_Sharpen",
       "name": "Sharpen",
       "group": "PACS (Sectra)",
-      "sub": "Window / level",
+      "sub": "Image",
       "description": "Sharpen the image.",
       "hotkey": "^!b",
       "on": true,
@@ -514,7 +514,7 @@
       "id": "PACS_MPR",
       "name": "MPR",
       "group": "PACS (Sectra)",
-      "sub": "Layout",
+      "sub": "Image",
       "description": "Multi-planar reconstruction.",
       "hotkey": "^!s",
       "on": true,
@@ -587,6 +587,120 @@
       "uses": [
         "powerscribe",
         "sectra"
+      ]
+    },
+    {
+      "id": "PACS_Pinpoint",
+      "name": "Pinpoint",
+      "group": "PACS (Sectra)",
+      "sub": "Navigation",
+      "description": "Pinpoint: marks a spot and finds it on the other series.",
+      "hotkey": "",
+      "on": true,
+      "icon": "ti:focus-2",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "q"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Show_Report",
+      "name": "Show report",
+      "group": "PACS (Sectra)",
+      "sub": "Navigation",
+      "description": "Opens the report document and the priors list in Sectra.",
+      "hotkey": "",
+      "on": true,
+      "icon": "description",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "p"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Thick_Slab",
+      "name": "Thick slab",
+      "group": "PACS (Sectra)",
+      "sub": "Image",
+      "description": "Thick slab on the active series.",
+      "hotkey": "",
+      "on": true,
+      "icon": "ti:stack-2",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "+3"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Slab_Off",
+      "name": "Slab off",
+      "group": "PACS (Sectra)",
+      "sub": "Image",
+      "description": "Back to normal slice thickness.",
+      "hotkey": "",
+      "on": true,
+      "icon": "ti:minus",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "-"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Invert",
+      "name": "Invert",
+      "group": "PACS (Sectra)",
+      "sub": "Image",
+      "description": "Inverts the image grey scale.",
+      "hotkey": "",
+      "on": true,
+      "icon": "invert_colors",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "i"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Reset",
+      "name": "Reset",
+      "group": "PACS (Sectra)",
+      "sub": "Image",
+      "description": "Puts the image back to normal (window, zoom, pan, invert). Not slab thickness: Slab off does that.",
+      "hotkey": "",
+      "on": true,
+      "icon": "restart_alt",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "{BS}"
+        }
       ]
     },
     {

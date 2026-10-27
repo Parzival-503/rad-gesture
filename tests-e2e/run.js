@@ -455,6 +455,42 @@ async function waitFor(fn, ms, step = 200) {
     const liTopic = (secOnRing('Abdomen').items || []).find((i) => i.name === 'LI-RADS' && i.items);
     const liKinds = liTopic ? liTopic.items.map((i) => i.action.split(':')[0]).join(',') : '';
     check('a topic holds a link, a PDF and a picture together on the ring', liKinds === 'url,ref,ref', liKinds || 'no topic');
+    // Reordering: drag a resource above another, Move down, drag a tool; the
+    // ring keeps the new order. Then Export library writes a readable folder.
+    {
+      const chestNames = () => (secOnRing('CT Chest').items || []).map((i) => i.name);
+      const before = chestNames();
+      await win.$eval('main', (el) => el.scrollTo(0, 0));
+      await win.dragAndDrop('[data-key="it:0:1"] .grip', '[data-key="it:0:0"]', { targetPosition: { x: 30, y: 3 } });
+      await sleep(300);
+      await win.click('#saveAll');
+      await sleep(600);
+      const afterDrag = chestNames();
+      check('dragging a resource above another reorders it on the ring', afterDrag[0] === before[1] && afterDrag[1] === before[0], `${before.slice(0, 2)} -> ${afterDrag.slice(0, 2)}`);
+      await win.click('[data-key="it:0:0"]');
+      await sleep(200);
+      await win.click('#entryDown');
+      await sleep(200);
+      await win.click('#saveAll');
+      await sleep(600);
+      check('Move down moves it one place', chestNames()[1] === afterDrag[0], chestNames().slice(0, 2).join(', '));
+      const toolsOnRing = () => (gal().items || []).filter((i) => ['Search copied text', 'My documents', 'Add from clipboard'].includes(i.name)).map((i) => i.name);
+      check('the ring\'s tools are listed and can be moved', (await win.$$('[data-key^="tool:"]')).length === 3);
+      await win.dragAndDrop('[data-key="tool:2"] .grip', '[data-key="tool:0"]', { targetPosition: { x: 30, y: 3 } });
+      await sleep(300);
+      await win.click('#saveAll');
+      await sleep(600);
+      check('dragging a tool moves it on the ring', toolsOnRing()[0] === 'Add from clipboard', toolsOnRing().join(', '));
+      await win.screenshot({ path: path.join(SHOTS, 'settings-ref-reorder.png') });
+      const expDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'rg-export-'));
+      await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] }); }, expDir);
+      await win.click('#refExport');
+      const out = await waitFor(async () => { const d = fs.readdirSync(expDir)[0]; return d && path.join(expDir, d); }, 6000);
+      const sec = out ? fs.readdirSync(out) : [];
+      const chestDir = out && sec.find((d) => /CT Chest$/.test(d));
+      const inChest = chestDir ? fs.readdirSync(path.join(out, chestDir)) : [];
+      check('Export library writes a folder per section with readable names', sec.some((d) => /^01 /.test(d)) && inChest.some((f) => /\.url$/.test(f)), `${sec.join(' | ')} :: ${inChest.slice(0, 4).join(' | ')}`);
+    }
     await win.click('.reftopic[data-topic="LI-RADS"]');
     await sleep(200);
     await win.$eval('main', (el) => el.scrollTo(0, 0));
@@ -772,6 +808,44 @@ async function waitFor(fn, ms, step = 200) {
     await sleep(400);
     check('the ring draws a picture icon', (await ringPage.$$('.node img.imgic')).length > 0);
     await ringPage.screenshot({ path: path.join(SHOTS, 'ring-picture-icon.png') });
+    // Previous / next keep the ring open: PACS > Layout > Next layout runs
+    // (queued for the helper marked "keep|") and the ring stays up for the next click.
+    {
+      const labels = () => ringPage.evaluate(() => { const boxes = document.querySelectorAll('.nodes'); const b = boxes[boxes.length - 1]; return [...b.querySelectorAll('.label')].map((l) => l.textContent); });
+      const clickNamed = async (name) => {
+        const i = (await labels()).indexOf(name);
+        if (i < 0) return false;
+        await sleep(350); // let the springs settle where they will stay
+        const r = await ringPage.evaluate((k) => { const boxes = document.querySelectorAll('.nodes'); const b = boxes[boxes.length - 1].querySelector(`.node[data-slot="${k}"]`).getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; }, i);
+        await ringPage.mouse.move(r.x, r.y, { steps: 4 });
+        await sleep(150);
+        await ringPage.mouse.click(r.x, r.y);
+        return true;
+      };
+      const nChips = (await ringPage.$$('.dchip[data-cat]')).length;
+      for (let c = 0; c < nChips && !(await labels()).includes('Layout'); c++) {
+        await (await ringPage.$(`.dchip[data-cat="${c}"]`)).click();
+        await sleep(450);
+      }
+      const opened = await clickNamed('Layout');
+      await sleep(500);
+      const clicked = opened && await clickNamed('Next layout');
+      await sleep(500);
+      const q = await rg((r) => r.queue());
+      const still = await ringPage.evaluate(() => !!window.RGRing.state());
+      check('Next layout runs and the ring stays open for the next click', clicked && still && q.includes('keep|lib:PACS_Next_Layout'), `clicked=${clicked} open=${still} queue=${q.join(',')}`);
+      await ringPage.screenshot({ path: path.join(SHOTS, 'ring-keep-open.png') });
+      check('the Image ring holds MPR, Thick slab, Slab off, Invert, Enhance, Sharpen, Reset', await (async () => {
+        await ringPage.evaluate(() => window.RGRing.clear());
+        await rg((r) => r.openRing('click'));
+        await sleep(500);
+        for (let c = 0; c < nChips && !(await labels()).includes('Image'); c++) { await (await ringPage.$(`.dchip[data-cat="${c}"]`)).click(); await sleep(450); }
+        await clickNamed('Image');
+        await sleep(500);
+        return (await labels()).join('|') === 'MPR|Thick slab|Slab off|Invert|Enhance|Sharpen|Reset';
+      })(), (await labels()).join('|'));
+      await ringPage.screenshot({ path: path.join(SHOTS, 'ring-image.png') });
+    }
     await ringPage.evaluate(() => window.RGRing.clear());
     await app.evaluate(({}) => global.__rg && true);
 

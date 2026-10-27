@@ -459,8 +459,17 @@
 
   function choose(N) {
     const item = { name: N.it.name, action: N.it.action };
+    if (N.it.stay) return keepOpen(N, item);
     finish(() => {}, N);
     hooks.select(item); // the action starts now; the fade is only for the eye
+  }
+
+  // A direction marked "stay" (previous / next, pressed again and again):
+  // it runs, pulses, and the ring stays open for the next click.
+  function keepOpen(N, item) {
+    N.sc.v = 7;
+    st.mode = 'click';
+    hooks.select(Object.assign(item, { stay: true }));
   }
 
   function dismiss() {
@@ -495,6 +504,11 @@
         return { type: 'stay' };
       }
       const item = { name: N.it.name, action: N.it.action };
+      if (N.it.stay) {
+        N.sc.v = 7;
+        st.mode = 'click';
+        return { type: 'select', item: Object.assign(item, { stay: true }) };
+      }
       finish(() => {}, N);
       return { type: 'select', item };
     }

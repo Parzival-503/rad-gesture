@@ -390,6 +390,58 @@ function migrate(m, lib) {
     done.push('organ-icons');
     changed = true;
   }
+  if (!done.includes('pacs-image')) {
+    // Image manipulations get their own smaller ring, "Image" (the Enhance
+    // ring renamed): MPR (moved from Layout), Thick slab, Slab off, Invert,
+    // Enhance, Sharpen, Reset. Pinpoint joins Crosshair & link, Show report
+    // the PACS ring. Each only where there is room and it is not there yet.
+    const pacs = m.categories.find((c) => c.id === 'pacs');
+    const lib = (id) => 'helper:lib:' + id;
+    const fn = (id, name, icon) => ({ name, icon, action: lib(id) });
+    const has = (items, a) => (items || []).some((it) => it.action === a || (Array.isArray(it.items) && has(it.items, a)));
+    const ringWith = (a) => pacs && (pacs.items || []).find((it) => Array.isArray(it.items) && it.items.some((x) => x.action === a));
+    if (pacs) {
+      let img = ringWith(lib('PACS_Enhance')) || ringWith(lib('PACS_Sharpen'));
+      if (!img && pacs.items.length < M_MAX) {
+        img = { name: 'Image', icon: 'tune', items: [] };
+        pacs.items.push(img);
+      }
+      if (img) {
+        if (img.name === 'Enhance') { img.name = 'Image'; if (img.icon === 'wand_stars') img.icon = 'tune'; }
+        // MPR moves in from wherever it is (Layout, as shipped).
+        let mpr = null;
+        if (!img.items.some((x) => x.action === lib('PACS_MPR'))) {
+          for (const r of pacs.items) {
+            if (!Array.isArray(r.items) || r === img) continue;
+            const k = r.items.findIndex((x) => x.action === lib('PACS_MPR'));
+            if (k >= 0 && r.items.length > 1) { mpr = r.items.splice(k, 1)[0]; break; }
+          }
+        }
+        const front = [mpr, fn('PACS_Thick_Slab', 'Thick slab', 'ti:stack-2'), fn('PACS_Slab_Off', 'Slab off', 'ti:minus'), fn('PACS_Invert', 'Invert', 'invert_colors')]
+          .filter((x) => x && !has(pacs.items, x.action));
+        img.items.splice(0, 0, ...front.slice(0, Math.max(0, M_MAX - img.items.length)));
+        if (!has(pacs.items, lib('PACS_Reset')) && img.items.length < M_MAX) img.items.push(fn('PACS_Reset', 'Reset', 'restart_alt'));
+      }
+      const cross = ringWith(lib('PACS_Crosshair'));
+      if (cross && cross.items.length < M_MAX && !has(pacs.items, lib('PACS_Pinpoint'))) cross.items.push(fn('PACS_Pinpoint', 'Pinpoint', 'ti:focus-2'));
+      if (pacs.items.length < M_MAX && !has(pacs.items, lib('PACS_Show_Report'))) pacs.items.push(fn('PACS_Show_Report', 'Show report', 'description'));
+    }
+    done.push('pacs-image');
+    changed = true;
+  }
+  if (!done.includes('keep-open-nav')) {
+    // Previous / next are pressed again and again: the ring stays open after
+    // them (the "Keep the ring open" switch on each direction).
+    const nav = ['PACS_Prev_Layout', 'PACS_Next_Layout', 'PACS_Prev_Key_Image', 'PACS_Next_Key_Image'].map((id) => 'helper:lib:' + id)
+      .concat(['helper:keys:^!r', 'helper:keys:^!t', 'helper:keys:^!k', 'helper:keys:^!i']);
+    const walk = (items) => (items || []).forEach((it) => {
+      if (Array.isArray(it.items)) return walk(it.items);
+      if (nav.includes(it.action) && it.stay === undefined) it.stay = true;
+    });
+    m.categories.forEach((c) => walk(c.items));
+    done.push('keep-open-nav');
+    changed = true;
+  }
   if (!done.includes('impression-style')) {
     // "Learn this impression" goes right after Impression on the AI Tools
     // ring, when there is room and it is not there yet.

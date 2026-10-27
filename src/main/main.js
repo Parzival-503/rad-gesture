@@ -46,6 +46,8 @@ const { codeFor } = require('./library-code');
 const { createReferences } = require('./references');
 const refs = createReferences({ dir: () => path.join(userDir(), 'references') });
 const { createStyleStore } = require('./style-store');
+const { exportLibrary } = require('./ref-export');
+const RL = require('../common/reflib');
 const style = createStyleStore({ userDir });
 const { createPanels } = require('./panels');
 let panels = null;
@@ -209,7 +211,10 @@ async function clipImage() {
   return null;
 }
 
-function runItem(item, viaRelease) {
+// keep: the ring stays open after this one (a "stay" direction). Its helper
+// action goes through the queue marked "keep|", so the helper treats the ring
+// as still open (Esc, fast poll) while it runs it.
+function runItem(item, viaRelease, keep = false) {
   const parsed = parseAction(item.action);
   if (parsed && parsed.kind === 'search') {
     // Needs the copied text first (asynchronous).
@@ -228,8 +233,8 @@ function runItem(item, viaRelease) {
       if (!supervisor.status().connected && !E2E) {
         notify(`"${item.name}" needs the helper, which is not running. Open Settings > Status.`);
       }
-      if (viaRelease) return 'action:' + r.value;
-      bridge.enqueue(r.value);
+      if (viaRelease && !keep) return 'action:' + r.value;
+      bridge.enqueue(keep ? 'keep|' + r.value : r.value);
       return 'none';
     case 'url':
       shell.openExternal(r.value);
@@ -326,6 +331,7 @@ ipcMain.on('rg:release-result', (_e, { id, result }) => {
   }
 });
 ipcMain.on('rg:select', (_e, item) => {
+  if (item && item.stay) return runItem(item, false, true);
   hideRing(HIDE_AFTER_PICK_MS);
   runItem(item, false);
 });
@@ -369,6 +375,10 @@ async function startBridge() {
       if (!ringOpen) return 'none';
       const result = await askRendererForRelease();
       if (result.type === 'stay') return 'stay';
+      if (result.type === 'select' && result.item && result.item.stay) {
+        runItem(result.item, false, true); // the ring stays open, in click mode
+        return 'stay';
+      }
       hideRing(HIDE_AFTER_PICK_MS);
       return result.type === 'select' ? runItem(result.item, true) : 'none';
     },
@@ -752,6 +762,33 @@ function registerSettingsIpc() {
   ipcMain.handle('rgs:ref-save', (_e, v) => refForPage(refs.save({ id: v.id, title: v.title, tags: v.tags, body: v.body }), true));
   ipcMain.handle('rgs:ref-delete', (_e, id) => refs.remove(id));
   ipcMain.handle('rgs:ref-open', (_e, id) => openReference(id));
+  ipcMain.handle('rgs:ref-show', (_e, id) => {
+    const r = refs.get(String(id));
+    const f = r && (r.file ? refs.filePath(r.id) : r.image ? refs.imagePath(r.id) : '');
+    if (f && fs.existsSync(f)) shell.showItemInFolder(f);
+    return !!f;
+  });
+  // The saved Reference Library as an ordinary folder (ref-export.js).
+  ipcMain.handle('rgs:ref-export', async () => {
+    const ring = menu && (menu.categories.find((c) => c.id === 'gallery') || menu.categories.find((c) => /reference/i.test(c.name)));
+    if (!ring) return { ok: false, error: 'There is no Reference Library ring.' };
+    const r = await dialog.showOpenDialog(settingsWin, { title: 'Export the Reference Library into...', properties: ['openDirectory', 'createDirectory'] });
+    if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+    try {
+      const lib = RL.read(ring);
+      const placed = new Set();
+      const note = (it) => { const m = /^ref:(r[a-z0-9]+)$/.exec(it.action || ''); if (m) placed.add(m[1]); };
+      lib.sections.forEach((s) => s.items.forEach((it) => (it.topic ? it.items : [it]).forEach(note)));
+      lib.loose.forEach(note);
+      const unplaced = refs.list().filter((x) => !placed.has(x.id));
+      const out = exportLibrary(lib, refs, r.filePaths[0], { unplaced });
+      logEvent('ref-export', `${out.files} -> ${out.dir}`);
+      if (!E2E) shell.openPath(out.dir);
+      return { ok: true, dir: out.dir, files: out.files };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
   ipcMain.handle('rgs:style-list', () => style.list());
   ipcMain.handle('rgs:style-remove', (_e, id) => style.remove(String(id)));
   ipcMain.handle('rgs:style-clear', () => style.clear());
@@ -1145,6 +1182,7 @@ app.whenReady().then(async () => {
       settingsOnTop: () => !!(settingsWin && !settingsWin.isDestroyed() && settingsWin.isAlwaysOnTop()),
       runAction: (action) => runItem({ name: 'e2e', action }, false),
       events: () => events.slice(),
+      queue: () => (bridge ? bridge.pending() : []),
       userDir,
     };
   }

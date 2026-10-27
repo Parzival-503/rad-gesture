@@ -546,6 +546,12 @@
     } else if (type === 'ring') {
       box.append(h('div', { class: 'addrow' }, h('button', { class: 'btn', onclick: () => { ui.path.push(ui.sel); ui.sel = null; render(); } }, msym('subdirectory_arrow_right'), `Open it (${it.items.length} inside)`)));
     }
+    if (type !== 'ring') {
+      // Previous / next and the like are pressed again and again.
+      box.append(field('Keep the ring open after using it', h('div', { class: 'addrow', style: 'margin:0;align-items:center' },
+        sw(!!it.stay, (v) => { it.stay = v; markDirty('menu'); render(); }, 'Keep the ring open after using it'),
+        h('span', { class: 'hint' }, 'For things you press again and again (previous / next): the ring stays up until you press Esc or click outside it.'))));
+    }
     return box;
   }
   // "Use the program's own icon" when it has one and the direction shows another.
@@ -1519,12 +1525,16 @@
     const search = h('input', { type: 'text', id: 'refSearch', class: 'search', placeholder: 'Search sections, titles, tags, text and links', value: ui.refQuery || '',
       oninput: (e) => { ui.refQuery = e.target.value; const pos = e.target.selectionStart; render(); const s2 = document.getElementById('refSearch'); s2.focus(); s2.setSelectionRange(pos, pos); } });
     const list = h('div', { class: 'list reftree' });
+    // Drag any row by its handle: onto a row = before it, onto a section's
+    // heading = last in that section, onto the lower half of a topic = into it.
+    const dnd = refDnd(lib, save, unplaced);
     const row = (key, it, extra) => {
       const info = entryInfo(it);
-      return h('div', Object.assign({ class: 'lrow refrow' + (ui.refSel === key ? ' on' : ''), role: 'button', tabindex: '0',
+      return h('div', Object.assign({ class: 'lrow refrow' + (ui.refSel === key ? ' on' : ''), role: 'button', tabindex: '0', 'data-key': key,
         onclick: () => { ui.refSel = key; ui.refConfirmDelete = null; render(); },
         onkeydown: (e) => { if (e.key === 'Enter') { ui.refSel = key; render(); } },
         ondblclick: () => openEntry(it) }, extra),
+      dnd.grip(key),
       info.thumb ? h('img', { class: 'refthumb', src: info.thumb, alt: '' }) : h('span', { class: 'ic' }, icon(it.icon || info.icon)),
       h('span', { class: 'tx' }, h('b', {}, info.title), h('small', {}, info.sub)));
     };
@@ -1532,16 +1542,16 @@
     lib.sections.forEach((s, si) => {
       const items = s.items.map((it, ii) => ({ it, ii })).filter(({ it }) => !words.length || hit(s.name + ' ' + entryText(it)));
       if (words.length && !items.length && !hit(s.name)) return;
-      list.append(h('div', { class: 'refsec' + (ui.refSel === 'sec:' + si ? ' on' : ''), role: 'button', tabindex: '0', 'data-section': s.name,
+      list.append(h('div', { class: 'refsec' + (ui.refSel === 'sec:' + si ? ' on' : ''), role: 'button', tabindex: '0', 'data-section': s.name, 'data-key': 'sec:' + si,
         onclick: () => { ui.refSel = 'sec:' + si; ui.refConfirmDelete = null; render(); } },
-      h('span', { class: 'ic' }, icon(s.icon || 'folder')), h('b', {}, s.name), h('span', { class: 'count' }, String(s.items.length))));
+      dnd.grip('sec:' + si), h('span', { class: 'ic' }, icon(s.icon || 'folder')), h('b', {}, s.name), h('span', { class: 'count' }, String(s.items.length))));
       if (!s.items.length) list.append(h('div', { class: 'refnone' }, 'Empty. Pick the section, then add to it.'));
       const attrs = (it) => { const info = entryInfo(it); return info.kind === 'link' ? { 'data-link': it.name } : info.ref ? { 'data-ref': info.ref.id } : {}; };
       for (const { it, ii } of items) {
         if (it.topic) {
-          list.append(h('div', { class: 'lrow refrow reftopic' + (ui.refSel === `it:${si}:${ii}` ? ' on' : ''), role: 'button', tabindex: '0', 'data-topic': it.name,
+          list.append(h('div', { class: 'lrow refrow reftopic' + (ui.refSel === `it:${si}:${ii}` ? ' on' : ''), role: 'button', tabindex: '0', 'data-topic': it.name, 'data-key': `it:${si}:${ii}`,
             onclick: () => { ui.refSel = `it:${si}:${ii}`; ui.refConfirmDelete = null; render(); } },
-          h('span', { class: 'ic' }, icon(it.icon || 'topic')),
+          dnd.grip(`it:${si}:${ii}`), h('span', { class: 'ic' }, icon(it.icon || 'topic')),
           h('span', { class: 'tx' }, h('b', {}, it.name), h('small', {}, it.items.length ? `Topic · ${it.items.length} source${it.items.length > 1 ? 's' : ''}` : 'Topic · empty: add to it'))));
           it.items.forEach((x, jj) => {
             if (words.length && !hit(s.name + ' ' + it.name + ' ' + entryText(x))) return;
@@ -1556,6 +1566,13 @@
       list.append(h('div', { class: 'kgroup' }, 'Directly on the ring'));
       for (const { it, i } of loose) { list.append(row('loose:' + i, it, { 'data-link': it.name })); shown++; }
     }
+    if (!words.length && lib.tools.length) {
+      list.append(h('div', { class: 'kgroup' }, 'Tools on the ring (after the sections)'));
+      lib.tools.forEach((t, ti) => list.append(h('div', { class: 'lrow refrow' + (ui.refSel === 'tool:' + ti ? ' on' : ''), role: 'button', tabindex: '0', 'data-key': 'tool:' + ti, 'data-tool': t.name,
+        onclick: () => { ui.refSel = 'tool:' + ti; ui.refConfirmDelete = null; render(); } },
+      dnd.grip('tool:' + ti), h('span', { class: 'ic' }, icon(t.icon || 'build')),
+      h('span', { class: 'tx' }, h('b', {}, t.name), h('small', {}, Array.isArray(t.items) ? `${t.items.length} inside` : 'Tool')))));
+    }
     const free = unplaced.filter((r) => !words.length || hit(r.title + ' ' + (r.tags || []).join(' ') + ' ' + r.body));
     if (free.length) {
       list.append(h('div', { class: 'kgroup' }, 'Not in a section'));
@@ -1569,16 +1586,149 @@
     const listCard = h('div', { class: 'card reflist' },
       h('div', { class: 'searchbox' }, msym('search'), search),
       list,
-      h('div', { class: 'addrow' }, h('button', { class: 'btn small', id: 'refNewSection', onclick: () => newSection(lib, save) }, msym('create_new_folder'), 'New section')));
+      h('div', { class: 'addrow' }, h('button', { class: 'btn small', id: 'refNewSection', onclick: () => newSection(lib, save) }, msym('create_new_folder'), 'New section'),
+        h('span', { class: 'grow' }),
+        h('button', { class: 'btn small ghost', id: 'refExport', title: 'A copy of your library as an ordinary folder: a folder per section, files and pictures under their titles, links as shortcuts. For a backup or a colleague.',
+          onclick: async () => {
+            if (dirty.menu) return toast('Save first: the export is of the saved library.');
+            const x = await api.refExport();
+            if (x.ok) toast(`Exported ${x.files} item${x.files === 1 ? '' : 's'} to ${x.dir}`);
+            else if (!x.canceled) toast('Not exported: ' + x.error);
+          } }, msym('drive_folder_upload'), 'Export library...')));
 
+    dnd.wire(list);
     let editor;
     if (!cur) editor = h('div', { class: 'card editor refeditor' }, h('div', { class: 'empty' }, 'Make a section, then add to it.'));
+    else if (cur.kind === 'tool') editor = toolEditor(cur, lib, save);
     else if (cur.kind === 'sec') editor = sectionEditor(lib, cur.sec, save);
     else if (cur.kind === 'topic') editor = topicEditor(cur, lib, save);
     else if (cur.ref) editor = refEditor(cur, lib, save);
     else if (cur.kind === 'link') editor = linkEditor(cur, lib, save);
     else editor = otherEditor(cur, lib, save);
+    // Every entry in a section or topic can move up and down from its editor too.
+    if (cur && cur.kind !== 'sec' && cur.kind !== 'topic' && cur.kind !== 'tool' && cur.sec >= 0 && cur.list) editor.append(moveRow(cur, lib, save));
     $main.append(h('div', { class: 'refgrid' }, listCard, editor));
+  }
+
+  // The address reflib.move() takes, from a list key, and back.
+  function refAddr(key) {
+    let m = /^sec:(\d+)$/.exec(key);
+    if (m) return { sec: +m[1] };
+    m = /^it:(\d+):(\d+)(?::(\d+))?$/.exec(key);
+    if (m) return m[3] === undefined ? { sec: +m[1], idx: +m[2] } : { sec: +m[1], idx: +m[2], sub: +m[3] };
+    m = /^tool:(\d+)$/.exec(key);
+    if (m) return { tool: +m[1] };
+    return null;
+  }
+  const refKey = (a) => (a.tool !== undefined ? 'tool:' + a.tool : a.idx === undefined ? 'sec:' + a.sec : a.sub === undefined ? `it:${a.sec}:${a.idx}` : `it:${a.sec}:${a.idx}:${a.sub}`);
+
+  // Drag and drop in the Reference Library list.
+  function refDnd(lib, save, unplaced) {
+    let dragKey = null;
+    const grip = (key) => h('span', { class: 'grip', draggable: 'true', title: 'Drag to move', 'aria-hidden': 'true',
+      onclick: (e) => e.stopPropagation(),
+      ondragstart: (e) => { dragKey = key; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', key); e.target.closest('[data-key]').classList.add('dragging'); },
+      ondragend: (e) => { dragKey = null; const r = e.target.closest('[data-key]'); if (r) r.classList.remove('dragging'); } }, msym('drag_indicator'));
+    // Where a drop on this row would put the dragged thing (or null: not here).
+    function target(rowEl, e) {
+      const toKey = rowEl.dataset.key;
+      const from = dragKey && refAddr(dragKey);
+      const to = refAddr(toKey);
+      if (!dragKey || !to || dragKey === toKey) return null;
+      const free = /^ref:/.test(dragKey);
+      if (from && from.tool !== undefined) return to.tool !== undefined ? { to, how: 'before' } : null;
+      if (to.tool !== undefined) return null;
+      if (from && from.idx === undefined) return to.idx === undefined ? { to, how: 'before' } : null; // a section
+      if (!from && !free) return null;
+      if (to.idx === undefined) return { to: { sec: to.sec }, how: 'into' }; // a section heading: last in it
+      const t = to.sub === undefined && lib.sections[to.sec].items[to.idx];
+      const r = rowEl.getBoundingClientRect();
+      if (t && t.topic && !(from && from.idx !== undefined && from.sub === undefined && lib.sections[from.sec].items[from.idx].topic) && e.clientY > r.top + r.height / 2)
+        return { to: { sec: to.sec, idx: to.idx, end: true }, how: 'into' };
+      return { to, how: 'before' };
+    }
+    const clear = (el) => el.querySelectorAll('.dropbefore, .dropinto').forEach((x) => x.classList.remove('dropbefore', 'dropinto'));
+    function wire(listEl) {
+      listEl.addEventListener('dragover', (e) => {
+        const rowEl = e.target.closest('[data-key]');
+        clear(listEl);
+        const t = rowEl && target(rowEl, e);
+        if (!t) return;
+        e.preventDefault();
+        rowEl.classList.add(t.how === 'into' ? 'dropinto' : 'dropbefore');
+      });
+      listEl.addEventListener('dragleave', (e) => { if (!listEl.contains(e.relatedTarget)) clear(listEl); });
+      listEl.addEventListener('drop', (e) => {
+        const rowEl = e.target.closest('[data-key]');
+        const t = rowEl && target(rowEl, e);
+        clear(listEl);
+        if (!t) return;
+        e.preventDefault();
+        let at;
+        if (/^ref:/.test(dragKey)) {
+          // A note, picture or file in no section: into the place it was dropped.
+          const r = unplaced.find((x) => 'ref:' + x.id === dragKey);
+          const s2 = lib.sections[t.to.sec];
+          if (!r || !s2) return;
+          const entry = refEntry(r);
+          if (t.to.end) { s2.items[t.to.idx].items.push(entry); at = { sec: t.to.sec, idx: t.to.idx, sub: s2.items[t.to.idx].items.length - 1 }; }
+          else if (t.to.idx === undefined) { s2.items.push(entry); at = { sec: t.to.sec, idx: s2.items.length - 1 }; }
+          else if (t.to.sub !== undefined) { s2.items[t.to.idx].items.splice(t.to.sub, 0, entry); at = t.to; }
+          else { s2.items.splice(t.to.idx, 0, entry); at = t.to; }
+        } else {
+          const from = refAddr(dragKey);
+          const to = from.idx === undefined && from.tool === undefined ? { sec: t.to.sec } : t.to;
+          at = RL.move(lib, from, to);
+          if (!at) return toast('It cannot go there (a topic cannot go inside a topic).');
+        }
+        dragKey = null;
+        save();
+        ui.refSel = refKey(at);
+        render();
+        toast('Moved. Save to keep the new order on the ring.');
+      });
+    }
+    return { grip, wire };
+  }
+
+  // Move up / Move down for an entry of a section or a topic.
+  function moveRow(cur, lib, save) {
+    const from = cur.topic ? { sec: cur.sec, idx: cur.topicIdx, sub: cur.idx } : { sec: cur.sec, idx: cur.idx };
+    const go = (d) => {
+      const i = from.sub === undefined ? from.idx : from.sub;
+      const j = d < 0 ? i - 1 : i + 2;
+      if (j < 0 || i + d >= cur.list.length) return;
+      const to = from.sub === undefined ? { sec: from.sec, idx: j } : { sec: from.sec, idx: from.idx, sub: j };
+      const at = RL.move(lib, from, to); // past the end = last
+      if (!at) return;
+      save();
+      ui.refSel = refKey(at);
+      render();
+    };
+    const i = cur.idx;
+    return h('div', { class: 'addrow', style: 'margin-top:10px' },
+      h('button', { class: 'btn small', id: 'entryUp', disabled: i <= 0, onclick: () => go(-1) }, msym('arrow_upward'), 'Move up'),
+      h('button', { class: 'btn small', id: 'entryDown', disabled: i >= cur.list.length - 1, onclick: () => go(1) }, msym('arrow_downward'), 'Move down'),
+      h('span', { class: 'hint' }, cur.topic ? 'Within the topic. Or drag it in the list.' : 'Within the section. Or drag it in the list, even into another section or a topic.'));
+  }
+
+  // A tool on the Reference Library ring (Search copied text, My documents...).
+  function toolEditor(cur, lib, save) {
+    const t = lib.tools[cur.tool];
+    const go = (d) => {
+      const j = d < 0 ? cur.tool - 1 : cur.tool + 2;
+      const at = RL.move(lib, { tool: cur.tool }, { tool: j });
+      save();
+      ui.refSel = refKey(at);
+      render();
+    };
+    return h('div', { class: 'card editor refeditor', id: 'toolEditor' },
+      h('div', { class: 'refhead' }, h('span', { class: 'chip' }, msym('build'), 'Tool'), h('span', { class: 'hint' }, 'Changes here are saved with Save.')),
+      h('h2', {}, t.name),
+      h('p', { class: 'hint' }, 'A tool on the Reference Library ring, after your sections. Edit what it does in Rings.'),
+      h('div', { class: 'addrow' },
+        h('button', { class: 'btn small', id: 'toolUp', disabled: cur.tool === 0, onclick: () => go(-1) }, msym('arrow_upward'), 'Move up'),
+        h('button', { class: 'btn small', id: 'toolDown', disabled: cur.tool === lib.tools.length - 1, onclick: () => go(1) }, msym('arrow_downward'), 'Move down')));
   }
 
   // The selection key -> { kind, sec, idx, item, ref } (sec -1: not in a section).
@@ -1598,6 +1748,8 @@
       const x = it.topic && it.items[+m[3]];
       return x ? Object.assign({ sec: +m[1], topicIdx: +m[2], idx: +m[3], item: x, list: it.items, topic: it }, entryInfo(x)) : null;
     }
+    m = /^tool:(\d+)$/.exec(key);
+    if (m) return lib.tools[+m[1]] ? { kind: 'tool', tool: +m[1] } : null;
     m = /^loose:(\d+)$/.exec(key);
     if (m) { const it = lib.loose[+m[1]]; return it ? Object.assign({ sec: -2, idx: +m[1], item: it, list: lib.loose }, entryInfo(it)) : null; }
     m = /^ref:(r[a-z0-9]+)$/.exec(key);
@@ -1997,6 +2149,7 @@
       h('div', { class: 'refwork ' + mode }, mode !== 'preview' ? ta : null, mode !== 'write' ? preview : null),
       h('div', { class: 'addrow', style: 'margin-top:12px' },
         h('button', { class: 'btn', id: 'refOpen', onclick: () => api.refOpen(r.id) }, msym('open_in_new'), 'Open'),
+        r.image || r.file ? h('button', { class: 'btn ghost', id: 'refShow', title: 'Opens the folder with this file selected', onclick: () => api.refShow(r.id) }, msym('folder_open'), 'Show the file') : null,
         cur.list ? makeTopicButton(cur, lib, saveRing) : null,
         r.image || r.file ? null : h('button', { class: 'btn ghost', onclick: async () => { const x = await api.refPaste(r.id); if (!x.ok) return toast(x.error); await loadRefs(); render(); } }, msym('add_photo_alternate'), 'Add a screenshot'),
         h('span', { class: 'grow' }),

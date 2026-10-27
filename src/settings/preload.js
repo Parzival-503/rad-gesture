@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('rgs', {
   refSave: (v) => ipcRenderer.invoke('rgs:ref-save', v),
   refDelete: (id) => ipcRenderer.invoke('rgs:ref-delete', id),
   refOpen: (id) => ipcRenderer.invoke('rgs:ref-open', id),
+  refShow: (id) => ipcRenderer.invoke('rgs:ref-show', id),
+  refExport: () => ipcRenderer.invoke('rgs:ref-export'),
   refPaste: (id) => ipcRenderer.invoke('rgs:ref-paste', id),
   refPickImage: (id) => ipcRenderer.invoke('rgs:ref-pick-image', id),
   refSnip: () => ipcRenderer.invoke('rgs:ref-snip'),

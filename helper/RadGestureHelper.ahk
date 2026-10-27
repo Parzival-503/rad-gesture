@@ -142,6 +142,7 @@ global LIB_IDS := "PS_ToggleDictation|PS_NextField|PS_PrevField|PS_PasteIndicati
     . "|PACS_Crosshair|PACS_LinkCrosshair|PACS_Prev_Key_Image|PACS_Next_Key_Image"
     . "|PACS_Prev_Layout|PACS_Next_Layout|PACS_Layout_2x2|PACS_Layout_3x2|PACS_Layout_3x3"
     . "|PACS_MPR|PACS_Matrix|PACS_ImageWindow|PACS_Insert_Priors"
+    . "|PACS_Pinpoint|PACS_Show_Report|PACS_Thick_Slab|PACS_Slab_Off|PACS_Invert|PACS_Reset"
     . "|LoginUandP|LoginU|LoginP|LoginForget|ActivateEPIC|ActivateTeams|OpenChromeTabs|SearchRadiopaediaGoogle"
 global g_LibBound := {}     ; hotkey -> library id, for LibHotkey
 global g_LibPass := ""      ; the login password, this session only (never written anywhere)
@@ -3787,9 +3788,14 @@ return
 HubPoll:
     hubPollResp := HubRequest("GET", "/poll", 300)
     if (SubStr(hubPollResp, 1, 7) = "action:") {
-        if (g_RingOpen)
+        ; "keep|<id>": a direction that leaves the ring open (previous / next).
+        ; The ring is still up, so Esc and the fast poll stay on.
+        hubPollAct := SubStr(hubPollResp, 8)
+        if (SubStr(hubPollAct, 1, 5) = "keep|")
+            hubPollAct := SubStr(hubPollAct, 6)
+        else if (g_RingOpen)
             HubRingClosed()
-        RunHubAction(SubStr(hubPollResp, 8))
+        RunHubAction(hubPollAct)
     } else if (g_RingOpen && hubPollResp != "open") {
         HubRingClosed()
     }

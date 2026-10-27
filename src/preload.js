@@ -7,6 +7,6 @@ contextBridge.exposeInMainWorld('radgesture', {
   onRelease: (cb) =>
     ipcRenderer.on('rg:release', (_e, { id }) => ipcRenderer.send('rg:release-result', { id, result: cb() })),
   onClose: (cb) => ipcRenderer.on('rg:close', () => cb()),
-  select: (item) => ipcRenderer.send('rg:select', { name: item.name, action: item.action }),
+  select: (item) => ipcRenderer.send('rg:select', { name: item.name, action: item.action, stay: !!item.stay }),
   dismiss: () => ipcRenderer.send('rg:dismiss'),
 });

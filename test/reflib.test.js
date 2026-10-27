@@ -107,3 +107,64 @@ test('a topic with more than 8 sources rolls the rest into "More"', () => {
   assert.ok(validateMenu({ categories: [ring] }).ok);
   assert.strictEqual(R.read(ring).sections[0].items.find((x) => x.topic).items.length, 11);
 });
+
+const names = (list) => list.map((x) => x.name);
+
+test('move: sections reorder; a section goes before another or last', () => {
+  const lib = R.read(shipped());
+  assert.deepStrictEqual(R.move(lib, { sec: 3 }, { sec: 0 }), { sec: 0 });
+  assert.deepStrictEqual(names(lib.sections), ['PET-CT', 'CT Chest', 'Abdomen', 'Ultrasound']);
+  assert.deepStrictEqual(R.move(lib, { sec: 0 }, { end: true }), { sec: 3 });
+  assert.deepStrictEqual(names(lib.sections), ['CT Chest', 'Abdomen', 'Ultrasound', 'PET-CT']);
+  assert.strictEqual(R.move(lib, { sec: 0 }, { sec: 1, idx: 0 }), null, 'a section never goes inside a section');
+});
+
+test('move: an entry reorders in its section, and moves to another section', () => {
+  const lib = R.read(shipped());
+  const chest = names(lib.sections[0].items);
+  assert.deepStrictEqual(R.move(lib, { sec: 0, idx: 1 }, { sec: 0, idx: 0 }), { sec: 0, idx: 0 });
+  assert.deepStrictEqual(names(lib.sections[0].items), [chest[1], chest[0], ...chest.slice(2)]);
+  const moved = lib.sections[0].items[0].name;
+  const at = R.move(lib, { sec: 0, idx: 0 }, { sec: 1 }); // the end of Abdomen
+  assert.strictEqual(lib.sections[1].items[at.idx].name, moved);
+  assert.ok(!names(lib.sections[0].items).includes(moved));
+  // Before an entry of another section.
+  R.move(lib, { sec: 1, idx: at.idx }, { sec: 2, idx: 0 });
+  assert.strictEqual(lib.sections[2].items[0].name, moved);
+});
+
+test('move: into and out of a topic, and within it; never a topic into a topic', () => {
+  const lib = R.read(shipped());
+  const abd = lib.sections[1];
+  abd.items.splice(0, 1, { name: 'LI-RADS', icon: 'topic', topic: true, items: [abd.items[0]] });
+  const loose = abd.items[2].name;
+  // A section entry dropped on the topic: last in it (the topic shifts up when the entry was before it).
+  let at = R.move(lib, { sec: 1, idx: 2 }, { sec: 1, idx: 0, end: true });
+  assert.deepStrictEqual(at, { sec: 1, idx: 0, sub: 1 });
+  assert.strictEqual(abd.items[0].items[1].name, loose);
+  // Reorder inside the topic.
+  at = R.move(lib, { sec: 1, idx: 0, sub: 1 }, { sec: 1, idx: 0, sub: 0 });
+  assert.deepStrictEqual(names(abd.items[0].items)[0], loose);
+  // Out of the topic, before the first entry of CT Chest.
+  at = R.move(lib, { sec: 1, idx: 0, sub: 0 }, { sec: 0, idx: 0 });
+  assert.strictEqual(lib.sections[0].items[0].name, loose);
+  // An entry from earlier in the same section into a topic later in it.
+  abd.items.push({ name: 'Pancreas', icon: 'topic', topic: true, items: [] });
+  const fi = abd.items.findIndex((x) => !x.topic);
+  const first = abd.items[fi].name;
+  at = R.move(lib, { sec: 1, idx: fi }, { sec: 1, idx: abd.items.length - 1, end: true });
+  assert.strictEqual(abd.items[at.idx].name, 'Pancreas');
+  assert.deepStrictEqual(names(abd.items[at.idx].items), [first]);
+  assert.strictEqual(R.move(lib, { sec: 1, idx: abd.items.findIndex((x) => x.topic) }, { sec: 1, idx: at.idx, end: true }), null);
+});
+
+test('move: tools reorder among themselves; the ring keeps the new order', () => {
+  const ring = shipped();
+  const lib = R.read(ring);
+  assert.deepStrictEqual(R.move(lib, { tool: 2 }, { tool: 0 }), { tool: 0 });
+  assert.deepStrictEqual(names(lib.tools), ['Add from clipboard', 'Search copied text', 'My documents']);
+  assert.strictEqual(R.move(lib, { tool: 0 }, { sec: 0 }), null);
+  R.pack(ring, lib);
+  assert.deepStrictEqual(names(R.read(ring).tools), ['Add from clipboard', 'Search copied text', 'My documents']);
+  assert.ok(validateMenu({ categories: [ring] }).ok);
+});

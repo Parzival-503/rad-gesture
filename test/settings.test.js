@@ -13,7 +13,9 @@ const { createBridge } = require('../src/main/bridge');
 // The PACS ring's PowerScribe smaller ring, as builds before pacs-no-fields
 // shipped it (older menus are built from the default menu plus this).
 const withPS = (m) => {
-  m.categories.find((c) => c.id === 'pacs').items.push({ name: 'PowerScribe', icon: 'mic', items: [
+  const pacs = m.categories.find((c) => c.id === 'pacs');
+  pacs.items = pacs.items.filter((i) => i.action !== 'helper:lib:PACS_Show_Report'); // newer than those menus
+  pacs.items.push({ name: 'PowerScribe', icon: 'mic', items: [
     { name: 'Previous field', icon: 'keyboard_tab_rtl', action: 'helper:lib:PS_PrevField' },
     { name: 'Next field', icon: 'keyboard_tab', action: 'helper:lib:PS_NextField' }] });
   return m;
@@ -213,7 +215,7 @@ test('an older menu loses Lung-RADS, gets paired icons and clearer names, once',
   assert.ok(!flat.some((i) => /lungrads|LungScreening2/.test(i.action || '')), 'no Lung-RADS left');
   assert.ok(!flat.some((i) => i.name === 'Lung' && Array.isArray(i.items)), 'the empty smaller ring is gone');
   assert.strictEqual(sub(got, 'pacs', 'PowerScribe'), undefined, 'the field keys left the PACS ring');
-  assert.deepStrictEqual(sub(got, 'pacs', 'Crosshair & link').items.map((i) => i.name), ['Crosshair', 'Link priors']);
+  assert.deepStrictEqual(sub(got, 'pacs', 'Crosshair & link').items.map((i) => i.name), ['Crosshair', 'Link priors', 'Pinpoint']);
   assert.strictEqual(sub(got, 'pacs', 'Layout').items[0].icon, 'skip_previous');
   assert.deepStrictEqual(sub(got, 'pacs', 'Key images').items.map((i) => i.icon), ['fast_rewind', 'star']);
   assert.deepStrictEqual(sub(got, 'ai', 'Prior checklist').items.map((i) => i.name), ['Add copied prior', 'Make checklist', 'Empty the list', 'Show toolbar']);
@@ -392,4 +394,35 @@ test('saved AI Tools rings get "Learn this impression" after Impression, once', 
   const got = ai(store.readMenu()).items.map((i) => i.action || i.name);
   assert.strictEqual(got[got.indexOf('helper:impression') + 1], 'helper:style:learn');
   assert.strictEqual(got.filter((a) => a === 'helper:style:learn').length, 1);
+});
+
+test('saved PACS rings get the Image ring (MPR moved in), Pinpoint, Show report, and previous/next that keep the ring open, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-pacsimg-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  // As the last build shipped it.
+  const pacs = (menu) => menu.categories.find((c) => c.id === 'pacs');
+  const p = pacs(m);
+  const img = p.items.find((i) => i.name === 'Image');
+  const mpr = img.items.find((i) => i.action === 'helper:lib:PACS_MPR');
+  Object.assign(img, { name: 'Enhance', icon: 'wand_stars', items: img.items.filter((i) => /PACS_(Enhance|Sharpen)$/.test(i.action)) });
+  p.items.find((i) => i.name === 'Layout').items.splice(3, 0, mpr);
+  p.items.find((i) => i.name === 'Crosshair & link').items.pop();
+  p.items = p.items.filter((i) => i.name !== 'Show report');
+  (function strip(a) { for (const i of a) { delete i.stay; if (i.items) strip(i.items); } })(p.items);
+  p.items.find((i) => i.name === 'Key images').items[1].stay = false; // the person's own choice stays
+  m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid', 'layout-grid-three', 'nav-pairs', 'orthogonal-ruler', 'openevidence-search', 'pacs-no-fields', 'organ-icons'];
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const got = pacs(store.readMenu());
+  const names = (n) => got.items.find((i) => i.name === n).items.map((i) => i.name);
+  assert.deepStrictEqual(names('Image'), ['MPR', 'Thick slab', 'Slab off', 'Invert', 'Enhance', 'Sharpen', 'Reset']);
+  assert.ok(!names('Layout').includes('MPR'), 'MPR left Layout');
+  assert.deepStrictEqual(names('Crosshair & link'), ['Crosshair', 'Link priors', 'Pinpoint']);
+  assert.strictEqual(got.items[got.items.length - 1].name, 'Show report');
+  const stay = (n) => got.items.find((i) => i.name === n).items.filter((i) => i.stay).map((i) => i.name);
+  assert.deepStrictEqual(stay('Layout'), ['Previous layout', 'Next layout']);
+  assert.deepStrictEqual(stay('Key images'), ['Previous key image']);
+  // The shipped menu is the same.
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(def, 'utf8')).categories.find((c) => c.id === 'pacs').items.map((i) => i.name), got.items.map((i) => i.name));
 });

@@ -94,6 +94,11 @@
               "name": "Link priors",
               "icon": "link",
               "action": "helper:lib:PACS_LinkCrosshair"
+            },
+            {
+              "name": "Pinpoint",
+              "icon": "ti:focus-2",
+              "action": "helper:lib:PACS_Pinpoint"
             }
           ]
         },
@@ -104,12 +109,14 @@
             {
               "name": "Previous layout",
               "icon": "skip_previous",
-              "action": "helper:lib:PACS_Prev_Layout"
+              "action": "helper:lib:PACS_Prev_Layout",
+              "stay": true
             },
             {
               "name": "Next layout",
               "icon": "skip_next",
-              "action": "helper:lib:PACS_Next_Layout"
+              "action": "helper:lib:PACS_Next_Layout",
+              "stay": true
             },
             {
               "name": "Grid",
@@ -133,11 +140,6 @@
               ]
             },
             {
-              "name": "MPR",
-              "icon": "view_in_ar",
-              "action": "helper:lib:PACS_MPR"
-            },
-            {
               "name": "Matrix",
               "icon": "grid_view",
               "action": "helper:lib:PACS_Matrix"
@@ -156,19 +158,41 @@
             {
               "name": "Previous key image",
               "icon": "fast_rewind",
-              "action": "helper:lib:PACS_Prev_Key_Image"
+              "action": "helper:lib:PACS_Prev_Key_Image",
+              "stay": true
             },
             {
               "name": "Next key image",
               "icon": "fast_forward",
-              "action": "helper:lib:PACS_Next_Key_Image"
+              "action": "helper:lib:PACS_Next_Key_Image",
+              "stay": true
             }
           ]
         },
         {
-          "name": "Enhance",
-          "icon": "wand_stars",
+          "name": "Image",
+          "icon": "tune",
           "items": [
+            {
+              "name": "MPR",
+              "icon": "view_in_ar",
+              "action": "helper:lib:PACS_MPR"
+            },
+            {
+              "name": "Thick slab",
+              "icon": "ti:stack-2",
+              "action": "helper:lib:PACS_Thick_Slab"
+            },
+            {
+              "name": "Slab off",
+              "icon": "ti:minus",
+              "action": "helper:lib:PACS_Slab_Off"
+            },
+            {
+              "name": "Invert",
+              "icon": "invert_colors",
+              "action": "helper:lib:PACS_Invert"
+            },
             {
               "name": "Enhance",
               "icon": "wand_stars",
@@ -178,6 +202,11 @@
               "name": "Sharpen",
               "icon": "filter_center_focus",
               "action": "helper:lib:PACS_Sharpen"
+            },
+            {
+              "name": "Reset",
+              "icon": "restart_alt",
+              "action": "helper:lib:PACS_Reset"
             }
           ]
         },
@@ -185,6 +214,11 @@
           "name": "Insert priors",
           "icon": "history",
           "action": "helper:lib:PACS_Insert_Priors"
+        },
+        {
+          "name": "Show report",
+          "icon": "description",
+          "action": "helper:lib:PACS_Show_Report"
         }
       ]
     },

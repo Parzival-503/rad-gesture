@@ -48,7 +48,7 @@ test('references: create, update, picture, list newest first, delete', () => {
   assert.strictEqual(fs.readFileSync(path.join(dir, a.id + '.md'), 'utf8'), '# TI-RADS\n\n- TR5: FNA at 1 cm');
   const png = Buffer.from('89504e470d0a1a0a', 'hex');
   const b = refs.save({ png });
-  assert.strictEqual(b.image, b.id + '.png');
+  assert.match(b.image, new RegExp('^' + b.id + ' Screenshot .*\\.png$'), 'named after its title');
   assert.match(b.title, /^Screenshot /);
   assert.ok(fs.existsSync(refs.imagePath(b.id)));
   refs.save({ id: a.id, title: 'ACR TI-RADS' });
@@ -58,7 +58,7 @@ test('references: create, update, picture, list newest first, delete', () => {
   assert.strictEqual(list[0].body, '# TI-RADS\n\n- TR5: FNA at 1 cm', 'the note kept');
   assert.strictEqual(refs.get('../evil'), null);
   assert.ok(refs.remove(b.id));
-  assert.ok(!fs.existsSync(path.join(dir, b.id + '.png')));
+  assert.ok(!fs.readdirSync(dir).some((f) => f.startsWith(b.id)), 'its picture went too');
   assert.deepStrictEqual(refs.list().map((r) => r.id), [a.id]);
 });
 
@@ -81,9 +81,47 @@ test('references: a file is copied in, opens from the copy, and goes when delete
   const f = refs.addFile(src);
   assert.strictEqual(f.title, 'Fleischner 2017');
   assert.strictEqual(f.fileName, 'Fleischner 2017.PDF');
-  assert.strictEqual(f.file, f.id + '.pdf');
+  assert.strictEqual(f.file, f.id + ' Fleischner 2017.pdf');
   fs.rmSync(src);
   assert.strictEqual(fs.readFileSync(refs.filePath(f.id), 'utf8'), '%PDF-1.4 invented test file', 'still there after the original went');
   assert.ok(refs.remove(f.id));
   assert.ok(!fs.existsSync(path.join(dir, f.file)));
+});
+
+test('references: a picture and a file are named after their title, and renamed with it', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-refname-'));
+  const store = createReferences({ dir: () => dir });
+  const src = path.join(dir, 'paper.pdf');
+  fs.writeFileSync(src, '%PDF-1.4 invented');
+  const f = store.addFile(src, { title: 'LI-RADS v2018: CT/MRI' });
+  assert.strictEqual(f.file, `${f.id} LI-RADS v2018 CT MRI.pdf`, 'no characters Windows refuses');
+  assert.ok(fs.existsSync(store.filePath(f.id)));
+  const p = store.save({ png: Buffer.from([137, 80, 78, 71]), title: 'Fleischner table' });
+  assert.strictEqual(p.image, `${p.id} Fleischner table.png`);
+  const p2 = store.save({ id: p.id, title: 'Fleischner 2017' });
+  assert.strictEqual(p2.image, `${p.id} Fleischner 2017.png`);
+  assert.ok(fs.existsSync(store.imagePath(p.id)));
+  assert.ok(!fs.existsSync(path.join(dir, `${p.id} Fleischner table.png`)));
+});
+
+test('export: one folder per section, topics as subfolders, readable names, links as shortcuts', () => {
+  const { exportLibrary } = require('../src/main/ref-export');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-refexp-'));
+  const store = createReferences({ dir: () => path.join(dir, 'store') });
+  const src = path.join(dir, 'x.pdf');
+  fs.writeFileSync(src, '%PDF invented');
+  const f = store.addFile(src, { title: 'LI-RADS article' });
+  const n = store.save({ title: 'My liver note', body: '# Liver\n\nInvented.' });
+  const lib = { sections: [
+    { name: 'Abdomen', items: [{ topic: true, name: 'LI-RADS', items: [{ name: 'LI-RADS v2018', action: 'url:https://example.org/lirads' }, { name: 'x', action: 'ref:' + f.id }] }, { name: 'n', action: 'ref:' + n.id }] },
+    { name: 'CT/Chest', items: [] },
+  ], loose: [], tools: [] };
+  const out = exportLibrary(lib, store, dir);
+  const rel = (p) => path.relative(out.dir, p).split(path.sep).join('/');
+  const all = [];
+  (function walk(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else all.push(rel(p)); } })(out.dir);
+  assert.deepStrictEqual(all.sort(), ['01 Abdomen/LI-RADS/LI-RADS article.pdf', '01 Abdomen/LI-RADS/LI-RADS v2018.url', '01 Abdomen/My liver note.md'].sort());
+  assert.ok(fs.existsSync(path.join(out.dir, '02 CT Chest')), 'empty sections too, with a safe name');
+  assert.match(fs.readFileSync(path.join(out.dir, '01 Abdomen/LI-RADS/LI-RADS v2018.url'), 'utf8'), /URL=https:\/\/example.org\/lirads/);
+  assert.strictEqual(out.files, 3);
 });

@@ -423,6 +423,22 @@ goes to Settings). Screenshots are kept at most 2400 px wide.
   wheel or pinch zooms around the pointer, drag pans, double-click fit /
   actual size, + / - / 0 / 1 / arrows, a zoom bar (-, %, +, Fit). The
   window opens larger for a picture. The e2e zooms one with the wheel.
+- **Reordering** (owner, 2026-10-27): every row has a drag handle
+  (sections, topics, links, notes, pictures, files, the sources in a topic,
+  and the tools, now listed as "Tools on the ring"). Onto a row = before it;
+  onto a section heading = last in that section; onto the lower half of a
+  topic = into it; never a topic into a topic. `RL.move(lib, from, to)` in
+  reflib.js (tested) does every move; Move up / Move down on every entry's
+  editor uses it too. Ring changes still need Save.
+- **Copies, named readably**: pictures and files are copies in the
+  references folder named `<id> <title>.<ext>` and renamed with the title
+  (`tidy` in references.js; a file Windows has open keeps its old name).
+  "Show the file" opens the folder with it selected. **Export library**
+  (`src/main/ref-export.js`, tested) writes the saved library as an
+  ordinary folder: one per section ("01 CT Chest"), a subfolder per topic,
+  files and pictures under their titles, notes as .md, links as .url. The
+  main copy stays in AppData on purpose: PACS snips can show patient
+  details, and Documents is often synced to OneDrive.
 - **"Reference Library", capital L** (a title, the owner). Migration
   `reference-library-title` fixes rings saved as "Reference library".
 - Notes save themselves (450 ms after typing); there is no Save for them.
@@ -523,6 +539,24 @@ Functions can live in the helper without being on a ring. `organ-icons`:
 window / level presets show their organ (Soft tissue `gastroenterology`,
 Bone `ti:bone`, Brain and Stroke `ti:brain`), the Oncologic one-liner
 `ti:ribbon-health`; only icons we shipped are replaced.
+
+`pacs-image` (owner, 2026-10-27, replacing his macro pad): the Enhance ring
+becomes **Image** (MPR moved in from Layout, Thick slab = Shift+3, Slab off
+= -, Invert = I, Enhance, Sharpen, Reset = Backspace; thick slab, slab off
+and invert sit together), Pinpoint (Q) joins Crosshair & link, Show report
+(P) takes the PACS ring's last place. All are `target: sectra` library
+functions with no keyboard shortcut of their own (the ring only; one can
+be given on the Functions page). Only Shift+3 works as a slab key in his
+Sectra, so there is one "Thick slab". Backspace does not reset slab
+thickness; Slab off does. `keep-open-nav`: previous / next (layouts, key
+images) carry `stay: true`: picking one runs it, the direction pulses and
+the ring stays open in click mode until Esc or a click outside
+(`keepOpen` in ring.js). The hub queues its helper action as
+`keep|<id>` so the helper's HubPoll runs it without treating the ring as
+closed (Esc and the fast poll stay on). Every direction has a "Keep the
+ring open after using it" switch in the ring editor. **The ring's preload
+(`src/preload.js`) forwards only the fields it names**: `stay` was dropped
+there at first, so the e2e clicks PACS > Layout > Next layout for real.
 
 ### Helper notes
 

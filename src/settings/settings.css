@@ -413,7 +413,7 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
 .refadd .hint .msym { font-size: 16px; }
 .refadd .addrow { flex-wrap: wrap; gap: 8px; }
 .refadd select { min-width: 170px; }
-.reflist .list.reftree { max-height: 66vh; }
+.reflist .list.reftree { max-height: 66vh; overflow-x: hidden; }
 /* A section: its heading, then its entries indented under it. */
 .refsec { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 10px; border-radius: 9px; cursor: pointer; font-size: 13.5px; }
 .refsec:first-child { margin-top: 0; }
@@ -489,3 +489,12 @@ main.fresh > * { animation: rg-page 200ms ease-out both; }
 .styleexh b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .styleimp, .styledraft { white-space: pre-wrap; margin-top: 4px; color: var(--ink); }
 .styledraft { color: var(--ink-2); text-decoration: line-through; text-decoration-color: rgba(255,255,255,0.25); }
+
+/* Reference Library: drag any row by its handle */
+.reftree .grip { display: inline-flex; color: var(--ink-3); cursor: grab; opacity: .45; margin-left: -4px; transition: opacity .12s, color .12s; }
+.reftree .grip .msym { font-size: 18px; }
+.reftree [data-key]:hover .grip { opacity: 1; }
+.reftree .grip:hover { color: var(--ink); }
+.reftree .dragging { opacity: .4; }
+.reftree .dropbefore { box-shadow: inset 0 2px 0 0 var(--accent); }
+.reftree .dropinto { background: color-mix(in srgb, var(--accent) 18%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent) inset; }

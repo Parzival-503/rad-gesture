@@ -3,9 +3,11 @@
 // PC in %APPDATA%\RadGesture\references\:
 //   index.json        [{ id, title, tags, image, file, fileName, created, updated }]
 //   <id>.md           the note (also the caption under a picture or file)
-//   <id>.png          the picture, if any
-//   <id>.<ext>        a copy of the file, if any (so it opens even after the
-//                     original is moved or deleted)
+//   <id> <title>.png  the picture, if any
+//   <id> <title>.<ext> a copy of the file, if any (so it opens even after the
+//                     original is moved or deleted). Named after the title,
+//                     and renamed with it, so the folder reads like the
+//                     library; the id in front keeps names unique.
 // Settings > References edits them; the ring opens one with "ref:<id>" in the
 // reference viewer window. Kept free of Electron (pictures arrive as PNG
 // bytes) so it can be tested.
@@ -34,6 +36,22 @@ function createReferences({ dir }) {
     const tmp = indexPath() + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(list, null, 2));
     fs.renameSync(tmp, indexPath());
+  }
+  // A title as part of a Windows file name.
+  const safeName = (t) => String(t || '').replace(/[\\/:*?"<>|\x00-\x1f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60).replace(/[. ]+$/, '');
+  // Picture and file named after the title. A file Windows has open keeps
+  // its old name until the next rename.
+  function tidy(r) {
+    for (const k of ['image', 'file']) {
+      if (!r[k]) continue;
+      const ext = path.extname(r[k]);
+      const want = (r.id + ' ' + safeName(r.title)).trim() + ext;
+      if (want === r[k]) continue;
+      try {
+        fs.renameSync(path.join(root(), r[k]), path.join(root(), want));
+        r[k] = want;
+      } catch (_) { /* in use, or gone: keep the name it has */ }
+    }
   }
   const cleanTags = (t) => [...new Set((Array.isArray(t) ? t : String(t || '').split(','))
     .map((x) => String(x).trim().toLowerCase().replace(/\s+/g, ' ')).filter(Boolean))].slice(0, 12);
@@ -68,6 +86,7 @@ function createReferences({ dir }) {
     e.file = r.id + ext;
     e.fileName = path.basename(src).slice(0, 200);
     fs.copyFileSync(src, path.join(root(), e.file));
+    tidy(e);
     writeIndex(all);
     return get(r.id);
   }
@@ -86,10 +105,11 @@ function createReferences({ dir }) {
     fs.mkdirSync(root(), { recursive: true });
     if (text !== undefined) fs.writeFileSync(path.join(root(), r.id + '.md'), String(text));
     if (png) {
-      r.image = r.id + '.png';
+      r.image = r.image || r.id + '.png';
       fs.writeFileSync(path.join(root(), r.image), png);
     }
     if (!r.title) r.title = r.image ? 'Screenshot ' + new Date(r.created).toLocaleDateString() : 'Untitled note';
+    tidy(r);
     r.updated = now;
     writeIndex(all);
     return get(r.id);

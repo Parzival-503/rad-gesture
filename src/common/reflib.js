@@ -100,7 +100,80 @@
     return lib.sections.findIndex((s) => s.items.some(pred));
   }
 
-  const api = { MAX, read, pack, fit, entries, isTool, sectionOf };
+  // ---- moving things (drag and drop, Move up / down)
+  //
+  // An address: { sec } a section; { sec, idx } an entry of a section;
+  // { sec, idx, sub } a source inside the topic at sec/idx; { tool } a tool.
+  // move() takes the thing at `from` and puts it at `to`: before the entry
+  // `to` names, or at the end of a section / topic when to.end is set.
+  // Returns the new address, or null when the move makes no sense (a topic
+  // into a topic, a section into an entry...).
+  function listAt(lib, a) {
+    const s = lib.sections[a.sec];
+    if (!s) return null;
+    if (a.sub === undefined) return s.items;
+    const t = s.items[a.idx];
+    return t && t.topic ? t.items : null;
+  }
+  function move(lib, from, to) {
+    if (from.tool !== undefined) {
+      if (to.tool === undefined) return null;
+      return { tool: moveIn(lib.tools, from.tool, to.end ? lib.tools.length : to.tool) };
+    }
+    if (from.idx === undefined) {
+      // A section: before another section, or last.
+      if (to.idx !== undefined || to.tool !== undefined || !lib.sections[from.sec]) return null;
+      return { sec: moveIn(lib.sections, from.sec, to.end ? lib.sections.length : to.sec) };
+    }
+    const src = listAt(lib, from);
+    const i = from.sub === undefined ? from.idx : from.sub;
+    if (!src || !src[i]) return null;
+    const thing = src[i];
+    // Where it lands: a list and an index in it.
+    let dst, j;
+    if (to.idx === undefined) { // the end of a section
+      dst = lib.sections[to.sec] && lib.sections[to.sec].items;
+      if (!dst) return null;
+      j = dst.length;
+    } else if (to.end && to.sub === undefined) { // the end of a topic
+      const t = lib.sections[to.sec] && lib.sections[to.sec].items[to.idx];
+      if (!t || !t.topic) return null;
+      dst = t.items;
+      j = dst.length;
+    } else {
+      dst = listAt(lib, to);
+      if (!dst) return null;
+      j = to.sub === undefined ? to.idx : to.sub;
+    }
+    const intoTopic = dst !== lib.sections[to.sec].items;
+    if (thing.topic && intoTopic) return null; // no topic inside a topic
+    if (dst === src) {
+      const k = moveIn(src, i, j);
+      return from.sub === undefined ? { sec: from.sec, idx: k } : { sec: from.sec, idx: from.idx, sub: k };
+    }
+    src.splice(i, 1);
+    // Taking an entry out of the section its new topic is in can shift the topic.
+    let topicIdx = to.idx;
+    if (intoTopic && from.sub === undefined && from.sec === to.sec && from.idx < to.idx) topicIdx--;
+    if (intoTopic) {
+      const t = lib.sections[to.sec].items[topicIdx];
+      t.items.splice(Math.min(j, t.items.length), 0, thing);
+      return { sec: to.sec, idx: topicIdx, sub: Math.min(j, t.items.length - 1) };
+    }
+    dst.splice(Math.min(j, dst.length), 0, thing);
+    return { sec: to.sec, idx: Math.min(j, dst.length - 1) };
+  }
+  // Move list[i] so it sits before what is now at j (j = length: last).
+  // Returns where it ended up.
+  function moveIn(list, i, j) {
+    if (i < 0 || i >= list.length) return i;
+    const [x] = list.splice(i, 1);
+    const k = Math.max(0, Math.min(j > i ? j - 1 : j, list.length));
+    list.splice(k, 0, x);
+    return k;
+  }
+
+  const api = { MAX, read, pack, fit, entries, isTool, sectionOf, move, moveIn };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RGRefLib = api;
 })(typeof self !== 'undefined' ? self : this);
