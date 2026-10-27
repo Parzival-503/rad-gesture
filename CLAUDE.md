@@ -564,6 +564,14 @@ ring open after using it" switch in the ring editor. **The ring's preload
 (`src/preload.js`) forwards only the fields it names**: `stay` was dropped
 there at first, so the e2e clicks PACS > Layout > Next layout for real.
 
+`crosshair-link-icons` (owner, 2026-10-27): Crosshair (and its ring) is a
+plus `ti:plus`, Link priors a chain `ti:link`. `no-oneliner-indication`:
+the one-liner's Indication choice is gone (he pastes the ordering doctor's
+indication instead); **Paste indication stays**, a library function on his
+mouse's shortcut, not on a ring. `exam-nav`: Previous exam (Down) and Next
+exam (Up), `target: sectra`, join the key images ring, renamed **Key images
+& exams** so the PACS ring keeps its 8; both `stay: true`.
+
 ### Helper notes
 
 - Settings, API key, history: `%APPDATA%\RadGesture\` (`RadGesture.ini`).

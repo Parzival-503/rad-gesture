@@ -416,6 +416,44 @@
       ]
     },
     {
+      "id": "PACS_Prev_Exam",
+      "name": "Previous exam",
+      "group": "PACS (Sectra)",
+      "sub": "Navigation",
+      "description": "Goes to the previous exam in the image window.",
+      "hotkey": "",
+      "on": true,
+      "icon": "arrow_downward",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "{Down}"
+        }
+      ]
+    },
+    {
+      "id": "PACS_Next_Exam",
+      "name": "Next exam",
+      "group": "PACS (Sectra)",
+      "sub": "Navigation",
+      "description": "Goes to the next exam in the image window.",
+      "hotkey": "",
+      "on": true,
+      "icon": "arrow_upward",
+      "target": "sectra",
+      "params": [
+        {
+          "name": "Key",
+          "type": "key",
+          "label": "Presses in Sectra",
+          "default": "{Up}"
+        }
+      ]
+    },
+    {
       "id": "PACS_Prev_Layout",
       "name": "Previous layout",
       "group": "PACS (Sectra)",

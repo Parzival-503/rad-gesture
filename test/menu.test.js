@@ -64,7 +64,8 @@ test('every helper action in the menu is handled by the AutoHotkey helper', () =
     });
   }
   // The one-liner flavors must be ones the helper's prompts know.
-  for (const f of ['full', 'oncologic', 'treatment', 'indication']) assert.ok(ahk.includes(`(flavor = "${f}")`), f);
+  for (const f of ['full', 'oncologic', 'treatment']) assert.ok(ahk.includes(`(flavor = "${f}")`), f);
+  assert.ok(!ahk.includes('(flavor = "indication")'), 'the one-liner has no Indication choice');
 });
 
 test('every suggested Tabler icon exists in the bundled font', () => {

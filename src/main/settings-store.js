@@ -442,6 +442,39 @@ function migrate(m, lib) {
     done.push('keep-open-nav');
     changed = true;
   }
+  if (!done.includes('crosshair-link-icons')) {
+    // Crosshair is a plus, Link priors a chain. Only icons we shipped change.
+    const walk = (items) => (items || []).forEach((it) => {
+      if (/^crosshair( & link)?$/i.test(String(it.name || '').trim()) && ['my_location', 'gps_fixed', 'center_focus_strong', 'filter_center_focus'].includes(it.icon)) it.icon = 'ti:plus';
+      if (Array.isArray(it.items)) return walk(it.items);
+      if ((it.action === 'helper:lib:PACS_LinkCrosshair' || /^link (priors|crosshair)$/i.test(String(it.name || '').trim())) && ['link', 'add_link', 'my_location', 'sync', 'sync_alt'].includes(it.icon)) it.icon = 'ti:link';
+    });
+    m.categories.forEach((c) => walk(c.items));
+    done.push('crosshair-link-icons');
+    changed = true;
+  }
+  if (!done.includes('no-oneliner-indication')) {
+    // The one-liner's Indication choice is gone (Paste indication stays, on
+    // its own shortcut).
+    const drop = (items) => (items || []).filter((it) => it.action !== 'helper:oneliner:indication').map((it) => (Array.isArray(it.items) ? Object.assign(it, { items: drop(it.items) }) : it));
+    m.categories.forEach((c) => { c.items = drop(c.items); });
+    done.push('no-oneliner-indication');
+    changed = true;
+  }
+  if (!done.includes('exam-nav')) {
+    // Previous / next exam (Down / Up in Sectra) join the key images, which
+    // become "Key images & exams"; they keep the ring open like the others.
+    const pacs = m.categories.find((c) => c.id === 'pacs');
+    const ki = pacs && (pacs.items || []).find((it) => Array.isArray(it.items) && it.items.some((x) => /PACS_(Prev|Next)_Key_Image|\^!k|\^!i/.test(x.action || '')));
+    if (ki) {
+      const has = (id) => ki.items.some((x) => x.action === 'helper:lib:' + id);
+      if (!has('PACS_Prev_Exam') && ki.items.length < 8) ki.items.push({ name: 'Previous exam', icon: 'arrow_downward', action: 'helper:lib:PACS_Prev_Exam', stay: true });
+      if (!has('PACS_Next_Exam') && ki.items.length < 8) ki.items.push({ name: 'Next exam', icon: 'arrow_upward', action: 'helper:lib:PACS_Next_Exam', stay: true });
+      if (/^key images$/i.test(String(ki.name || '').trim())) ki.name = 'Key images & exams';
+    }
+    done.push('exam-nav');
+    changed = true;
+  }
   if (!done.includes('impression-style')) {
     // "Learn this impression" goes right after Impression on the AI Tools
     // ring, when there is room and it is not there yet.

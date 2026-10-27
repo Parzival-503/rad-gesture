@@ -126,8 +126,10 @@ These run inside RadGesture (Rad Optimizer is not needed). The key is what the f
 | PACS > Layout > Grid > 3 × 3 | Layout 3 × 3 | Ctrl+Shift+9 |
 | PACS > Layout > Matrix | Matrix | M |
 | PACS > Layout > Image window | Image window | N |
-| PACS > Key images > Previous key image | Previous key image | ; |
-| PACS > Key images > Next key image | Next key image | ' |
+| PACS > Key images & exams > Previous key image | Previous key image | ; |
+| PACS > Key images & exams > Next key image | Next key image | ' |
+| PACS > Key images & exams > Previous exam | Previous exam | Down |
+| PACS > Key images & exams > Next exam | Next exam | Up |
 | PACS > Image > MPR | MPR | Ctrl+M |
 | PACS > Image > Thick slab | Thick slab | Shift+3 |
 | PACS > Image > Slab off | Slab off | - |

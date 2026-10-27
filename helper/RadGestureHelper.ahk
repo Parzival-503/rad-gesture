@@ -142,7 +142,7 @@ global LIB_IDS := "PS_ToggleDictation|PS_NextField|PS_PrevField|PS_PasteIndicati
     . "|PACS_Crosshair|PACS_LinkCrosshair|PACS_Prev_Key_Image|PACS_Next_Key_Image"
     . "|PACS_Prev_Layout|PACS_Next_Layout|PACS_Layout_2x2|PACS_Layout_3x2|PACS_Layout_3x3"
     . "|PACS_MPR|PACS_Matrix|PACS_ImageWindow|PACS_Insert_Priors"
-    . "|PACS_Pinpoint|PACS_Show_Report|PACS_Thick_Slab|PACS_Slab_Off|PACS_Invert|PACS_Reset"
+    . "|PACS_Pinpoint|PACS_Show_Report|PACS_Thick_Slab|PACS_Slab_Off|PACS_Invert|PACS_Reset|PACS_Prev_Exam|PACS_Next_Exam"
     . "|LoginUandP|LoginU|LoginP|LoginForget|ActivateEPIC|ActivateTeams|OpenChromeTabs|SearchRadiopaediaGoogle"
 global g_LibBound := {}     ; hotkey -> library id, for LibHotkey
 global g_LibPass := ""      ; the login password, this session only (never written anywhere)
@@ -3060,7 +3060,6 @@ ShowFlavorPicker() {
     Gui, Picker:Add, Button, y+10 w260 h32 gPick_Full,    &1  Full medical one-liner
     Gui, Picker:Add, Button, y+4  w260 h32 gPick_Onc,     &2  Oncologic history
     Gui, Picker:Add, Button, y+4  w260 h32 gPick_Tx,      &3  Treatment timeline
-    Gui, Picker:Add, Button, y+4  w260 h32 gPick_Ind,     &4  Indication-focused
 
     g_PickerHwnd := PickerHwnd
 
@@ -3071,7 +3070,7 @@ ShowFlavorPicker() {
     WinActivate, ahk_id %PickerHwnd%
 }
 
-; The one-liner picker drawn by the hub (1-4, arrows, Enter, Esc). Its choice
+; The one-liner picker drawn by the hub (1-3, arrows, Enter, Esc). Its choice
 ; comes back as pick:<flavor> or pick:cancel.
 PickerHub() {
     global g_PickerHub, g_FromChart, g_Chart
@@ -3080,8 +3079,7 @@ PickerHub() {
     j := "{""t"":""pick"",""title"":""One-liner"",""sub"":" . JsonAscii(sub) . ",""cancel"":""pick:cancel"",""options"":["
         . "{""id"":""pick:full"",""label"":""Full medical one-liner"",""hint"":""History and surgeries in one line"",""icon"":""notes""},"
         . "{""id"":""pick:oncologic"",""label"":""Oncologic history"",""hint"":""Cancers, staging, treatment, current status"",""icon"":""oncology""},"
-        . "{""id"":""pick:treatment"",""label"":""Treatment timeline"",""hint"":""Dated procedures and treatments, oldest first"",""icon"":""medication""},"
-        . "{""id"":""pick:indication"",""label"":""Indication"",""hint"":""One or two lines for the indication field"",""icon"":""assignment""}]}"
+        . "{""id"":""pick:treatment"",""label"":""Treatment timeline"",""hint"":""Dated procedures and treatments, oldest first"",""icon"":""medication""}]}"
     if !HubUi(j)
         return false
     g_PickerHub := true
@@ -3094,7 +3092,7 @@ PickerHubChoice(choice) {
     if (!g_PickerHub)
         return
     g_PickerHub := false
-    if (g_PendingText = "" || !RegExMatch(choice, "^(full|oncologic|treatment|indication)$")) {
+    if (g_PendingText = "" || !RegExMatch(choice, "^(full|oncologic|treatment)$")) {
         PanicTeardown("Cancelled")
         return
     }
@@ -3114,11 +3112,6 @@ return
 Pick_Tx:
     Gui, Picker:Destroy
     RunFlavor("treatment")
-return
-
-Pick_Ind:
-    Gui, Picker:Destroy
-    RunFlavor("indication")
 return
 
 PickerGuiEscape:
@@ -3142,9 +3135,6 @@ GetSystemPrompt(flavor) {
     }
     if (flavor = "treatment") {
         return base . "`n`nOUTPUT FORMAT: A chronological treatment/procedure timeline. NEVER include age or sex. One line per major intervention. Each line as: [YYYY or MM/YYYY] -- [procedure or treatment]. Include surgeries, chemotherapy regimens, radiation courses, major procedures (ablation, embolization, transplant), and significant hospitalizations only if treatment-relevant. Sort oldest to newest. Omit routine office visits and imaging.`n`nDATE DISCIPLINE FOR THIS FLAVOR:`n- ONLY include an entry if the source text explicitly ties a date to that specific procedure or treatment with anchoring language ('underwent [proc] on [date]', 's/p [proc] [date]', 'started [tx] [date]', 'completed [tx] [date]').`n- A procedure mentioned without an explicit date should be OMITTED from this flavor -- this is the date-focused flavor and undated entries defeat its purpose. Better to have a short accurate timeline than a long timeline with guessed dates.`n- Numbers near treatment terms that are not clearly dates (cycle counts, dosages, percentages, lab values) must NEVER be reinterpreted as dates."
-    }
-    if (flavor = "indication") {
-        return base . "`n`nOUTPUT FORMAT: An indication-focused summary suitable for the indication field of a radiology report. Start directly with the pertinent history -- NEVER with age or sex. Extract ONLY the history pertinent to imaging workup: presenting symptoms, relevant prior cancers/surgeries if they affect the differential, and the specific clinical question if discernible. Maximum 2 sentences. Pattern: [pertinent hx] presenting with [symptom/finding]. Evaluate for [clinical question if clear]. Example: 'H/o colon cancer s/p resection 2022 presenting with elevated CEA. Evaluate for recurrence.'"
     }
     return base
 }
@@ -3412,8 +3402,6 @@ FlavorLabel(flavor) {
         return "Onc"
     if (flavor = "treatment")
         return "Tx Hx"
-    if (flavor = "indication")
-        return "Indication"
     return flavor
 }
 

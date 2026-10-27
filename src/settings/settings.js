@@ -33,7 +33,6 @@
     ['oneliner:full', 'One-liner: full'],
     ['oneliner:oncologic', 'One-liner: oncologic'],
     ['oneliner:treatment', 'One-liner: treatment timeline'],
-    ['oneliner:indication', 'One-liner: indication'],
     ['prior:add', 'Prior checklist: add the copied prior report'],
     ['prior:checklist', 'Prior checklist: make the checklist'],
     ['prior:clear', 'Prior checklist: empty the list'],

@@ -204,8 +204,8 @@ test('an older menu loses Lung-RADS, gets paired icons and clearer names, once',
   pri.items[1].name = 'Checklist';
   pri.items[2].name = 'Clear priors';
   // One the person set themselves stays.
-  sub(m, 'pacs', 'Key images').items[1].icon = 'star';
-  sub(m, 'pacs', 'Key images').items[0].icon = 'arrow_back';
+  sub(m, 'pacs', 'Key images & exams').items[1].icon = 'star';
+  sub(m, 'pacs', 'Key images & exams').items[0].icon = 'arrow_back';
   // A ring holding only Lung-RADS goes with it.
   m.categories.find((c) => c.id === 'apps').items.push({ name: 'Lung', icon: 'pulmonology', items: [{ name: 'Lung-RADS', icon: 'pulmonology', action: 'helper:lungrads' }] });
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
@@ -217,7 +217,7 @@ test('an older menu loses Lung-RADS, gets paired icons and clearer names, once',
   assert.strictEqual(sub(got, 'pacs', 'PowerScribe'), undefined, 'the field keys left the PACS ring');
   assert.deepStrictEqual(sub(got, 'pacs', 'Crosshair & link').items.map((i) => i.name), ['Crosshair', 'Link priors', 'Pinpoint']);
   assert.strictEqual(sub(got, 'pacs', 'Layout').items[0].icon, 'skip_previous');
-  assert.deepStrictEqual(sub(got, 'pacs', 'Key images').items.map((i) => i.icon), ['fast_rewind', 'star']);
+  assert.deepStrictEqual(sub(got, 'pacs', 'Key images & exams').items.map((i) => i.icon), ['fast_rewind', 'star', 'arrow_downward', 'arrow_upward']);
   assert.deepStrictEqual(sub(got, 'ai', 'Prior checklist').items.map((i) => i.name), ['Add copied prior', 'Make checklist', 'Empty the list', 'Show toolbar']);
 });
 
@@ -284,7 +284,7 @@ test('rings saved with "back" beside "play" get matching previous/next icons, on
   const pacs = (menu) => menu.categories.find((c) => c.id === 'pacs');
   const sub = (menu, n) => pacs(menu).items.find((i) => i.name === n).items;
   // As an early build saved them: key presses, "back" and "play".
-  sub(m, 'Key images').splice(0, 2,
+  sub(m, 'Key images & exams').splice(0, 2,
     { name: 'Previous key image', icon: 'back', action: 'helper:keys:^!k' },
     { name: 'Next key image', icon: 'play', action: 'helper:keys:^!i' });
   const lay = sub(m, 'Layout');
@@ -298,8 +298,8 @@ test('rings saved with "back" beside "play" get matching previous/next icons, on
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
   const got = store.readMenu();
   const icon = (n, name) => sub(got, n).find((i) => i.name === name).icon;
-  assert.strictEqual(icon('Key images', 'Previous key image'), 'fast_rewind');
-  assert.strictEqual(icon('Key images', 'Next key image'), 'fast_forward');
+  assert.strictEqual(icon('Key images & exams', 'Previous key image'), 'fast_rewind');
+  assert.strictEqual(icon('Key images & exams', 'Next key image'), 'fast_forward');
   assert.strictEqual(icon('Layout', 'Previous layout'), 'skip_previous');
   assert.strictEqual(icon('Layout', 'Next layout'), 'star');
   assert.strictEqual(icon('PowerScribe', 'Previous field'), 'keyboard_tab_rtl');
@@ -309,7 +309,7 @@ test('rings saved with "back" beside "play" get matching previous/next icons, on
 test('every previous/next pair the app ships uses one matching pair of icons', () => {
   const def = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'default-menu.json'), 'utf8'));
   const lib = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'library.json'), 'utf8'));
-  const PAIRS = { skip_previous: 'skip_next', fast_rewind: 'fast_forward', keyboard_tab_rtl: 'keyboard_tab' };
+  const PAIRS = { skip_previous: 'skip_next', fast_rewind: 'fast_forward', keyboard_tab_rtl: 'keyboard_tab', arrow_downward: 'arrow_upward' };
   const items = [];
   const walk = (list) => (list || []).forEach((it) => (it.items ? walk(it.items) : items.push(it)));
   def.categories.forEach((c) => walk(c.items));
@@ -411,7 +411,7 @@ test('saved PACS rings get the Image ring (MPR moved in), Pinpoint, Show report,
   p.items.find((i) => i.name === 'Crosshair & link').items.pop();
   p.items = p.items.filter((i) => i.name !== 'Show report');
   (function strip(a) { for (const i of a) { delete i.stay; if (i.items) strip(i.items); } })(p.items);
-  p.items.find((i) => i.name === 'Key images').items[1].stay = false; // the person's own choice stays
+  p.items.find((i) => i.name === 'Key images & exams').items[1].stay = false; // the person's own choice stays
   m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid', 'layout-grid-three', 'nav-pairs', 'orthogonal-ruler', 'openevidence-search', 'pacs-no-fields', 'organ-icons'];
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
   const got = pacs(store.readMenu());
@@ -422,7 +422,34 @@ test('saved PACS rings get the Image ring (MPR moved in), Pinpoint, Show report,
   assert.strictEqual(got.items[got.items.length - 1].name, 'Show report');
   const stay = (n) => got.items.find((i) => i.name === n).items.filter((i) => i.stay).map((i) => i.name);
   assert.deepStrictEqual(stay('Layout'), ['Previous layout', 'Next layout']);
-  assert.deepStrictEqual(stay('Key images'), ['Previous key image']);
+  assert.deepStrictEqual(stay('Key images & exams'), ['Previous key image']);
   // The shipped menu is the same.
   assert.deepStrictEqual(JSON.parse(fs.readFileSync(def, 'utf8')).categories.find((c) => c.id === 'pacs').items.map((i) => i.name), got.items.map((i) => i.name));
+});
+
+test('saved rings: Crosshair becomes a plus, Link priors a chain, and the one-liner loses Indication, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-xhair-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const all = (menu) => { const o = []; (function w(a) { for (const x of a) { o.push(x); if (x.items) w(x.items); } })(menu.categories.flatMap((c) => c.items)); return o; };
+  const by = (menu, act) => all(menu).find((x) => x.action === act);
+  by(m, 'helper:lib:PACS_Crosshair').icon = 'my_location';
+  by(m, 'helper:lib:PACS_LinkCrosshair').icon = 'link';
+  const k0 = all(m).find((x) => x.name === 'Key images & exams'); k0.name = 'Key images'; k0.items = k0.items.slice(0, 2);
+  all(m).find((x) => x.name === 'Crosshair & link').icon = 'my_location';
+  const ol = all(m).find((x) => x.items && x.items.some((i) => i.action === 'helper:oneliner:oncologic'));
+  ol.items.push({ name: 'Indication', icon: 'assignment', action: 'helper:oneliner:indication' });
+  m.migrated = [];
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const got = store.readMenu();
+  assert.strictEqual(by(got, 'helper:lib:PACS_Crosshair').icon, 'ti:plus');
+  assert.strictEqual(all(got).find((x) => x.name === 'Crosshair & link').icon, 'ti:plus');
+  assert.strictEqual(by(got, 'helper:lib:PACS_LinkCrosshair').icon, 'ti:link');
+  assert.ok(!by(got, 'helper:oneliner:indication'), 'Indication is gone from the one-liner');
+  assert.ok(by(got, 'helper:oneliner:oncologic'), 'the other one-liners stay');
+  const lib = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'library.json'), 'utf8'));
+  assert.ok(JSON.stringify(lib).includes('PS_PasteIndication'), 'Paste indication stays a function');
+  const ki = all(got).find((x) => x.name === 'Key images & exams');
+  assert.deepStrictEqual(ki.items.slice(-2).map((x) => [x.action, x.stay]), [['helper:lib:PACS_Prev_Exam', true], ['helper:lib:PACS_Next_Exam', true]]);
 });

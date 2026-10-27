@@ -83,16 +83,16 @@
         },
         {
           "name": "Crosshair & link",
-          "icon": "my_location",
+          "icon": "ti:plus",
           "items": [
             {
               "name": "Crosshair",
-              "icon": "my_location",
+              "icon": "ti:plus",
               "action": "helper:lib:PACS_Crosshair"
             },
             {
               "name": "Link priors",
-              "icon": "link",
+              "icon": "ti:link",
               "action": "helper:lib:PACS_LinkCrosshair"
             },
             {
@@ -152,7 +152,7 @@
           ]
         },
         {
-          "name": "Key images",
+          "name": "Key images & exams",
           "icon": "key",
           "items": [
             {
@@ -165,6 +165,18 @@
               "name": "Next key image",
               "icon": "fast_forward",
               "action": "helper:lib:PACS_Next_Key_Image",
+              "stay": true
+            },
+            {
+              "name": "Previous exam",
+              "icon": "arrow_downward",
+              "action": "helper:lib:PACS_Prev_Exam",
+              "stay": true
+            },
+            {
+              "name": "Next exam",
+              "icon": "arrow_upward",
+              "action": "helper:lib:PACS_Next_Exam",
               "stay": true
             }
           ]
@@ -264,11 +276,6 @@
               "name": "Treatment",
               "icon": "medication",
               "action": "helper:oneliner:treatment"
-            },
-            {
-              "name": "Indication",
-              "icon": "assignment",
-              "action": "helper:oneliner:indication"
             },
             {
               "name": "Add chart text",
