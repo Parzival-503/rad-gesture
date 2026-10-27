@@ -833,7 +833,9 @@ async function waitFor(fn, ms, step = 200) {
       await sleep(500);
       const q = await rg((r) => r.queue());
       const still = await ringPage.evaluate(() => !!window.RGRing.state());
-      check('Next layout runs and the ring stays open for the next click', clicked && still && q.includes('keep|lib:PACS_Next_Layout'), `clicked=${clicked} open=${still} queue=${q.join(',')}`);
+      // Queued marked "keep|"; on Windows the real helper may already have run it.
+      const ran = q.includes('keep|lib:PACS_Next_Layout') || (WIN && (await rg((r) => r.events())).some((e) => `${e.type} ${e.detail}` === 'done lib:PACS_Next_Layout'));
+      check('Next layout runs and the ring stays open for the next click', clicked && still && ran, `clicked=${clicked} open=${still} queue=${q.join(',')}`);
       await ringPage.screenshot({ path: path.join(SHOTS, 'ring-keep-open.png') });
       check('the Image ring holds MPR, Thick slab, Slab off, Invert, Enhance, Sharpen, Reset', await (async () => {
         await ringPage.evaluate(() => window.RGRing.clear());
