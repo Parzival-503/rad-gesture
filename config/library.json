@@ -347,7 +347,7 @@
       "description": "Crosshair / linked cursor.",
       "hotkey": "^!x",
       "on": true,
-      "icon": "my_location",
+      "icon": "ti:plus",
       "target": "sectra",
       "params": [
         {
@@ -366,7 +366,7 @@
       "description": "Links the study you are reading with its priors in Sectra, so the crosshair follows in both.",
       "hotkey": "^!l",
       "on": true,
-      "icon": "link",
+      "icon": "ti:link",
       "target": "sectra",
       "params": [
         {
@@ -635,7 +635,7 @@
       "description": "Pinpoint: marks a spot and finds it on the other series.",
       "hotkey": "",
       "on": true,
-      "icon": "ti:focus-2",
+      "icon": "my_location",
       "target": "sectra",
       "params": [
         {

@@ -566,7 +566,10 @@ there at first, so the e2e clicks PACS > Layout > Next layout for real.
 
 `crosshair-link-icons-2` (owner, 2026-10-27): the Crosshair & link ring
 keeps its bullseye `my_location`; inside, Crosshair is a plus `ti:plus`,
-Link priors a chain `ti:link`, Pinpoint the bullseye. `no-oneliner-indication`:
+Link priors a chain `ti:link`, Pinpoint the bullseye.
+`crosshair-link-icons-3`: saved rings had icons -2 did not know (the
+owner still saw three bullseyes), so Crosshair and Link priors are set by
+action or name whatever icon they had. library.json carries the same icons. `no-oneliner-indication`:
 the one-liner's Indication choice is gone (he pastes the ordering doctor's
 indication instead); **Paste indication stays**, a library function on his
 mouse's shortcut, not on a ring. `exam-nav`: Previous exam (Down) and Next

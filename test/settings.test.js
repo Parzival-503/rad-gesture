@@ -435,7 +435,7 @@ test('saved rings: the ring keeps its bullseye, Crosshair becomes a plus, Pinpoi
   const all = (menu) => { const o = []; (function w(a) { for (const x of a) { o.push(x); if (x.items) w(x.items); } })(menu.categories.flatMap((c) => c.items)); return o; };
   const by = (menu, act) => all(menu).find((x) => x.action === act);
   by(m, 'helper:lib:PACS_Crosshair').icon = 'my_location';
-  by(m, 'helper:lib:PACS_LinkCrosshair').icon = 'link';
+  by(m, 'helper:lib:PACS_LinkCrosshair').icon = 'gps_not_fixed'; // not one we shipped: still becomes the chain
   const k0 = all(m).find((x) => x.name === 'Key images & exams'); k0.name = 'Key images'; k0.items = k0.items.slice(0, 2);
   all(m).find((x) => x.name === 'Crosshair & link').icon = 'ti:plus';
   by(m, 'helper:lib:PACS_Pinpoint').icon = 'ti:focus-2';

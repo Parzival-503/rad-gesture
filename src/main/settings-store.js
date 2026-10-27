@@ -458,6 +458,20 @@ function migrate(m, lib) {
     done.push('crosshair-link-icons-2');
     changed = true;
   }
+  if (!done.includes('crosshair-link-icons-3')) {
+    // The step above only replaced icons we shipped; some saved rings carried
+    // another bullseye-like icon, so Crosshair and Link priors are set by
+    // what they do, whatever icon they had.
+    const walk = (items) => (items || []).forEach((it) => {
+      if (Array.isArray(it.items)) return walk(it.items);
+      const n = String(it.name || '').trim();
+      if (it.action === 'helper:lib:PACS_Crosshair' || it.action === 'helper:keys:^!x' || /^crosshair$/i.test(n)) it.icon = 'ti:plus';
+      if (it.action === 'helper:lib:PACS_LinkCrosshair' || it.action === 'helper:keys:^!l' || /^link (priors|crosshair)$/i.test(n)) it.icon = 'ti:link';
+    });
+    m.categories.forEach((c) => walk(c.items));
+    done.push('crosshair-link-icons-3');
+    changed = true;
+  }
   if (!done.includes('no-oneliner-indication')) {
     // The one-liner's Indication choice is gone (Paste indication stays, on
     // its own shortcut).
