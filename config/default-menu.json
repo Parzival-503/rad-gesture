@@ -83,7 +83,7 @@
         },
         {
           "name": "Crosshair & link",
-          "icon": "ti:plus",
+          "icon": "my_location",
           "items": [
             {
               "name": "Crosshair",
@@ -97,7 +97,7 @@
             },
             {
               "name": "Pinpoint",
-              "icon": "ti:focus-2",
+              "icon": "my_location",
               "action": "helper:lib:PACS_Pinpoint"
             }
           ]

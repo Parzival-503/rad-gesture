@@ -427,7 +427,7 @@ test('saved PACS rings get the Image ring (MPR moved in), Pinpoint, Show report,
   assert.deepStrictEqual(JSON.parse(fs.readFileSync(def, 'utf8')).categories.find((c) => c.id === 'pacs').items.map((i) => i.name), got.items.map((i) => i.name));
 });
 
-test('saved rings: Crosshair becomes a plus, Link priors a chain, and the one-liner loses Indication, once', () => {
+test('saved rings: the ring keeps its bullseye, Crosshair becomes a plus, Pinpoint the bullseye, Link priors a chain, and the one-liner loses Indication, once', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-xhair-'));
   const def = path.join(__dirname, '..', 'config', 'default-menu.json');
   const store = createStore({ userDir: () => dir, defaultMenuPath: def });
@@ -437,14 +437,16 @@ test('saved rings: Crosshair becomes a plus, Link priors a chain, and the one-li
   by(m, 'helper:lib:PACS_Crosshair').icon = 'my_location';
   by(m, 'helper:lib:PACS_LinkCrosshair').icon = 'link';
   const k0 = all(m).find((x) => x.name === 'Key images & exams'); k0.name = 'Key images'; k0.items = k0.items.slice(0, 2);
-  all(m).find((x) => x.name === 'Crosshair & link').icon = 'my_location';
+  all(m).find((x) => x.name === 'Crosshair & link').icon = 'ti:plus';
+  by(m, 'helper:lib:PACS_Pinpoint').icon = 'ti:focus-2';
   const ol = all(m).find((x) => x.items && x.items.some((i) => i.action === 'helper:oneliner:oncologic'));
   ol.items.push({ name: 'Indication', icon: 'assignment', action: 'helper:oneliner:indication' });
   m.migrated = [];
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
   const got = store.readMenu();
   assert.strictEqual(by(got, 'helper:lib:PACS_Crosshair').icon, 'ti:plus');
-  assert.strictEqual(all(got).find((x) => x.name === 'Crosshair & link').icon, 'ti:plus');
+  assert.strictEqual(all(got).find((x) => x.name === 'Crosshair & link').icon, 'my_location', 'the ring keeps its bullseye');
+  assert.strictEqual(by(got, 'helper:lib:PACS_Pinpoint').icon, 'my_location');
   assert.strictEqual(by(got, 'helper:lib:PACS_LinkCrosshair').icon, 'ti:link');
   assert.ok(!by(got, 'helper:oneliner:indication'), 'Indication is gone from the one-liner');
   assert.ok(by(got, 'helper:oneliner:oncologic'), 'the other one-liners stay');

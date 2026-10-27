@@ -564,8 +564,9 @@ ring open after using it" switch in the ring editor. **The ring's preload
 (`src/preload.js`) forwards only the fields it names**: `stay` was dropped
 there at first, so the e2e clicks PACS > Layout > Next layout for real.
 
-`crosshair-link-icons` (owner, 2026-10-27): Crosshair (and its ring) is a
-plus `ti:plus`, Link priors a chain `ti:link`. `no-oneliner-indication`:
+`crosshair-link-icons-2` (owner, 2026-10-27): the Crosshair & link ring
+keeps its bullseye `my_location`; inside, Crosshair is a plus `ti:plus`,
+Link priors a chain `ti:link`, Pinpoint the bullseye. `no-oneliner-indication`:
 the one-liner's Indication choice is gone (he pastes the ordering doctor's
 indication instead); **Paste indication stays**, a library function on his
 mouse's shortcut, not on a ring. `exam-nav`: Previous exam (Down) and Next

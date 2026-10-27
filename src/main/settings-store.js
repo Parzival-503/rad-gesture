@@ -442,15 +442,20 @@ function migrate(m, lib) {
     done.push('keep-open-nav');
     changed = true;
   }
-  if (!done.includes('crosshair-link-icons')) {
-    // Crosshair is a plus, Link priors a chain. Only icons we shipped change.
+  if (!done.includes('crosshair-link-icons-2')) {
+    // Inside Crosshair & link (the ring keeps its bullseye): Crosshair is a
+    // plus, Link priors a chain, Pinpoint the bullseye. Only icons we shipped change.
     const walk = (items) => (items || []).forEach((it) => {
-      if (/^crosshair( & link)?$/i.test(String(it.name || '').trim()) && ['my_location', 'gps_fixed', 'center_focus_strong', 'filter_center_focus'].includes(it.icon)) it.icon = 'ti:plus';
-      if (Array.isArray(it.items)) return walk(it.items);
+      if (Array.isArray(it.items)) {
+        if (/^crosshair & link$/i.test(String(it.name || '').trim()) && it.icon === 'ti:plus') it.icon = 'my_location';
+        return walk(it.items);
+      }
+      if ((it.action === 'helper:lib:PACS_Crosshair' || /^crosshair$/i.test(String(it.name || '').trim())) && ['my_location', 'gps_fixed', 'center_focus_strong', 'filter_center_focus'].includes(it.icon)) it.icon = 'ti:plus';
+      if (it.action === 'helper:lib:PACS_Pinpoint' && it.icon === 'ti:focus-2') it.icon = 'my_location';
       if ((it.action === 'helper:lib:PACS_LinkCrosshair' || /^link (priors|crosshair)$/i.test(String(it.name || '').trim())) && ['link', 'add_link', 'my_location', 'sync', 'sync_alt'].includes(it.icon)) it.icon = 'ti:link';
     });
     m.categories.forEach((c) => walk(c.items));
-    done.push('crosshair-link-icons');
+    done.push('crosshair-link-icons-2');
     changed = true;
   }
   if (!done.includes('no-oneliner-indication')) {
