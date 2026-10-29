@@ -849,14 +849,14 @@ async function waitFor(fn, ms, step = 200) {
     // (queued for the helper marked "keep|") and the ring stays up for the next click.
     {
       const labels = () => ringPage.evaluate(() => { const boxes = document.querySelectorAll('.nodes'); const b = boxes[boxes.length - 1]; return [...b.querySelectorAll('.label')].map((l) => l.textContent); });
-      const clickNamed = async (name) => {
+      const clickNamed = async (name, button = 'left') => {
         const i = (await labels()).indexOf(name);
         if (i < 0) return false;
         await sleep(350); // let the springs settle where they will stay
         const r = await ringPage.evaluate((k) => { const boxes = document.querySelectorAll('.nodes'); const b = boxes[boxes.length - 1].querySelector(`.node[data-slot="${k}"]`).getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; }, i);
         await ringPage.mouse.move(r.x, r.y, { steps: 4 });
         await sleep(150);
-        await ringPage.mouse.click(r.x, r.y);
+        await ringPage.mouse.click(r.x, r.y, { button });
         return true;
       };
       const nChips = (await ringPage.$$('.dchip[data-cat]')).length;
@@ -866,13 +866,18 @@ async function waitFor(fn, ms, step = 200) {
       }
       const opened = await clickNamed('Layout');
       await sleep(500);
-      const clicked = opened && await clickNamed('Next layout');
+      // On a previous / next pair the right button goes forward, the left back.
+      const ranNav = async (id) => (await rg((r) => r.queue())).includes('keep|lib:' + id) || (WIN && (await rg((r) => r.events())).some((e) => `${e.type} ${e.detail}` === 'done lib:' + id));
+      const clicked = opened && await clickNamed('Next layout', 'right');
       await sleep(500);
       const q = await rg((r) => r.queue());
       const still = await ringPage.evaluate(() => !!window.RGRing.state());
       // Queued marked "keep|"; on Windows the real helper may already have run it.
-      const ran = q.includes('keep|lib:PACS_Next_Layout') || (WIN && (await rg((r) => r.events())).some((e) => `${e.type} ${e.detail}` === 'done lib:PACS_Next_Layout'));
-      check('Next layout runs and the ring stays open for the next click', clicked && still && ran, `clicked=${clicked} open=${still} queue=${q.join(',')}`);
+      const ran = await ranNav('PACS_Next_Layout');
+      check('right-click on Next layout goes to the next layout and the ring stays open', clicked && still && ran, `clicked=${clicked} open=${still} queue=${q.join(',')}`);
+      const leftOk = await clickNamed('Next layout', 'left');
+      await sleep(500);
+      check('left-click on the same pair goes to the previous layout, ring still open', leftOk && await ranNav('PACS_Prev_Layout') && await ringPage.evaluate(() => !!window.RGRing.state()), (await rg((r) => r.queue())).join(','));
       await ringPage.screenshot({ path: path.join(SHOTS, 'ring-keep-open.png') });
       check('the Image ring holds MPR, Thick slab, Slab off, Invert, Enhance, Sharpen, Reset', await (async () => {
         await ringPage.evaluate(() => window.RGRing.clear());
@@ -1055,6 +1060,15 @@ async function waitFor(fn, ms, step = 200) {
         inject('tap');
         const tap = await waitFor(async () => (await ev()).some((e) => e.startsWith('done keys:{F14}')), 10000);
         check('real Ctrl+CapsLock tap + click runs the clicked direction', tap, (await ev()).slice(-8).join(' | '));
+        await sleep(600);
+        // The shortcut also closes the ring: a second press while it waits
+        // open closes it, and never picks the direction under the mouse.
+        const f14 = async () => (await ev()).filter((e) => e.startsWith('done keys:{F14}')).length;
+        const before14 = await f14();
+        inject('toggle');
+        await sleep(1200);
+        const ringUp = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('renderer/index.html') && w.isVisible()));
+        check('a second Ctrl+CapsLock closes the ring without picking what is under the mouse', !ringUp && (await f14()) === before14, `ring visible=${ringUp}, F14 runs ${before14} -> ${await f14()}`);
         await sleep(600);
         const page = app.windows().find((w) => w.url().includes('renderer/index.html'));
         // Where the 3rd ring button will be once the ring opens at screen center

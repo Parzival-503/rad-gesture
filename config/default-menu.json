@@ -286,6 +286,11 @@
               "name": "Empty chart text",
               "icon": "playlist_remove",
               "action": "helper:chart:clear"
+            },
+            {
+              "name": "Show toolbar",
+              "icon": "dock_to_left",
+              "action": "helper:prior:show"
             }
           ]
         },

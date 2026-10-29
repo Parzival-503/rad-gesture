@@ -2,6 +2,8 @@
 ; Windows build machine. SendLevel 1 so the helper's hotkeys react to it.
 ;   flick: hold Ctrl+CapsLock, move straight up past the top direction, let go
 ;   tap:   tap Ctrl+CapsLock (ring stays open), then click the bottom direction
+;   toggle: tap Ctrl+CapsLock (ring stays open), rest the mouse on the bottom
+;          direction, tap Ctrl+CapsLock again: the ring closes, nothing runs
 ;   move:  tap Ctrl+CapsLock, click the screen point given (a button under the
 ;          ring), then drag the center 200 px left and 80 px up
 #NoEnv
@@ -33,6 +35,17 @@ if (mode = "flick") {
     MouseMove, %x%, %down%, 6
     Sleep, 300
     Click
+} else if (mode = "toggle") {
+    Send, {Ctrl down}{CapsLock down}
+    Sleep, 60
+    Send, {CapsLock up}{Ctrl up}
+    Sleep, 900
+    down := y + 120
+    MouseMove, %x%, %down%, 6
+    Sleep, 400
+    Send, {Ctrl down}{CapsLock down}
+    Sleep, 60
+    Send, {CapsLock up}{Ctrl up}
 } else if (mode = "move") {
     Send, {Ctrl down}{CapsLock down}
     Sleep, 60

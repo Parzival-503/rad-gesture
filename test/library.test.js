@@ -292,12 +292,13 @@ test('the one-liner\'s chart bin: on the One-liner ring, and added to saved ring
   const ai = defaultMenu.categories.find((c) => c.id === 'ai');
   const ol = ai.items.find((it) => it.name === 'One-liner');
   assert.ok(ol.items.some((it) => it.action === 'helper:chart:add') && ol.items.some((it) => it.action === 'helper:chart:clear'));
+  assert.ok(ol.items.some((it) => it.action === 'helper:prior:show'), 'the toolbar (it holds the chart text) shows from the One-liner ring too');
   const old = { categories: [{ id: 'ai', name: 'AI Tools', items: [{ name: 'One-liner', icon: 'x', items: [
     { name: 'Full', icon: 'x', action: 'helper:oneliner:full' }, { name: 'Oncologic', icon: 'x', action: 'helper:oneliner:oncologic' }] }] }] };
   migrate(old, lib);
-  assert.deepStrictEqual(old.categories[0].items[0].items.map((i) => i.action).slice(2), ['helper:chart:add', 'helper:chart:clear']);
+  assert.deepStrictEqual(old.categories[0].items[0].items.map((i) => i.action).slice(2), ['helper:chart:add', 'helper:chart:clear', 'helper:prior:show']);
   migrate(old, lib);
-  assert.strictEqual(old.categories[0].items[0].items.length, 4, 'once');
+  assert.strictEqual(old.categories[0].items[0].items.length, 5, 'once');
   const run = ahk.slice(ahk.indexOf('RunFlavor(flavor) {'), ahk.indexOf('\nFlavorLabel(flavor) {'));
   assert.ok(run.includes('ChartAskEmpty()'), 'after a one-liner it asks whether to empty the bin');
   assert.ok(!/ChartClear\(/.test(run.slice(0, run.indexOf('ChartAskEmpty() {'))), 'and never empties it by itself');

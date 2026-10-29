@@ -576,6 +576,21 @@ mouse's shortcut, not on a ring. `exam-nav`: Previous exam (Down) and Next
 exam (Up), `target: sectra`, join the key images ring, renamed **Key images
 & exams** so the PACS ring keeps its 8; both `stay: true`.
 
+**2026-10-29 (owner)**: on a previous / next pair that keeps the ring open,
+the LEFT button goes back and the RIGHT goes forward, whichever of the two
+is under the mouse (`pairOf` in ring.js; names "Previous X" / "Next X",
+both `stay`; the contextmenu handler takes the right button there). The
+ring shortcut **toggles**: a fresh Ctrl+CapsLock while the ring waits open
+closes it (`/cancel`) and its release is ignored (`g_HubHeld`,
+`g_HubSkipUp`); before, that release picked whatever was under the mouse.
+Windows e2e `inject.ahk toggle`. Show toolbar is on the One-liner ring too
+(migration `oneliner-toolbar`): the toolbar holds the chart text. Proofread
+Find reuses an open "Find and Replace" dialog instead of closing it and
+pressing Ctrl+H again (that raced: the first click only closed it). The
+prior checklist logs each step to Status as `checklist:<step>` (no-key,
+expired, no-priors, asking:n, ok, error): the owner saw it "not fire" and
+the cause was not found from the code.
+
 ### Helper notes
 
 - Settings, API key, history: `%APPDATA%\RadGesture\` (`RadGesture.ini`).

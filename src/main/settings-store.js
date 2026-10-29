@@ -494,6 +494,19 @@ function migrate(m, lib) {
     done.push('exam-nav');
     changed = true;
   }
+  if (!done.includes('oneliner-toolbar')) {
+    // The toolbar holds the one-liner's chart text too, so Show toolbar is
+    // on the One-liner ring as well as Prior checklist.
+    const walk = (items) => (items || []).forEach((it) => {
+      if (!Array.isArray(it.items)) return;
+      if (it.items.some((x) => /^helper:(oneliner:|chart:add)/.test(x.action || '')) && !it.items.some((x) => x.action === 'helper:prior:show') && it.items.length < 8)
+        it.items.push({ name: 'Show toolbar', icon: 'dock_to_left', action: 'helper:prior:show' });
+      walk(it.items);
+    });
+    m.categories.forEach((c) => walk(c.items));
+    done.push('oneliner-toolbar');
+    changed = true;
+  }
   if (!done.includes('impression-style')) {
     // "Learn this impression" goes right after Impression on the AI Tools
     // ring, when there is room and it is not there yet.

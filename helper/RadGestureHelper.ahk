@@ -156,6 +156,8 @@ global g_HubBoundUp      := ""
 global g_HubPort         := 47811
 global g_HubToken        := ""
 global g_RingOpen        := false
+global g_HubHeld         := false   ; the ring shortcut is down right now
+global g_HubSkipUp       := false   ; its next release closed the ring: ignore it
 global g_HubLastErr      := ""    ; why the last HubRequest got no answer
 
 ; Proofread windows (the old built-in one, and RadGesture's).
@@ -1808,8 +1810,8 @@ HandleFlagAction(action, idx, arg := "") {
 ;
 ; Strategy (safe version, after RichEdit message crashes in earlier versions):
 ;   1. Activate PowerScribe main window.
-;   2. Close any pre-existing Find dialog so we don't operate on a stale one.
-;   3. Send Ctrl+H to open Find and Replace.
+;   2. Reuse a Find dialog that is already open (its boxes are overwritten).
+;   3. Otherwise send Ctrl+H to open Find and Replace.
 ;   4. Wait for the dialog window to exist.
 ;   5. ControlSetText directly into the Find What edit (top, by Y position).
 ;   6. If we have a replacement, ControlSetText into the Replace With edit.
@@ -1837,31 +1839,29 @@ DoFindInSource(phrase, replacement := "") {
         return
     }
 
-    ; --- Step 2: Close any pre-existing Find and Replace dialog ---
-    ; A stale dialog from a previous action will cause our ControlSetText
-    ; to potentially target the wrong window, or our Ctrl+H to be ignored.
-    if WinExist("Find and Replace") {
-        WinClose, Find and Replace
-        WinWaitClose, Find and Replace, , 1
-        Sleep, 80
-        WinActivate, ahk_id %g_PopupHwnd%
-        WinWaitActive, ahk_id %g_PopupHwnd%, , 1
-    }
+    ; --- Step 2: An open Find and Replace dialog is reused as it is ---
+    ; Closing it and pressing Ctrl+H again raced with the dialog going away:
+    ; the press landed while it was still closing, nothing opened, and Find
+    ; needed a second click. Its two boxes are simply overwritten below.
+    dlgHwnd := WinExist("Find and Replace")
+    if (dlgHwnd && !FindEditByYPosition(dlgHwnd, "top"))
+        dlgHwnd := 0
+    if (!dlgHwnd) {
+        ; --- Step 3: Open Find and Replace dialog ---
+        ; We do NOT send ANY messages to PowerScribe's RichEdit editor.
+        ; (Doing so crashed PowerScribe in previous versions of this script.)
+        ; We just open the dialog and write directly into ITS edit controls.
+        ; The dialog is a separate window and is safe to manipulate.
+        Send, ^h
 
-    ; --- Step 3: Open Find and Replace dialog ---
-    ; We do NOT send ANY messages to PowerScribe's RichEdit editor.
-    ; (Doing so crashed PowerScribe in previous versions of this script.)
-    ; We just open the dialog and write directly into ITS edit controls.
-    ; The dialog is a separate window and is safe to manipulate.
-    Send, ^h
-
-    ; --- Step 4: Wait for the dialog to actually exist ---
-    WinWait, Find and Replace, , 3
-    if (ErrorLevel) {
-        JsToast("Find dialog did not open within 3 seconds")
-        return
+        ; --- Step 4: Wait for the dialog to actually exist ---
+        WinWait, Find and Replace, , 3
+        if (ErrorLevel) {
+            JsToast("Find dialog did not open within 3 seconds")
+            return
+        }
+        WinGet, dlgHwnd, ID, Find and Replace
     }
-    WinGet, dlgHwnd, ID, Find and Replace
 
     ; Stabilization: let the dialog finish constructing its child controls
     Sleep, 150
@@ -2549,17 +2549,18 @@ PriorChecklist() {
 
     if (!HaveKey()) {
         Notify("RadGesture: no API key yet. Settings > AI tools.", 3000)
-        return
+        return ChecklistLog("no-key")
     }
     if (PriorExpireCheck()) {
         Notify("Prior checklist: the list was emptied (idle too long). Add the priors again.", 3000)
-        return
+        return ChecklistLog("expired")
     }
     n := g_Priors.Length()
     if (n = 0) {
         Notify("Prior checklist: no priors yet. Copy a prior report, then + Add prior.", 3000)
-        return
+        return ChecklistLog("no-priors")
     }
+    ChecklistLog("asking:" . n)
 
     examTitle := ReadExamTitle()
 
@@ -2601,8 +2602,15 @@ PriorChecklist() {
     Notify("RadGesture: making checklist from " . n . " prior" . (n = 1 ? "" : "s") . "...", 0)
     res := PostClaude(systemPrompt, userMsg, g_PriorMaxTokens, "low")
     Notify("", 0, true)
+    ChecklistLog(res.error != "" ? "error" : "ok")
 
     ShowPriorList(examTitle, n, res.text, res.error)
+}
+
+; Each step of the prior checklist is a line in Settings > Status > recent
+; activity, so "it did nothing" can be traced to where it stopped.
+ChecklistLog(what) {
+    try HubRequest("POST", "/done?action=checklist:" . what, 400)
 }
 
 ; "P2 (1/5/2024), P1 (3/14/2025)": the dated priors, oldest first. "" when none has a date.
@@ -3742,8 +3750,17 @@ RegisterHubHotkeys() {
 }
 
 HubTriggerDown:
-    if (g_RingOpen)
-        return  ; key auto-repeat while held
+    if (g_RingOpen) {
+        if (g_HubHeld)
+            return  ; key auto-repeat while held
+        ; A fresh press while the ring waits open for a click closes it: the
+        ; shortcut toggles. Its release must not pick what is under the mouse.
+        g_HubSkipUp := true
+        HubRequest("POST", "/cancel")
+        HubRingClosed()
+        return
+    }
+    g_HubHeld := true
     WinGet, hubExe, ProcessName, A
     hubShow := HubRequest("POST", "/show?app=" . hubExe)
     if (hubShow = "ok") {
@@ -3758,6 +3775,11 @@ HubTriggerDown:
 return
 
 HubTriggerUp:
+    g_HubHeld := false
+    if (g_HubSkipUp) {
+        g_HubSkipUp := false
+        return
+    }
     if (!g_RingOpen)
         return
     hubResp := HubRequest("POST", "/release", 1200)

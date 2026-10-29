@@ -480,7 +480,23 @@
     if (target === 'back') return popLevel();
     const N = cur().nodes[target];
     if (N.it.items) return openSub(target);
+    const pair = pairOf(cur(), target);
+    if (pair) return choose(cur().nodes[pair.prev]);
     choose(N);
+  }
+
+  // A previous / next pair that keeps the ring open ("Previous layout" and
+  // "Next layout"): on either of them, the left button goes back and the
+  // right button goes forward, like the two sides of the mouse.
+  function pairOf(L, i) {
+    const N = L.nodes[i];
+    if (!N || !N.it.stay || N.it.items) return null;
+    const m = /^(previous|next)\s+(.+)$/i.exec(String(N.it.name || '').trim());
+    if (!m) return null;
+    const rest = m[2].toLowerCase();
+    const find = (w) => L.nodes.findIndex((x) => x && x.it && x.it.stay && String(x.it.name || '').trim().toLowerCase() === w + ' ' + rest);
+    const prev = find('previous'), next = find('next');
+    return prev >= 0 && next >= 0 ? { prev, next } : null;
   }
 
   // The hub calls this when the trigger key comes up.
@@ -823,6 +839,16 @@
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     if (!st || st.closing) return;
+    // On a previous / next pair the right button goes forward.
+    {
+      const L = cur();
+      const t = G.aimAt(L.slots, (e.clientX - L.cx) / st.s, (e.clientY - L.cy) / st.s, DEAD);
+      const pair = t !== -1 && t !== 'back' && pairOf(L, t);
+      if (pair && Math.hypot(e.clientX - L.cx, e.clientY - L.cy) / st.s <= L.r + 80) {
+        choose(L.nodes[pair.next]);
+        return startLoop();
+      }
+    }
     if (st.levels.length > 1) popLevel();
     else if (centerAt(e.clientX, e.clientY) === 0) switchCategory(-1); // right-click the middle: previous ring
     else dismiss();
