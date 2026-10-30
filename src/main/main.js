@@ -678,13 +678,15 @@ async function testApiKey(key, model) {
   }
 }
 
+// The helper's script when it is there (running from source), else the copy
+// of its library functions the build packed into the app.
 function libraryCode() {
-  try {
-    const src = fs.readFileSync(path.join(resourcesHelperDir(), 'RadGestureHelper.ahk'), 'utf8');
-    return codeFor(store.library(), src, store.readLibrary().values);
-  } catch (_) {
-    return {};
+  for (const f of [path.join(resourcesHelperDir(), 'RadGestureHelper.ahk'), path.join(ROOT, 'config', 'library-code.txt')]) {
+    try {
+      return codeFor(store.library(), fs.readFileSync(f, 'utf8'), store.readLibrary().values);
+    } catch (_) {}
   }
+  return {};
 }
 
 // Is any library keyboard shortcut switched on? Then a running Rad Optimizer

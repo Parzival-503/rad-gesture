@@ -44,6 +44,14 @@ const CODE_FUNCS = {
   SearchRadiopaediaGoogle: ['Lib_SearchRadiopaediaGoogle'],
 };
 
+// Every helper function the Code button shows, as one text. The build packs
+// it into the app (config/library-code.txt), since the installed app carries
+// only the compiled helper, not its script.
+function extractCode(src) {
+  const names = [...new Set(Object.values(CODE_FUNCS).flat())];
+  return names.map((n) => functionSource(src, n)).filter(Boolean).join('\n\n') + '\n';
+}
+
 function codeFor(lib, src, values = {}) {
   const out = {};
   for (const f of lib.functions) {
@@ -54,4 +62,4 @@ function codeFor(lib, src, values = {}) {
   return out;
 }
 
-module.exports = { codeFor, functionSource, pressSnippet, CODE_FUNCS };
+module.exports = { codeFor, extractCode, functionSource, pressSnippet, CODE_FUNCS };

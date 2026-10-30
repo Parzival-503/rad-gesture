@@ -12,6 +12,7 @@
     "test": "node --test test/*.test.js",
     "check:ahk": "python3 tools/ahk_check.py helper/RadGestureHelper.ahk",
     "preview": "node scripts/preview.js",
+    "predist": "node scripts/extract-library-code.js",
     "dist": "electron-builder --win nsis zip --x64 --publish never",
     "test:e2e": "node tests-e2e/run.js"
   },

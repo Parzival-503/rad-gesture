@@ -7,7 +7,7 @@ const path = require('path');
 const HK = require('../src/common/hotkeys');
 const KS = require('../src/common/keyset');
 const { createStore, migrate, optimizerKeyMap } = require('../src/main/settings-store');
-const { codeFor, functionSource, CODE_FUNCS } = require('../src/main/library-code');
+const { codeFor, extractCode, functionSource, CODE_FUNCS } = require('../src/main/library-code');
 const ini = require('../src/main/ini');
 
 const root = path.join(__dirname, '..');
@@ -171,6 +171,11 @@ test('"Show the code" finds every library function in the helper', () => {
   assert.match(code.PACS_Insert_Priors, /Send, %sectraKey%\n {4}return true\n\}$/);
   for (const names of Object.values(CODE_FUNCS)) for (const n of names) assert.ok(functionSource(ahk, n), n);
   assert.match(functionSource(ahk, 'Lib_SearchRadiopaediaGoogle'), /return true\n\}$/);
+});
+
+test('the installed app shows the same code without the helper script', () => {
+  // The release ships only the compiled helper; the build packs this text instead.
+  assert.deepStrictEqual(codeFor(lib, extractCode(ahk), {}), codeFor(lib, ahk, {}));
 });
 
 test('a running Rad Optimizer is a clash once library shortcuts are on, not before', () => {
