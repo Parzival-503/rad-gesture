@@ -138,6 +138,14 @@ jobs:
           Write-Host "selftest exit $($st.code): $($st.out)"
           if ($st.code -ne 0) { throw "helper exe selftest exit $($st.code)" }
 
+      - name: Ship only the compiled helper (no loose script beside it)
+        # A compiled .exe is self-contained; shipping the loose .ahk next to
+        # it is a renamed-script-engine pattern endpoint security flags. Only
+        # the interpreter-fallback build still needs the script shipped.
+        if: env.HELPER_MODE == 'compiled'
+        shell: pwsh
+        run: Remove-Item -Force helper\RadGestureHelper.ahk
+
       - name: Build the app (installer + portable zip, helper inside)
         run: npm run dist
 
