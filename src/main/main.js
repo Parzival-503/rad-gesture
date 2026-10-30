@@ -367,6 +367,12 @@ async function startBridge() {
     onShow: (exe) => {
       logEvent('show', exe);
       if (paused) return 'paused';
+      // The shortcut toggles: pressed while the ring is up, it closes it.
+      // The ring decides, not the helper's memory of it, which can be stale.
+      if (ringOpen) {
+        hideRing();
+        return 'closed';
+      }
       openRing(exe, 'hold');
       return 'ok';
     },

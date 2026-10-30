@@ -507,6 +507,20 @@ function migrate(m, lib) {
     done.push('oneliner-toolbar');
     changed = true;
   }
+  if (!done.includes('key-exam-order')) {
+    // Key images & exams opens below the PACS ring: next key image upper
+    // right, previous key image lower right, previous exam lower left, next
+    // exam upper left (up = next, as on the keyboard).
+    const want = ['PACS_Next_Key_Image', 'PACS_Prev_Key_Image', 'PACS_Prev_Exam', 'PACS_Next_Exam'].map((id) => 'helper:lib:' + id);
+    const pacs = m.categories.find((c) => c.id === 'pacs');
+    const ki = pacs && (pacs.items || []).find((it) => Array.isArray(it.items) && want.every((a) => it.items.some((x) => x.action === a)));
+    if (ki) {
+      const four = want.map((a) => ki.items.find((x) => x.action === a));
+      ki.items = four.concat(ki.items.filter((x) => !want.includes(x.action)));
+    }
+    done.push('key-exam-order');
+    changed = true;
+  }
   if (!done.includes('impression-style')) {
     // "Learn this impression" goes right after Impression on the AI Tools
     // ring, when there is room and it is not there yet.

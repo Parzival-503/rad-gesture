@@ -158,6 +158,7 @@ global g_HubToken        := ""
 global g_RingOpen        := false
 global g_HubHeld         := false   ; the ring shortcut is down right now
 global g_HubSkipUp       := false   ; its next release closed the ring: ignore it
+global g_HubPollMiss     := 0       ; polls in a row with no answer while the ring is open
 global g_HubLastErr      := ""    ; why the last HubRequest got no answer
 
 ; Proofread windows (the old built-in one, and RadGesture's).
@@ -3763,7 +3764,12 @@ HubTriggerDown:
     g_HubHeld := true
     WinGet, hubExe, ProcessName, A
     hubShow := HubRequest("POST", "/show?app=" . hubExe)
-    if (hubShow = "ok") {
+    if (hubShow = "closed") {
+        ; The ring was still up (its "open" state here had gone stale): this
+        ; press closed it, and its release must not pick anything.
+        g_HubSkipUp := true
+        HubRingClosed()
+    } else if (hubShow = "ok") {
         g_RingOpen := true
         Hotkey, Esc, On
         SetTimer, HubPoll, 50
@@ -3806,14 +3812,23 @@ HubPoll:
         else if (g_RingOpen)
             HubRingClosed()
         RunHubAction(hubPollAct)
-    } else if (g_RingOpen && hubPollResp != "open") {
+    } else if (g_RingOpen && hubPollResp = "closed") {
+        ; Only a clear "closed": one slow or missed answer leaves the ring
+        ; open; about 2 s with no answer at all means the hub is gone.
         HubRingClosed()
+    } else if (g_RingOpen && hubPollResp = "") {
+        g_HubPollMiss += 1
+        if (g_HubPollMiss >= 40)
+            HubRingClosed()
+        return
     }
+    g_HubPollMiss := 0
 return
 
 HubRingClosed() {
-    global g_RingOpen, g_ProofHub
+    global g_RingOpen, g_ProofHub, g_HubPollMiss
     g_RingOpen := false
+    g_HubPollMiss := 0
     try Hotkey, Esc, Off
     SetTimer, HubPoll, % HubPollRate()
 }

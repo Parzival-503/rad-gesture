@@ -576,13 +576,21 @@ mouse's shortcut, not on a ring. `exam-nav`: Previous exam (Down) and Next
 exam (Up), `target: sectra`, join the key images ring, renamed **Key images
 & exams** so the PACS ring keeps its 8; both `stay: true`.
 
-**2026-10-29 (owner)**: on a previous / next pair that keeps the ring open,
-the LEFT button goes back and the RIGHT goes forward, whichever of the two
-is under the mouse (`pairOf` in ring.js; names "Previous X" / "Next X",
-both `stay`; the contextmenu handler takes the right button there). The
-ring shortcut **toggles**: a fresh Ctrl+CapsLock while the ring waits open
-closes it (`/cancel`) and its release is ignored (`g_HubHeld`,
-`g_HubSkipUp`); before, that release picked whatever was under the mouse.
+**2026-10-29/30 (owner)**: the **center of a smaller ring** that holds a
+previous / next pair (`stay`, names "Previous X" / "Next X") steps through
+it: LEFT click = previous, RIGHT click = next, the ring stays open
+(`centerPair` in ring.js; Key images & exams uses its key images). Going
+back from such a ring is the parent's center or Esc. (A first build put
+left/right on the pair's own buttons instead: a misunderstanding, reverted;
+a plain click on a button runs that button.) Key images & exams order
+(migration `key-exam-order`): it opens below PACS, so Next key image upper
+right, Previous key image lower right, Previous exam lower left, Next exam
+upper left. The ring shortcut **toggles**, and the **hub decides**: `/show`
+while the ring is up hides it and answers `closed` (the helper's
+`g_RingOpen` went stale when a 300 ms poll timed out, so a press re-opened
+the ring instead of closing it: "glitchy, sometimes"). The helper ignores
+that press's release (`g_HubSkipUp`), counts a poll with no answer as a
+miss (40 in a row = the hub is gone) and only "closed" closes it.
 Windows e2e `inject.ahk toggle`. Show toolbar is on the One-liner ring too
 (migration `oneliner-toolbar`): the toolbar holds the chart text. Proofread
 Find reuses an open "Find and Replace" dialog instead of closing it and

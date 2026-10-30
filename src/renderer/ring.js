@@ -480,17 +480,27 @@
     if (target === 'back') return popLevel();
     const N = cur().nodes[target];
     if (N.it.items) return openSub(target);
-    const pair = pairOf(cur(), target);
-    if (pair) return choose(cur().nodes[pair.prev]);
     choose(N);
   }
 
+  // The pair the center of a smaller ring steps through (left button back,
+  // right button forward): its key images when it has several pairs.
+  function centerPair(L) {
+    let first = null;
+    for (let i = 0; i < L.nodes.length; i++) {
+      const p = pairOf(L, i);
+      if (!p) continue;
+      if (/key image/i.test(L.nodes[p.prev].it.name)) return p;
+      first = first || p;
+    }
+    return first;
+  }
+
   // A previous / next pair that keeps the ring open ("Previous layout" and
-  // "Next layout"): on either of them, the left button goes back and the
-  // right button goes forward, like the two sides of the mouse.
+  // "Next layout"), found from the direction at i.
   function pairOf(L, i) {
     const N = L.nodes[i];
-    if (!N || !N.it.stay || N.it.items) return null;
+    if (!N || !N.it || !N.it.stay || N.it.items) return null;
     const m = /^(previous|next)\s+(.+)$/i.exec(String(N.it.name || '').trim());
     if (!m) return null;
     const rest = m[2].toLowerCase();
@@ -796,7 +806,13 @@
     st.dragging = false;
     document.body.classList.remove('dragging');
     if (dragged || st.closing) return startLoop();
-    // A click on a center, not a drag.
+    // A click on a center, not a drag. The center of a smaller ring holding
+    // a previous / next pair steps back through it (the right button forward).
+    const cp = P.parent === null && st.levels.length > 1 && centerPair(cur());
+    if (cp) {
+      choose(cur().nodes[cp.prev]);
+      return startLoop();
+    }
     if (P.parent !== null) {
       while (st.levels.length - 1 > P.parent) popLevel();
     } else if (st.levels.length > 1) popLevel();
@@ -839,13 +855,13 @@
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     if (!st || st.closing) return;
-    // On a previous / next pair the right button goes forward.
+    // The center of a smaller ring that holds a previous / next pair: the
+    // right button steps forward (the left one steps back).
     {
       const L = cur();
-      const t = G.aimAt(L.slots, (e.clientX - L.cx) / st.s, (e.clientY - L.cy) / st.s, DEAD);
-      const pair = t !== -1 && t !== 'back' && pairOf(L, t);
-      if (pair && Math.hypot(e.clientX - L.cx, e.clientY - L.cy) / st.s <= L.r + 80) {
-        choose(L.nodes[pair.next]);
+      const cp = st.levels.length > 1 && centerAt(e.clientX, e.clientY) === st.levels.length - 1 && centerPair(L);
+      if (cp) {
+        choose(L.nodes[cp.next]);
         return startLoop();
       }
     }

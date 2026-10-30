@@ -156,15 +156,15 @@
           "icon": "key",
           "items": [
             {
-              "name": "Previous key image",
-              "icon": "fast_rewind",
-              "action": "helper:lib:PACS_Prev_Key_Image",
-              "stay": true
-            },
-            {
               "name": "Next key image",
               "icon": "fast_forward",
               "action": "helper:lib:PACS_Next_Key_Image",
+              "stay": true
+            },
+            {
+              "name": "Previous key image",
+              "icon": "fast_rewind",
+              "action": "helper:lib:PACS_Prev_Key_Image",
               "stay": true
             },
             {

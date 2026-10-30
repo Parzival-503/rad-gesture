@@ -217,7 +217,7 @@ test('an older menu loses Lung-RADS, gets paired icons and clearer names, once',
   assert.strictEqual(sub(got, 'pacs', 'PowerScribe'), undefined, 'the field keys left the PACS ring');
   assert.deepStrictEqual(sub(got, 'pacs', 'Crosshair & link').items.map((i) => i.name), ['Crosshair', 'Link priors', 'Pinpoint']);
   assert.strictEqual(sub(got, 'pacs', 'Layout').items[0].icon, 'skip_previous');
-  assert.deepStrictEqual(sub(got, 'pacs', 'Key images & exams').items.map((i) => i.icon), ['fast_rewind', 'star', 'arrow_downward', 'arrow_upward']);
+  assert.deepStrictEqual(sub(got, 'pacs', 'Key images & exams').items.map((i) => i.icon), ['fast_forward', 'star', 'arrow_downward', 'arrow_upward']);
   assert.deepStrictEqual(sub(got, 'ai', 'Prior checklist').items.map((i) => i.name), ['Add copied prior', 'Make checklist', 'Empty the list', 'Show toolbar']);
 });
 
@@ -422,7 +422,7 @@ test('saved PACS rings get the Image ring (MPR moved in), Pinpoint, Show report,
   assert.strictEqual(got.items[got.items.length - 1].name, 'Show report');
   const stay = (n) => got.items.find((i) => i.name === n).items.filter((i) => i.stay).map((i) => i.name);
   assert.deepStrictEqual(stay('Layout'), ['Previous layout', 'Next layout']);
-  assert.deepStrictEqual(stay('Key images & exams'), ['Previous key image']);
+  assert.deepStrictEqual(stay('Key images & exams'), ['Next key image']);
   // The shipped menu is the same.
   assert.deepStrictEqual(JSON.parse(fs.readFileSync(def, 'utf8')).categories.find((c) => c.id === 'pacs').items.map((i) => i.name), got.items.map((i) => i.name));
 });
@@ -454,4 +454,24 @@ test('saved rings: the ring keeps its bullseye, Crosshair becomes a plus, Pinpoi
   assert.ok(JSON.stringify(lib).includes('PS_PasteIndication'), 'Paste indication stays a function');
   const ki = all(got).find((x) => x.name === 'Key images & exams');
   assert.deepStrictEqual(ki.items.slice(-2).map((x) => [x.action, x.stay]), [['helper:lib:PACS_Prev_Exam', true], ['helper:lib:PACS_Next_Exam', true]]);
+});
+
+test('Key images & exams: next above previous, images on the right and exams on the left, once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-kiorder-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const m = JSON.parse(fs.readFileSync(def, 'utf8'));
+  const ki = (menu) => menu.categories.find((c) => c.id === 'pacs').items.find((i) => i.name === 'Key images & exams');
+  const byName = Object.fromEntries(ki(m).items.map((i) => [i.name, i]));
+  ki(m).items = ['Previous key image', 'Next key image', 'Previous exam', 'Next exam'].map((n) => byName[n]); // as an earlier build saved it
+  m.migrated = [];
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
+  const order = ki(store.readMenu()).items.map((i) => i.name);
+  assert.deepStrictEqual(order, ['Next key image', 'Previous key image', 'Previous exam', 'Next exam']);
+  // Opened below the PACS ring (way back up): upper right, lower right, lower left, upper left.
+  const G = require('../src/renderer/geometry');
+  const pacs = JSON.parse(fs.readFileSync(def, 'utf8')).categories.find((c) => c.id === 'pacs');
+  const at = pacs.items.findIndex((i) => i.name === 'Key images & exams') * 360 / pacs.items.length;
+  assert.strictEqual(at, 180, 'the ring opens straight down');
+  assert.deepStrictEqual(G.slotAngles(4, 0).items, [72, 144, 216, 288]);
 });

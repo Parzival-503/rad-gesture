@@ -576,6 +576,20 @@ async function waitFor(fn, ms, step = 200) {
         req.setTimeout(10000, () => { req.destroy(); resolve('(no answer in 10 s)'); });
         req.end(body || undefined);
       });
+      // The ring shortcut toggles, decided by the ring itself: a second
+      // "show" while the ring is up closes it (the helper's own idea of
+      // whether it is open can be stale).
+      {
+        const ringVisible = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes('renderer/index.html') && w.isVisible()));
+        const s1 = await call('POST', '/show?app=notepad.exe');
+        await sleep(500);
+        const up = await ringVisible();
+        const s2 = await call('POST', '/show?app=notepad.exe');
+        await sleep(600);
+        const down = !(await ringVisible());
+        await call('POST', '/release');
+        check('the ring shortcut pressed while the ring is up closes it', s1 === 'ok' && up && s2 === 'closed' && down, `${s1}/${up} then ${s2}/${!down}`);
+      }
       // Invented report text (no patient data).
       const report = 'FINDINGS:\nThe left lobe has a 4 mm nodule.\nThe right lobe is clear.\nThere is no plural effusion.\n\nIMPRESSION:\nNo acute findings.';
       const flags = [
@@ -849,14 +863,14 @@ async function waitFor(fn, ms, step = 200) {
     // (queued for the helper marked "keep|") and the ring stays up for the next click.
     {
       const labels = () => ringPage.evaluate(() => { const boxes = document.querySelectorAll('.nodes'); const b = boxes[boxes.length - 1]; return [...b.querySelectorAll('.label')].map((l) => l.textContent); });
-      const clickNamed = async (name, button = 'left') => {
+      const clickNamed = async (name) => {
         const i = (await labels()).indexOf(name);
         if (i < 0) return false;
         await sleep(350); // let the springs settle where they will stay
         const r = await ringPage.evaluate((k) => { const boxes = document.querySelectorAll('.nodes'); const b = boxes[boxes.length - 1].querySelector(`.node[data-slot="${k}"]`).getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; }, i);
         await ringPage.mouse.move(r.x, r.y, { steps: 4 });
         await sleep(150);
-        await ringPage.mouse.click(r.x, r.y, { button });
+        await ringPage.mouse.click(r.x, r.y);
         return true;
       };
       const nChips = (await ringPage.$$('.dchip[data-cat]')).length;
@@ -866,18 +880,28 @@ async function waitFor(fn, ms, step = 200) {
       }
       const opened = await clickNamed('Layout');
       await sleep(500);
-      // On a previous / next pair the right button goes forward, the left back.
       const ranNav = async (id) => (await rg((r) => r.queue())).includes('keep|lib:' + id) || (WIN && (await rg((r) => r.events())).some((e) => `${e.type} ${e.detail}` === 'done lib:' + id));
-      const clicked = opened && await clickNamed('Next layout', 'right');
+      const clicked = opened && await clickNamed('Next layout');
       await sleep(500);
       const q = await rg((r) => r.queue());
       const still = await ringPage.evaluate(() => !!window.RGRing.state());
       // Queued marked "keep|"; on Windows the real helper may already have run it.
       const ran = await ranNav('PACS_Next_Layout');
-      check('right-click on Next layout goes to the next layout and the ring stays open', clicked && still && ran, `clicked=${clicked} open=${still} queue=${q.join(',')}`);
-      const leftOk = await clickNamed('Next layout', 'left');
-      await sleep(500);
-      check('left-click on the same pair goes to the previous layout, ring still open', leftOk && await ranNav('PACS_Prev_Layout') && await ringPage.evaluate(() => !!window.RGRing.state()), (await rg((r) => r.queue())).join(','));
+      check('Next layout runs and the ring stays open for the next click', clicked && still && ran, `clicked=${clicked} open=${still} queue=${q.join(',')}`);
+      // The center of the Layout ring: left button = previous, right = next.
+      const center = await ringPage.evaluate(() => { const L = window.RGRing.state().levels; const c = L[L.length - 1]; return { x: c.cx + c.ox.x, y: c.cy + c.oy.x }; });
+      const qn = async (id) => (await rg((r) => r.queue())).filter((x) => x === 'keep|lib:' + id).length + (WIN ? (await rg((r) => r.events())).filter((e) => `${e.type} ${e.detail}` === 'done lib:' + id).length : 0);
+      const p0 = await qn('PACS_Prev_Layout'), n0 = await qn('PACS_Next_Layout');
+      await ringPage.mouse.move(center.x, center.y, { steps: 3 });
+      await sleep(150);
+      await ringPage.mouse.click(center.x, center.y);
+      await sleep(400);
+      const p1 = await qn('PACS_Prev_Layout');
+      await ringPage.mouse.click(center.x, center.y, { button: 'right' });
+      await sleep(400);
+      const n1 = await qn('PACS_Next_Layout');
+      const levels = await ringPage.evaluate(() => (window.RGRing.state() || { levels: [] }).levels.length);
+      check('the Layout ring\'s center: left-click = previous layout, right-click = next, and it stays open', p1 === p0 + 1 && n1 === n0 + 1 && levels === 2, `prev ${p0}->${p1}, next ${n0}->${n1}, levels ${levels}`);
       await ringPage.screenshot({ path: path.join(SHOTS, 'ring-keep-open.png') });
       check('the Image ring holds MPR, Thick slab, Slab off, Invert, Enhance, Sharpen, Reset', await (async () => {
         await ringPage.evaluate(() => window.RGRing.clear());
