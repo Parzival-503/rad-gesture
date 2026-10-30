@@ -144,7 +144,11 @@ jobs:
         # the interpreter-fallback build still needs the script shipped.
         if: env.HELPER_MODE == 'compiled'
         shell: pwsh
-        run: Remove-Item -Force helper\RadGestureHelper.ahk
+        run: |
+          # Settings > Functions > Code reads this copy once the script is gone.
+          node scripts/extract-library-code.js
+          if ($LASTEXITCODE -ne 0) { throw 'could not extract the library code' }
+          Remove-Item -Force helper\RadGestureHelper.ahk
 
       - name: Build the app (installer + portable zip, helper inside)
         run: npm run dist

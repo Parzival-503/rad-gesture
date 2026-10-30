@@ -6,7 +6,14 @@ const path = require('path');
 const { extractCode } = require('../src/main/library-code');
 
 const root = path.join(__dirname, '..');
-const src = fs.readFileSync(path.join(root, 'helper', 'RadGestureHelper.ahk'), 'utf8');
+const script = path.join(root, 'helper', 'RadGestureHelper.ahk');
 const out = path.join(root, 'config', 'library-code.txt');
+// CI copies it out before it removes the script from a compiled build.
+if (!fs.existsSync(script)) {
+  if (fs.existsSync(out)) process.exit(console.log('kept', path.relative(root, out)) || 0);
+  console.error('Neither helper/RadGestureHelper.ahk nor config/library-code.txt exists.');
+  process.exit(1);
+}
+const src = fs.readFileSync(script, 'utf8');
 fs.writeFileSync(out, extractCode(src));
 console.log('wrote', path.relative(root, out));
