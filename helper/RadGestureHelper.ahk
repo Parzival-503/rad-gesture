@@ -1,3 +1,9 @@
+;@Ahk2Exe-SetCompanyName Avecina Studio
+;@Ahk2Exe-SetProductName RadGesture
+;@Ahk2Exe-SetDescription RadGesture keyboard and PowerScribe helper
+;@Ahk2Exe-SetCopyright Copyright (c) Avecina Studio
+;@Ahk2Exe-SetOrigFilename RadGestureHelper.exe
+;@Ahk2Exe-SetVersion 3.0.0
 ; ============================================================================
 ; RadGesture helper - the "hands" behind the RadGesture ring
 ; ----------------------------------------------------------------------------
