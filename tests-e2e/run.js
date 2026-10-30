@@ -511,7 +511,7 @@ async function waitFor(fn, ms, step = 200) {
       check('dragging the divider widens the list, and it stays that wide', w1 > w0 + 60 && Math.abs(w2 - w1) < 2, `${Math.round(w0)} -> ${Math.round(w1)} -> ${Math.round(w2)}`);
       await win.dblclick('#refSplit');
       await sleep(150);
-      const toolsOnRing = () => (gal().items || []).filter((i) => ['Search copied text', 'My documents', 'Add from clipboard'].includes(i.name)).map((i) => i.name);
+      const toolsOnRing = () => (gal().items || []).filter((i) => ['Search selection', 'My documents', 'Add from clipboard'].includes(i.name)).map((i) => i.name);
       check('the ring\'s tools are listed and can be moved', (await win.$$('[data-key^="tool:"]')).length === 3);
       await win.dragAndDrop('[data-key="tool:2"] .grip', '[data-key="tool:0"]', { targetPosition: { x: 30, y: 3 } });
       await sleep(300);
@@ -544,8 +544,12 @@ async function waitFor(fn, ms, step = 200) {
     // clipboard asynchronously; reading it the old way searched "[object Promise]").
     await app.evaluate(({ shell, clipboard }) => { global.__opened = []; shell.openExternal = async (u) => { global.__opened.push(u); }; clipboard.writeText('bosniak IIF'); });
     await rg((r) => r.runAction('search:https://radiopaedia.org/search?q={clipboard}'));
-    const opened = await waitFor(async () => (await app.evaluate(() => global.__opened)).find((u) => u.includes('radiopaedia')), 4000);
-    check('Search copied text searches what was copied', opened === 'https://radiopaedia.org/search?q=bosniak%20IIF', String(opened));
+    // With the helper running it copies the highlighted text and opens the
+    // search itself; without it, the hub searches what was copied.
+    const opened = WIN
+      ? await waitFor(async () => ((await rg((r) => r.events())).find((e) => `${e.type} ${e.detail}` === 'done search:https://radiopaedia.org/search?q={clipboard}') ? 'helper' : null), 6000)
+      : await waitFor(async () => (await app.evaluate(() => global.__opened)).find((u) => u.includes('radiopaedia')), 4000);
+    check('Search selection searches (the helper copies the highlight; else what was copied)', WIN ? opened === 'helper' : opened === 'https://radiopaedia.org/search?q=bosniak%20IIF', String(opened));
     await win.click('#refOpen');
     const viewer = await waitFor(async () => app.windows().find((w) => w.url().includes('viewer')), 8000);
     if (viewer) await viewer.waitForFunction(() => window.__viewerReady === true, null, { timeout: 8000 }).catch(() => {});

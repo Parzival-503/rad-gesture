@@ -3960,8 +3960,16 @@ RunHubAction(a) {
         ; is (the Windows end-to-end test uses it). No AI call.
         ProofDemo()
     } else if (a = "oe:clip") {
-        ; Search copied text > OpenEvidence: ask it what was copied.
-        OpenEvidenceAsk(Clipboard)
+        ; Search selection > OpenEvidence: ask it what is highlighted.
+        term := SearchTerm()
+        if (term != "")
+            OpenEvidenceAsk(term)
+    } else if (SubStr(a, 1, 7) = "search:") {
+        ; Search selection > Radiopaedia / Google...: the address, with
+        ; {clipboard} standing for the highlighted text.
+        term := SearchTerm()
+        if (term != "")
+            LibSearch_OpenURL(StrReplace(SubStr(a, 8), "{clipboard}", LibSearch_Enc(SubStr(term, 1, 300))))
     } else if (a = "testkey") {
         TestApiKey()
     } else if (a = "lastcall") {
@@ -4154,6 +4162,17 @@ LibAutoHotkey() {
 ; the modifiers, then try the ways the One-liner uses, and finally the window
 ; under the mouse (where the highlighted text is). Returns the text, or ""
 ; when nothing was highlighted. The clipboard is put back as it was.
+; What a search looks for: the highlighted text (copied for you), else what
+; was already copied. "" (and a note) when there is neither.
+SearchTerm() {
+    term := Trim(RegExReplace(LibCopySelection(), "\s+", " "))
+    if (term = "")
+        term := Trim(RegExReplace(Clipboard, "\s+", " "))
+    if (term = "")
+        Notify("Highlight some text first", 1500)
+    return term
+}
+
 LibCopySelection() {
     if (CopyBlocked())
         return ""

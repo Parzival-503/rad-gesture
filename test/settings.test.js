@@ -336,17 +336,27 @@ test('Orthogonal gets the L-shaped ruler in place of a shipped grid icon, once',
   assert.strictEqual(got.find((i) => i.name === 'Distance').icon, 'grid');
 });
 
-test('"Search copied text" gains OpenEvidence, once', () => {
+test('"Search copied text" becomes Search selection: OpenEvidence and Google Images join, the Apps search window leaves, once', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-oe-'));
   const def = path.join(__dirname, '..', 'config', 'default-menu.json');
   const store = createStore({ userDir: () => dir, defaultMenuPath: def });
   const m = JSON.parse(fs.readFileSync(def, 'utf8'));
-  const search = (menu) => menu.categories.find((c) => c.id === 'gallery').items.find((i) => i.name === 'Search copied text');
-  search(m).items = search(m).items.filter((i) => i.action !== 'helper:oe:clip'); // as saved before
+  const gal = (menu) => menu.categories.find((c) => c.id === 'gallery');
+  const search = (menu, n) => gal(menu).items.find((i) => i.name === n);
+  // As saved before: the old name, no OpenEvidence or Google Images, and
+  // the search window on the Apps ring.
+  const old = search(m, 'Search selection');
+  old.name = 'Search copied text';
+  old.items = old.items.filter((i) => i.action !== 'helper:oe:clip' && !/tbm=isch/.test(i.action));
+  m.categories.find((c) => c.id === 'apps').items.push({ name: 'Search selection', icon: 'travel_explore', action: 'helper:lib:SearchRadiopaediaGoogle' });
   m.migrated = ['orthogonal-in-measure', 'no-paste-indication', 'library', 'chart-bin', 'reference-library', 'reference-library-title', 'pacs-first', 'no-lung', 'nav-names', 'ai-settings', 'layout-grid', 'layout-grid-three', 'nav-pairs', 'orthogonal-ruler'];
   fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(m));
-  assert.deepStrictEqual(search(store.readMenu()).items.map((i) => i.name), ['Radiopaedia', 'Google', 'OpenEvidence']);
-  assert.deepStrictEqual(search(store.readMenu()).items.map((i) => i.name), ['Radiopaedia', 'Google', 'OpenEvidence'], 'not added twice');
+  const want = ['Radiopaedia', 'Google', 'Google Images', 'OpenEvidence'];
+  assert.deepStrictEqual(search(store.readMenu(), 'Search selection').items.map((i) => i.name), want);
+  assert.deepStrictEqual(search(store.readMenu(), 'Search selection').items.map((i) => i.name), want, 'not added twice');
+  const apps = store.readMenu().categories.find((c) => c.id === 'apps');
+  assert.ok(!JSON.stringify(apps).includes('SearchRadiopaediaGoogle'), 'one search: the old search window is off the Apps ring');
+  assert.ok(require('../config/library.json').functions.some((f) => f.id === 'SearchRadiopaediaGoogle'), 'its function (and shortcut) stays');
 });
 
 test('the field keys leave the PACS ring, keeping what the person added there, once', () => {

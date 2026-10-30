@@ -439,7 +439,7 @@
           ]
         },
         {
-          "name": "Search copied text",
+          "name": "Search selection",
           "icon": "search",
           "items": [
             {
@@ -451,6 +451,11 @@
               "name": "Google",
               "icon": "travel_explore",
               "action": "search:https://www.google.com/search?q={clipboard}"
+            },
+            {
+              "name": "Google Images",
+              "icon": "image_search",
+              "action": "search:https://www.google.com/search?tbm=isch&q={clipboard}"
             },
             {
               "name": "OpenEvidence",
@@ -491,11 +496,6 @@
           "name": "Chrome tabs",
           "icon": "tab",
           "action": "helper:lib:OpenChromeTabs"
-        },
-        {
-          "name": "Search selection",
-          "icon": "image_search",
-          "action": "helper:lib:SearchRadiopaediaGoogle"
         },
         {
           "name": "OpenEvidence",

@@ -217,8 +217,16 @@ async function clipImage() {
 function runItem(item, viaRelease, keep = false) {
   const parsed = parseAction(item.action);
   if (parsed && parsed.kind === 'search') {
-    // Needs the copied text first (asynchronous).
     logEvent('pick', `${item.name} -> ${item.action}`);
+    // The helper copies the highlighted text itself (else it uses what was
+    // copied) and opens the search: nothing to copy by hand first.
+    if (supervisor.status().connected) {
+      const act = 'search:' + parsed.value;
+      if (viaRelease && !keep) return 'action:' + act;
+      bridge.enqueue(act);
+      return 'none';
+    }
+    // No helper: the copied text (read asynchronously).
     clipText().then((text) => {
       const r = resolveAction(item.action, { env: process.env, clipboard: text });
       logEvent('search', r.value);

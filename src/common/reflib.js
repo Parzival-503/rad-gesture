@@ -18,7 +18,7 @@
 //
 // Tools stay as they are, after the sections: a top-level direction that is
 // not a section (My documents, Add from clipboard) and a smaller ring that
-// only searches or runs tools ("Search copied text").
+// only searches or runs tools ("Search selection").
 (function (root) {
   const MAX = 8;
   const isRing = (it) => !!it && Array.isArray(it.items);

@@ -521,6 +521,30 @@ function migrate(m, lib) {
     done.push('key-exam-order');
     changed = true;
   }
+  if (!done.includes('search-selection')) {
+    // One search: the ring of searches copies the highlighted text itself,
+    // so it is "Search selection" and takes Google Images from the old
+    // search window, whose direction leaves the Apps ring (its shortcut
+    // stays).
+    const isSearchRing = (it) => Array.isArray(it.items) && it.items.length && it.items.every((x) => /^search:|^helper:oe:clip$/.test(x.action || ''));
+    const walk = (items) => (items || []).forEach((it) => {
+      if (!Array.isArray(it.items)) return;
+      if (isSearchRing(it)) {
+        if (/^search copied text$/i.test(String(it.name || '').trim())) it.name = 'Search selection';
+        const imgs = 'search:https://www.google.com/search?tbm=isch&q={clipboard}';
+        if (!it.items.some((x) => x.action === imgs) && it.items.length < M_MAX) {
+          const g = it.items.findIndex((x) => /google\.com\/search\?q=/.test(x.action || ''));
+          it.items.splice(g >= 0 ? g + 1 : it.items.length, 0, { name: 'Google Images', icon: 'image_search', action: imgs });
+        }
+      }
+      walk(it.items);
+    });
+    m.categories.forEach((c) => walk(c.items));
+    const drop = (items) => (items || []).filter((it) => it.action !== 'helper:lib:SearchRadiopaediaGoogle').map((it) => (Array.isArray(it.items) ? Object.assign(it, { items: drop(it.items) }) : it));
+    m.categories.forEach((c) => { c.items = drop(c.items); });
+    done.push('search-selection');
+    changed = true;
+  }
   if (!done.includes('impression-style')) {
     // "Learn this impression" goes right after Impression on the AI Tools
     // ring, when there is room and it is not there yet.

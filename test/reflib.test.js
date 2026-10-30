@@ -11,7 +11,7 @@ const shipped = () => JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'con
 test('the shipped Reference Library reads as its four sections plus its tools', () => {
   const lib = R.read(shipped());
   assert.deepStrictEqual(lib.sections.map((s) => s.name), ['CT Chest', 'Abdomen', 'Ultrasound', 'PET-CT']);
-  assert.deepStrictEqual(lib.tools.map((t) => t.name), ['Search copied text', 'My documents', 'Add from clipboard']);
+  assert.deepStrictEqual(lib.tools.map((t) => t.name), ['Search selection', 'My documents', 'Add from clipboard']);
   assert.strictEqual(lib.loose.length, 0);
 });
 
@@ -162,9 +162,9 @@ test('move: tools reorder among themselves; the ring keeps the new order', () =>
   const ring = shipped();
   const lib = R.read(ring);
   assert.deepStrictEqual(R.move(lib, { tool: 2 }, { tool: 0 }), { tool: 0 });
-  assert.deepStrictEqual(names(lib.tools), ['Add from clipboard', 'Search copied text', 'My documents']);
+  assert.deepStrictEqual(names(lib.tools), ['Add from clipboard', 'Search selection', 'My documents']);
   assert.strictEqual(R.move(lib, { tool: 0 }, { sec: 0 }), null);
   R.pack(ring, lib);
-  assert.deepStrictEqual(names(R.read(ring).tools), ['Add from clipboard', 'Search copied text', 'My documents']);
+  assert.deepStrictEqual(names(R.read(ring).tools), ['Add from clipboard', 'Search selection', 'My documents']);
   assert.ok(validateMenu({ categories: [ring] }).ok);
 });

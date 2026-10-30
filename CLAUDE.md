@@ -599,6 +599,17 @@ prior checklist logs each step to Status as `checklist:<step>` (no-key,
 expired, no-priors, asking:n, ok, error): the owner saw it "not fire" and
 the cause was not found from the code.
 
+**One search** (owner, 2026-10-30: copying first was one step too many,
+and there were two searches). The Reference Library ring's search ring is
+**Search selection** (was "Search copied text"; migration
+`search-selection`): its `search:` directions go to the helper as
+`search:<address>`, which copies the highlighted text itself
+(`SearchTerm()` -> `LibCopySelection()`, else what was copied) and opens
+the address; `helper:oe:clip` does the same for OpenEvidence. Google Images
+joined it from the old AHK search window, whose direction left the Apps
+ring (the `SearchRadiopaediaGoogle` function and its Alt+Shift+S stay).
+With no helper the hub still searches the clipboard.
+
 ### Helper notes
 
 - Settings, API key, history: `%APPDATA%\RadGesture\` (`RadGesture.ini`).

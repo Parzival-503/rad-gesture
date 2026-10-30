@@ -446,7 +446,7 @@
     box.append(field('Name', h('input', { type: 'text', id: 'itemName', value: it.name, oninput: (e) => { it.name = e.target.value; markDirty('menu'); refreshLists(); } })));
     box.append(field('Icon', iconPicker(it.icon, (v) => { it.icon = v; markDirty('menu'); render(); })));
     const type = actionType(it);
-    const types = [['ai', 'AI tool', 'stars'], ['lib', 'Function', 'functions'], ['ref', 'Reference', 'menu_book'], ['app', 'Open a program', 'apps'], ['web', 'Website', 'public'], ['search', 'Search copied text', 'search'], ['file', 'File or folder', 'folder_open'], ['keys', 'Press keys', 'keyboard'], ['ring', 'Smaller ring', 'donut_small']];
+    const types = [['ai', 'AI tool', 'stars'], ['lib', 'Function', 'functions'], ['ref', 'Reference', 'menu_book'], ['app', 'Open a program', 'apps'], ['web', 'Website', 'public'], ['search', 'Search selection', 'search'], ['file', 'File or folder', 'folder_open'], ['keys', 'Press keys', 'keyboard'], ['ring', 'Smaller ring', 'donut_small']];
     box.append(field('What it does', seg(types, type, (t) => changeType(it, t))));
     box.append(typeFields(it, type));
     return box;
@@ -1768,7 +1768,7 @@
       h('span', { class: 'hint' }, cur.topic ? 'Within the topic. Or drag it in the list.' : 'Within the section. Or drag it in the list, even into another section or a topic.'));
   }
 
-  // A tool on the Reference Library ring (Search copied text, My documents...).
+  // A tool on the Reference Library ring (Search selection, My documents...).
   function toolEditor(cur, lib, save) {
     const t = lib.tools[cur.tool];
     const go = (d) => {

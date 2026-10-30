@@ -142,7 +142,6 @@ These run inside RadGesture (Rad Optimizer is not needed). The key is what the f
 | Apps > Epic | Epic | - |
 | Apps > Teams | Teams | - |
 | Apps > Chrome tabs | Open my websites | - |
-| Apps > Search selection | Search selection | - |
 
 ## Free for new tools
 
