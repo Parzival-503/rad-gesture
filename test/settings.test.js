@@ -485,3 +485,21 @@ test('Key images & exams: next above previous, images on the right and exams on 
   assert.strictEqual(at, 180, 'the ring opens straight down');
   assert.deepStrictEqual(G.slotAngles(4, 0).items, [72, 144, 216, 288]);
 });
+
+test('Crosshair = plus, Link priors = chain at every start, even when the one-time step already ran', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-xh2-'));
+  const def = path.join(__dirname, '..', 'config', 'default-menu.json');
+  const store = createStore({ userDir: () => dir, defaultMenuPath: def });
+  const dir3 = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-xh3-'));
+  const fresh = createStore({ userDir: () => dir3, defaultMenuPath: def }).readMenu();
+  const all = (menu) => { const o = []; (function w(a) { for (const x of a) { o.push(x); if (x.items) w(x.items); } })(menu.categories.flatMap((c) => c.items)); return o; };
+  for (const x of all(fresh)) if (/^(Crosshair|Link priors|Pinpoint)$/.test(x.name)) x.icon = 'my_location';
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(fresh)); // every one-time step already recorded
+  const icons = (menu) => Object.fromEntries(all(menu).filter((x) => /^(Crosshair|Link priors|Pinpoint)$/.test(x.name)).map((x) => [x.name, x.icon]));
+  assert.deepStrictEqual(icons(store.readMenu()), { Crosshair: 'ti:plus', 'Link priors': 'ti:link', Pinpoint: 'my_location' });
+  const saved = JSON.parse(fs.readFileSync(path.join(dir, 'menu.json'), 'utf8'));
+  assert.deepStrictEqual(icons(saved), { Crosshair: 'ti:plus', 'Link priors': 'ti:link', Pinpoint: 'my_location' }, 'and saved');
+  for (const x of all(saved)) if (x.name === 'Crosshair') x.icon = 'star';
+  fs.writeFileSync(path.join(dir, 'menu.json'), JSON.stringify(saved));
+  assert.strictEqual(icons(store.readMenu()).Crosshair, 'star', 'an icon the person picked themselves stays');
+});

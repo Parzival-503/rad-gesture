@@ -545,6 +545,24 @@ function migrate(m, lib) {
     done.push('search-selection');
     changed = true;
   }
+  {
+    // Every start, not once: Crosshair is a plus and Link priors a chain.
+    // A bullseye on either is never someone's own choice (it is what earlier
+    // builds left there), and doing this only once did not reach every
+    // saved ring.
+    const BULLSEYE = ['my_location', 'gps_fixed', 'gps_not_fixed', 'location_searching', 'center_focus_strong', 'center_focus_weak', 'filter_center_focus', 'adjust', 'ti:focus-2', 'ti:target', 'ti:current-location', 'ti:crosshair'];
+    const walk = (items) => (items || []).forEach((it) => {
+      if (Array.isArray(it.items)) return walk(it.items);
+      const n = String(it.name || '').trim();
+      const want = (it.action === 'helper:lib:PACS_Crosshair' || it.action === 'helper:keys:^!x' || /^crosshair$/i.test(n)) ? 'ti:plus'
+        : (it.action === 'helper:lib:PACS_LinkCrosshair' || it.action === 'helper:keys:^!l' || /^link (priors|crosshair)$/i.test(n)) ? 'ti:link' : '';
+      if (want && it.icon !== want && (BULLSEYE.includes(it.icon) || ['link', 'add_link', 'ti:plus', 'add'].includes(it.icon) || !it.icon)) {
+        it.icon = want;
+        changed = true;
+      }
+    });
+    m.categories.forEach((c) => walk(c.items));
+  }
   if (!done.includes('impression-style')) {
     // "Learn this impression" goes right after Impression on the AI Tools
     // ring, when there is room and it is not there yet.

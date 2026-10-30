@@ -138,6 +138,12 @@ jobs:
           Write-Host "selftest exit $($st.code): $($st.out)"
           if ($st.code -ne 0) { throw "helper exe selftest exit $($st.code)" }
 
+      - name: Stamp the build (date + commit, shown in Settings next to the version)
+        shell: pwsh
+        run: |
+          $d = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm')
+          @{ date = $d; commit = "$env:GITHUB_SHA".Substring(0, 7) } | ConvertTo-Json | Set-Content -Encoding utf8 config/build-info.json
+
       - name: Build the app (installer + portable zip, helper inside)
         run: npm run dist
 

@@ -86,6 +86,17 @@ function notify(body) {
   if (Notification.isSupported()) new Notification({ title: 'RadGesture', body }).show();
 }
 
+// Which build this is ("3.0.0 (built 2026-10-30 17:05, abc1234)"), so an
+// old copy still running can be told from the newest one.
+function buildStamp() {
+  try {
+    const b = JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'build-info.json'), 'utf8').replace(/^\uFEFF/, ''));
+    return b.date ? ` (built ${b.date}${b.commit ? ', ' + b.commit : ''})` : '';
+  } catch (_) {
+    return '';
+  }
+}
+
 // ---------------------------------------------------------------- menu
 
 function loadMenu() {
@@ -685,7 +696,7 @@ if (process.platform === 'win32') {
 
 function fullStatus() {
   return {
-    version: app.getVersion(),
+    version: app.getVersion() + buildStamp(),
     elevated,
     helper: supervisor.status(),
     paused,

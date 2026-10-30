@@ -610,6 +610,15 @@ joined it from the old AHK search window, whose direction left the Apps
 ring (the `SearchRadiopaediaGoogle` function and its Alt+Shift+S stay).
 With no helper the hub still searches the clipboard.
 
+**Crosshair / Link priors icons, every start** (owner, 2026-10-30, third
+time he saw three bullseyes): besides the one-time steps, `migrate()` now
+sets Crosshair `ti:plus` and Link priors `ti:link` at EVERY load when their
+icon is a bullseye (or an old link/plus glyph or none); any other icon is
+the person's and stays. Cause not proven: either his PC still ran an older
+copy, or something rewrote menu.json after the update. So the build now
+says which it is: CI writes `config/build-info.json` (UTC date + commit,
+gitignored) and Settings shows "v3.0.0 (built <date>, <sha>)".
+
 ### Helper notes
 
 - Settings, API key, history: `%APPDATA%\RadGesture\` (`RadGesture.ini`).

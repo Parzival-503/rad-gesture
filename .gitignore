@@ -17,3 +17,4 @@ helper/*.interpreter
 # Old prior-checklist prototypes (tools/ahk, ahk): their local API key files
 tools/ahk/api-key.txt
 ahk/RadChecklist.ini
+config/build-info.json
