@@ -243,7 +243,7 @@ default, params) + its code in the helper's FUNCTION LIBRARY section
   rewritten from the JSON every start (`syncLibrary()`, before the helper
   starts, fills in every default). `[Library] Username`. **The password is
   never stored** (asked once per session, in memory, `LibPassword`); no
-  username, password or work link (kp.org, SharePoint, OneDrive) goes in the
+  username, password or work link (the hospital's own sites, SharePoint, OneDrive) goes in the
   repo: this repo is public. `test/library.test.js` checks that.
 - **Every function ships ON** (the owner, 2026-10-23), with Rad Optimizer's keys.
   Earlier builds shipped Dictate, Paste indication and the logins off; the
@@ -289,6 +289,10 @@ and the code shown by the "Code" button explain what the code does, never
 who wanted it, which old script it came from, or "Change:" notes. Backstory
 belongs here in CLAUDE.md. `test/library.test.js` fails on the owner's name, old
 version dates, "; Change:" or work links in shipped files.
+
+**`SECURITY.md`** tells IT what RadGesture watches, stores and connects to
+(including what the AI tools send and the proofread history). Keep it true
+when any of those change.
 
 **Published as Avecina Studio** (the owner, 2026-10-26: he does not want his name
 as the author in Windows' installed-programs list). `package.json` author

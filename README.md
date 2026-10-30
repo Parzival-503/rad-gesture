@@ -4,7 +4,7 @@ A radiology tool hub. Hold **Ctrl+CapsLock** anywhere: a ring opens at the
 mouse. Flick toward a tool and let go, or tap and click.
 
 - **AI Tools**: Proofread, Impression, One-liner (4 flavors; collect several parts of a chart first with **Add chart text**, then it asks whether to empty them), Priors checklist
-- **PACS** and **Apps**: Rad Optimizer's functions, now built in (Settings > Functions; Rad Optimizer is no longer needed), Lung-RADS
+- **PACS** and **Apps**: Rad Optimizer's functions, now built in (Settings > Functions; Rad Optimizer is no longer needed)
 - **Reference Library** (was "Gallery"): reference links (Lung-RADS, Fleischner, LI-RADS, TI-RADS, ...), search copied text
 
 Scroll or click the center to switch rings.
@@ -27,6 +27,9 @@ Scroll or click the center to switch rings.
 
 Everything after that is in Settings (left-click the tray icon) or the tray
 icon's right-click menu: edit rings, change shortcuts, pause, start with Windows.
+
+For IT and security reviewers: [SECURITY.md](SECURITY.md) lists exactly what
+RadGesture watches, stores and connects to, including what the AI tools send.
 
 ## Giving it to a colleague
 
